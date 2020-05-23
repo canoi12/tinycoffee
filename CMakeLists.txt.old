@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
+project(tinycoffee VERSION 0.1.0 LANGUAGES CXX C)
+
+include_directories(src)
+include_directories(src/external)
+include_directories(src/external/freetype/include)
+include_directories(src/external/glfw/include)
+
+set(LUA_SCRIPT ON)
+set(WREN_SCRIPT ON)
+
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL " " FORCE)
+set(GLFW_USE_WAYLAND OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(src/external/freetype)
+add_subdirectory(src/external/glfw)
+
+if(${WREN_SCRIPT})
+  include_directories(src/external/wren/src/include)
+  include_directories(src/external/wren/src/vm)
+  include_directories(src/external/wren/src/optional)
+  file(GLOB wren_files src/external/wren/src/vm/*.c src/external/wren/src/optional/*.c)
+  add_library(wren STATIC ${wren_files})
+endif(${WREN_SCRIPT})
+
+if(${LUA_SCRIPT})
+  include_directories(src/external/lua/src)
+  file(GLOB lua_files src/external/lua/src/*.c)
+  add_library(lua STATIC ${lua_files})
+endif(${LUA_SCRIPT})
+
+file(GLOB tc_files src/external/GL/gl3w.c src/*.c)
+
+add_library(tinycoffeelib STATIC ${tc_files})
+target_link_libraries(tinycoffeelib m dl glfw GL freetype pthread)
+if(${WREN_SCRIPT})
+  target_compile_definitions(tinycoffeelib PUBLIC -DWREN_LANG)
+  target_link_libraries(tinycoffeelib wren)
+endif()
+if (${LUA_SCRIPT})
+  target_compile_definitions(tinycoffeelib PUBLIC -DLUA_LANG)
+  target_link_libraries(tinycoffeelib lua)
+endif()
+
+add_executable(tinycoffee main.c)
+target_link_libraries(tinycoffee tinycoffeelib)

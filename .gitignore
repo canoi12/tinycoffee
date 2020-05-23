@@ -1,0 +1,8 @@
+bin/
+builds/
+data/
+lite
+lite.zip
+*.sublime-project
+*.sublime-workspace
+.vscode
