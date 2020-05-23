@@ -1,5 +1,7 @@
 # Tiny Coffee lib
 
+[![Join the chat at https://gitter.im/tinycoffee/tinycoffee](https://badges.gitter.im/tinycoffee/tinycoffee.svg)](https://gitter.im/tinycoffee/tinycoffee?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Tiny Coffee is a framework to develop simple games 2d games using opengl 3.
 
 For now it is far to be complete, it is better for you to use other game engine or framework if you working on a commercial project.
