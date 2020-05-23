@@ -23,7 +23,7 @@ I'm using in this project:
 - [ ] draw outlined shapes
 - [ ] draw triangles and circles
 - [ ] wrap for lua
-- [-] wrap for wren
+- [ ] wrap for wren
 - [ ] json parser
 - [ ] autopack textures on the fly
 - [ ] joystick support
@@ -31,7 +31,7 @@ I'm using in this project:
 - [ ] make game specific modules like camera, tilemap, physics..
 - [ ] fuse game executable with zip (like love2d)
 - [ ] make simple editors using cimgui (animations, tilemap, scene..)
-- [-] custom shaders
+- [ ] custom shaders
 - [ ] support for more audio types
 - [ ] struct with options to init engine
 
