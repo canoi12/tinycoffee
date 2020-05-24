@@ -74,7 +74,29 @@ int main(int argc, char ** argv) {
     tc_end_draw(); // finish batch render
   }
 
+  tc_terminate();
+
   return 0;
+}
+
+```
+
+main.wren structure:
+
+```wren
+
+// main.wren
+
+import "tico.graphics" for Texture, Color
+
+class Game {
+  construct load() {
+    _tex = Texture.load(filename)
+  }
+  update(dt) {}
+  draw() {
+    _tex.draw(0, 0, Color.White)
+  }
 }
 
 ```

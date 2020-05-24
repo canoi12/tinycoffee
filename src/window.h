@@ -58,7 +58,9 @@ TCDEF tc_window tc_create_window(const char *title, int width, int height, TC_WI
 
   return window;
 }
-TCDEF void tc_destroy_window(tc_window *window);
+TCDEF void tc_destroy_window(tc_window *window) {
+  glfwDestroyWindow(window->handle);
+}
 
 TCDEF int tc_window_should_close(tc_window window) {
   return glfwWindowShouldClose(window.handle);

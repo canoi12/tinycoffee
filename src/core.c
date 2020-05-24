@@ -115,6 +115,12 @@ TCDEF int tc_init(tc_config *config) {
   return TC_TRUE;
 }
 
+TCDEF void tc_terminate() {
+  tc_destroy_render(&CORE.render);
+  tc_destroy_window(&CORE.window);
+  glfwTerminate();
+}
+
 TCDEF void tc_poll_events() {
 	tc_input_poll(&CORE.input);
 	tc_update_timer();

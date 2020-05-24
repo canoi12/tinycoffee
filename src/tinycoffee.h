@@ -10,6 +10,8 @@
 #define GLFW_INCLUDE_NONE
 #include "external/glfw/include/GLFW/glfw3.h"
 
+#define VERSION "0.1.1"
+
 #define STR(x) #x
 #define ASSERT(s) if (!(s)) {printf("tinycoffee: %s:%d: %s: Assertion '%s' failed\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, STR(s)); exit(-1);}
 
@@ -192,6 +194,7 @@ static tc_core CORE;
 /* Core */
 TCDEF int tc_config_init(tc_config *config, const char *title, int width, int height);
 TCDEF int tc_init(tc_config *config);
+TCDEF void tc_terminate();
 TCDEF void tc_poll_events();
 TCDEF void tc_swap_buffers();
 

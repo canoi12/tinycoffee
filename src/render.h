@@ -53,12 +53,12 @@ typedef struct {
 } tc_render;
 
 TCDEF tc_render tc_create_render(unsigned int vertexShader, unsigned int fragmentShader);
-TCDEF void tc_delete_render(tc_render *render);
+TCDEF void tc_destroy_render(tc_render *render);
 
 TCDEF void tc_render_draw_mode(tc_render *render, RENDER_DRAW_MODE mode);
 
 TCDEF tc_batch tc_create_batch();
-TCDEF void tc_delete_batch(tc_batch *batch);
+TCDEF void tc_destroy_batch(tc_batch *batch);
 
 TCDEF void tc_begin_batch(tc_render *render);
 TCDEF void tc_end_batch(tc_render *render);
@@ -100,7 +100,8 @@ TCDEF tc_render tc_create_render(unsigned int vertexShader, unsigned int fragmen
 }
 
 TCDEF void tc_destroy_render(tc_render *render) {
-
+  tc_destroy_batch(&render->batch);
+  tc_delete_texture(&render->state.shapeTexture);
 }
 
 TCDEF void tc_render_draw_mode(tc_render *render, RENDER_DRAW_MODE mode) {
@@ -152,6 +153,13 @@ TCDEF tc_batch tc_create_batch() {
   TRACELOG("Batch created\n");
 
 	return batch;
+}
+
+TCDEF void tc_destroy_batch(tc_batch *batch) {
+  free(batch->vertices);
+  free(batch->indices);
+  glDeleteVertexArrays(1, &batch->vao);
+  glDeleteBuffers(2, batch->vbo);
 }
 
 TCDEF void tc_begin_batch(tc_render *render) {

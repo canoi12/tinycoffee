@@ -2,9 +2,9 @@ bin/
 builds/
 data/
 lite
+SDL2.dll
+lite.exe
 lite.zip
 *.sublime-project
 *.sublime-workspace
 .vscode
-SDL2.dll
-lite.exe
