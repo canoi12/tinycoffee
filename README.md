@@ -8,20 +8,20 @@ The main idea is to have all the dependencies static compiled in the executable,
 
 I'm using in this project:
 
-- GLFW
-- gl3w
-- lua
-- wren
-- miniaudio (include dr_flac, dr_mp3 and dr_wav)
-- stblibs (stb_image, stb_vorbis)
-- zip (wrap for miniz)
-- freetype
-- cimgui
+- [GLFW](https://www.glfw.org/)
+- [gl3w](https://github.com/skaslev/gl3w)
+- [lua](https://www.lua.org/)
+- [wren](http://wren.io/)
+- [miniaudio](https://github.com/dr-soft/miniaudio/) (include dr_flac, dr_mp3 and dr_wav)
+- [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis)
+- [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
+- [freetype](https://www.freetype.org/)
+- [cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)
 
 ## TODO:
 
-- [ ] draw outlined shapes
-- [ ] draw triangles and circles
+- [x] draw outlined shapes
+- [x] draw triangles and circles
 - [ ] wrap for lua
 - [ ] wrap for wren
 - [ ] json parser
@@ -31,9 +31,16 @@ I'm using in this project:
 - [ ] make game specific modules like camera, tilemap, physics..
 - [ ] fuse game executable with zip (like love2d)
 - [ ] make simple editors using cimgui (animations, tilemap, scene..)
-- [ ] custom shaders
+- [ ] custom shaders (like love2d or gms, with default variable for matrices)
 - [ ] support for more audio types
 - [ ] struct with options to init engine
+- [ ] load audio static (decode in memory)
+
+### working
+- [x] drawing textures
+- [x] drawing canvas
+- [x] custom glsl shaders (must have the variables for vertex)
+- [x] keyboard and mouse input
 
 ## usage
 

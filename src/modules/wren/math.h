@@ -50,8 +50,7 @@ static void wren_vec2_allocate(WrenVM *vm) {
 }
 
 static void wren_vec2_finalize(void *data) {
-  vec2 *v = (vec2*)data;
-  if (v) free(v);
+  free(data);
 }
 
 static void wren_vec2_x(WrenVM *vm) {

@@ -10,7 +10,7 @@ CFLAGS=
 FLAGS=-lglfw\ -lgl3w\ -lm\ -lpthread\ -lX11\ -ldl\ -lGL
 compile_wren=true
 compile_lua=false
-development=false
+development=true
 
 EXTERNAL=src/external
 GLFW_SOURCE=$EXTERNAL/glfw/src

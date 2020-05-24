@@ -8,7 +8,9 @@
 #endif
 
 typedef enum {
-  TC_WINDOW_DEFAULT = 0
+  TC_WINDOW_DEFAULT = 0,
+  TC_WINDOW_FULLSCREEN = 1 << 0,
+  TC_WINDOW_RESIZABLE = 1 << 1
 } TC_WINDOW_FLAGS_;
 
 typedef struct {
@@ -39,7 +41,11 @@ TCDEF void tc_window_set_size(tc_window *window, int width, int height);
 
 TCDEF tc_window tc_create_window(const char *title, int width, int height, TC_WINDOW_FLAGS_ flags) {
   tc_window window = {0};
-  window.handle = glfwCreateWindow(width, height, title, NULL, NULL);
+  char *ttitle = (char*)title;
+  if (width < 64) width = 64;
+  if (height < 64) height = 64;
+
+  window.handle = glfwCreateWindow(width, height, ttitle, NULL, NULL);
   if (!window.handle) {
     ERROR("WINDOW", "Failed to create GLFW window\n");
     return window;

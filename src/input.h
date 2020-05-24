@@ -12,7 +12,7 @@ typedef enum {
   TC_INIT_KEYBOARD = 1 << 0,
   TC_INIT_MOUSE = 1 << 1,
   TC_INIT_JOYSTICK = 1 << 2
-} TC_INPUT_INIT_;
+} TC_INPUT_FLAGS_;
 
 typedef enum {
   KEY_UNKNOWN =       -1,
@@ -158,14 +158,16 @@ typedef struct {
     double fixX;
     double fixY;
     tc_bool fixed;
+    tc_bool active;
   } mouseState;
   struct {
     tc_bool keyDown[KEY_LAST];
 		tc_bool prevKey[KEY_LAST];
+		tc_bool active;
   } keyboardState;
 } tc_input;
 
-TCDEF tc_input tc_init_input(TC_INPUT_INIT_ flags);
+TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags);
 TCDEF void tc_input_poll(tc_input *input);
 
 TCDEF int tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key);
@@ -190,7 +192,7 @@ TCDEF void tc_input_get_mouse_deltav(tc_input input, vec2 *deltaPos);
 
 #if defined(TC_INPUT_IMPLEMENTATION)
 
-TCDEF tc_input tc_init_input(TC_INPUT_INIT_ flags) {
+TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags) {
   tc_input input = {0};
   memset(input.keyboardState.keyDown, 0, KEY_LAST);
 	memset(input.mouseState.buttonDown, 0, MOUSE_BUTTON_LAST);
@@ -199,6 +201,13 @@ TCDEF tc_input tc_init_input(TC_INPUT_INIT_ flags) {
 	input.mouseState.fixX = 0;
 	input.mouseState.fixY = 0;
 	input.mouseState.fixed = 0;
+	if (flags == TC_INPUT_INIT_ALL) {
+	  input.keyboardState.active = TC_TRUE;
+	  input.mouseState.active = TC_TRUE;
+	}
+
+	if (flags & TC_INIT_KEYBOARD) input.keyboardState.active = TC_TRUE;
+	if (flags & TC_INIT_MOUSE) input.mouseState.active = TC_TRUE;
 
   return input;
 }
@@ -212,6 +221,7 @@ TCDEF void tc_input_poll(tc_input *input) {
 }
 
 TCDEF int tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key) {
+  if (!input.keyboardState.active)
   return input.keyboardState.keyDown[key];
 }
 TCDEF int tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key) {

@@ -27,6 +27,10 @@ printf(message)
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define clamp(v, mi, ma) (min((ma), max((v), (mi))))
 
+#define PI 3.14159
+
+#define deg2rad(a) ((a) * PI/180)
+
 #define vertex(x, y, s, t) ((tc_vertex){(x), (y), 1.f, 1.f, 1.f, 1.f, (s), (t)})
 #define vertexc(x, y, col, s, t) ((tc_vertex){(x), (y), (col.r)/255.f, (col.g)/255.f, (col.b)/255.f, (col.a)/255.f, (s), (t)})
 #define color(r, g, b, a) ((tc_color){(r), (g), (b), (a)})
@@ -39,6 +43,7 @@ printf(message)
 #define GREEN color3(52, 101, 36)
 #define GRAY color3(78, 74, 78)
 #define BROWN color3(133, 76, 48)
+#define BG color3(75, 90, 90)
 
 #ifndef TCDEF
   #define TCDEF
@@ -155,6 +160,17 @@ typedef struct {
 #endif
 
 typedef struct {
+  char title[256];
+  int width;
+  int height;
+  tc_bool initWren;
+  tc_bool initLua;
+  tc_bool packed;
+  TC_WINDOW_FLAGS_ windowFlags;
+  TC_INPUT_FLAGS_ inputFlags;
+} tc_config;
+
+typedef struct {
   tc_window window;
   tc_render render;
   tc_input input;
@@ -174,7 +190,8 @@ static tc_core CORE;
 // tc_core CORE;
 
 /* Core */
-TCDEF int tc_init(const char *title, int width, int height);
+TCDEF int tc_config_init(tc_config *config, const char *title, int width, int height);
+TCDEF int tc_init(tc_config *config);
 TCDEF void tc_poll_events();
 TCDEF void tc_swap_buffers();
 
@@ -207,6 +224,12 @@ TCDEF void tc_draw_texture_part_scale(tc_texture texture, tc_rectangle rect, flo
 TCDEF void tc_draw_texture_part_ex(tc_texture texture, tc_rectangle rect, float x, float y, float angle, float scaleX, float scaleY, float centerX, float centerY, tc_color color);
 
 TCDEF void tc_draw_rectangle(float x, float y, float width, float height, tc_color color);
+TCDEF void tc_fill_rectangle(float x, float y, float width, float height, tc_color color);
+TCDEF void tc_draw_circle(float x, float y, float radius, tc_color color);
+TCDEF void tc_fill_circle(float x, float y, float radius, tc_color color);
+TCDEF void tc_draw_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color);
+TCDEF void tc_fill_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color);
+
 TCDEF void tc_draw_text(const char *text, float x, float y, tc_color color);
 TCDEF void tc_draw_text_scale(const char *text, float x, float y, float sx, float sy, tc_color color);
 TCDEF void tc_draw_text_ex(const char *text, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color);

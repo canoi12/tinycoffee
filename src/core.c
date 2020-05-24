@@ -52,7 +52,16 @@ static void tc_window_focus_callback(GLFWwindow *window, int focused)
 		tc_stop_device();
 }
 
-TCDEF int tc_init(const char *title, int width, int height) {
+TCDEF int tc_config_init (tc_config *config, const char *title, int width, int height) {
+  if (title) sprintf(config->title, "%s", title);
+  else sprintf(config->title, "tiny coffee");
+  config->width = width;
+  config->height = height;
+  config->windowFlags = 0;
+  config->packed = 0;
+}
+
+TCDEF int tc_init(tc_config *config) {
   if (!glfwInit()) {
     ERROR("INIT", "Failed to init GLFW\n");
     return -1;
@@ -60,8 +69,7 @@ TCDEF int tc_init(const char *title, int width, int height) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 
-
-  CORE.window = tc_create_window(title, width, height, 0);
+  CORE.window = tc_create_window(config->title, config->width, config->height, config->windowFlags);
 
   if (gl3wInit()) {
     ERROR("INIT", "Failed to init gl3w\n");
@@ -112,9 +120,9 @@ TCDEF void tc_poll_events() {
 	tc_update_timer();
 	glfwPollEvents();
 
-	#ifdef WREN_LANG
-		tc_wren_update(CORE.wren);
-	#endif
+// 	#ifdef WREN_LANG
+// 		tc_wren_update(CORE.wren);
+// 	#endif
 }
 
 TCDEF void tc_clear(tc_color color) {
@@ -271,33 +279,64 @@ TCDEF void tc_delete_texture(tc_texture *tex) {
 
 /** draw texture **/
 TCDEF void tc_draw_texture(tc_texture tex, float x, float y, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_render_draw_quad(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, color);
 }
 TCDEF void tc_draw_texture_scale(tc_texture tex, float x, float y, float scaleX, float scaleY, tc_color color) {
+	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_scale(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, scaleX, scaleY, color);
 }
 TCDEF void tc_draw_texture_ex(tc_texture tex, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_ex(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, angle, sx, sy, cx, sy, color);
 }
 
 /** draw texture part **/
 TCDEF void tc_draw_texture_part(tc_texture tex, tc_rectangle rect, float x, float y, tc_color color) {
+	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, color);
 }
 
 TCDEF void tc_draw_texture_part_scale(tc_texture tex, tc_rectangle rect, float x, float y, float sx, float sy, tc_color color) {
+	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_scale(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, sx, sy, color);
 }
 
 TCDEF void tc_draw_texture_part_ex(tc_texture tex, tc_rectangle rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_ex(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, angle, sx, sy, cx, cy, color);
 }
 
 /* draw primitives */
 TCDEF void tc_draw_rectangle(float x, float y, float width, float height, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_LINES);
   tc_render_draw_quad(&CORE.render, CORE.render.state.defaultTextureId, (tc_rectangle){0, 0, width, height}, x, y, width, height, color);
 }
+TCDEF void tc_fill_rectangle(float x, float y, float width, float height, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
+  tc_render_draw_quad(&CORE.render, CORE.render.state.defaultTextureId, (tc_rectangle){0, 0, width, height}, x, y, width, height, color);
+}
+
+TCDEF void tc_draw_circle(float x, float y, float radius, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_LINES);
+  tc_render_draw_circle(&CORE.render, CORE.render.state.defaultTextureId, x, y, radius, color);
+}
+TCDEF void tc_fill_circle(float x, float y, float radius, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
+  tc_render_draw_circle(&CORE.render, CORE.render.state.defaultTextureId, x, y, radius, color);
+}
+
+TCDEF void tc_draw_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_LINES);
+  tc_render_draw_triangle(&CORE.render, CORE.render.state.defaultTextureId, x0, y0, x1, y1, x2, y2, color);
+}
+TCDEF void tc_fill_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
+  tc_render_draw_triangle(&CORE.render, CORE.render.state.defaultTextureId, x0, y0, x1, y1, x2, y2, color);
+}
+
 TCDEF void tc_draw_text(const char *text, float x, float y, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
@@ -334,6 +373,7 @@ TCDEF void tc_draw_text(const char *text, float x, float y, tc_color color) {
 }
 
 TCDEF void tc_draw_text_scale(const char *text, float x, float y, float sx, float sy, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
@@ -371,6 +411,7 @@ TCDEF void tc_draw_text_ex(const char *text, float x, float y, float angle, floa
 	// tc_render_draw_quad_ex(&CORE.render, CORE.defaultFont.texture.id, )
 }
 TCDEF void tc_draw_text_font(tc_font font, const char *text, float x, float y, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	for (const char *p = text; *p; p++) {
 		vec2 pos;
 		tc_rectangle rect;
@@ -415,10 +456,12 @@ TCDEF void tc_unset_canvas(tc_canvas canvas) {
 }
 
 TCDEF void tc_draw_canvas(tc_canvas canvas, float x, float y, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_rectangle rect = {0, 0, canvas.tex.width, canvas.tex.height};
 	tc_render_draw_quad(&CORE.render, canvas.tex.id, rect, x, y, canvas.tex.width, -canvas.tex.height, color);
 }
 TCDEF void tc_draw_canvas_scale(tc_canvas canvas, float x, float y, float sx, float sy, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_rectangle rect = {0, 0, canvas.tex.width, canvas.tex.height};
 	tc_render_draw_quad_scale(&CORE.render, canvas.tex.id, rect, x, y, canvas.tex.width, -canvas.tex.height, sx, sy, color);
 }
