@@ -12,5 +12,5 @@ addons:
       - gcc-mingw-w64-x86-64
 
 script:
-  - build.sh linux
-  - build.sh windows
+  - ./build-release.sh linux
+  - ./build-release.sh windows
