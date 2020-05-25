@@ -41,7 +41,7 @@ I'm using in this project:
 ### working
 - [x] drawing textures
 - [x] drawing canvas
-- [x] custom glsl shaders (must have the variables for vertex)
+- [x] custom glsl shaders (but the shaders need to implement some attribute variables and uniforms)
 - [x] keyboard and mouse input
 
 ## usage
@@ -83,7 +83,7 @@ int main(int argc, char ** argv) {
 
 main.wren structure:
 
-```wren
+```dart
 
 // main.wren
 

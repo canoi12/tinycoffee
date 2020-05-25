@@ -1,12 +1,12 @@
 #!/bin/bash
 
 platform=$1
-CC=c99-gcc
+CC=gcc
 FILES=release.c
 out=tico
 INCLUDE=-Isrc/external/\ -Isrc\ -Isrc/external/freetype/include
 LIBS=""
-CFLAGS=
+CFLAGS=-std=c99
 FLAGS=-lglfw\ -lgl3w\ -lm\ -lpthread\ -lX11\ -ldl\ -lGL
 compile_wren=true
 compile_lua=false
