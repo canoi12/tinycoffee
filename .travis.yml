@@ -8,7 +8,7 @@ compiler:
 addons:
   apt:
     packages:
-      - mesa-common-dev
+      - libgl1-mesa-dev
       - xorg-dev
       - gcc
       - gcc-mingw-w64-x86-64
