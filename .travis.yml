@@ -1,7 +1,6 @@
 language: c
 os:
   - linux
-  - windows
 compiler:
   - c99-gcc
   - x86_64-w64-mingw32-gcc
