@@ -10,7 +10,7 @@ addons:
   apt:
     packages:
       - gcc
-      - x86_64-w64-mingw32-gcc
+      - gcc-mingw32-w64-x86_64
 
 script:
   - build.sh linux
