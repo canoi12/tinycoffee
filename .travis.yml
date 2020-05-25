@@ -9,7 +9,7 @@ addons:
   apt:
     packages:
       - gcc
-      - gcc-mingw-w64-x86_64
+      - gcc-mingw-w64-x86-64
 
 script:
   - build.sh linux
