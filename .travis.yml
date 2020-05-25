@@ -8,11 +8,7 @@ compiler:
 addons:
   apt:
     packages:
-      - libx11-dev
-      - mesa-common-dev
-      - libxcursor-dev
-      - libxrandr-dev
-      - libxinerama-dev
+      - xorg-dev
       - gcc
       - gcc-mingw-w64-x86-64
 
