@@ -1,235 +1,201 @@
 #!/bin/bash
 
-platform=$1
-CC=c99-gcc
-FILES=main.c
+cc=gcc
 out=tico
-INCLUDE=-Isrc/external/\ -Isrc\ -Isrc/external/freetype/include
-LIBS=""
-CFLAGS=
-FLAGS=-lglfw\ -lgl3w\ -lm\ -lpthread\ -lX11\ -ldl\ -lGL
-compile_wren=true
-compile_lua=false
+sources=main.c
+release="debug"
+include=-Isrc\ -Isrc/external\ -Isrc/external/freetype/include
+cflags=-Wall\ -g\ --std=gnu99
+lflags=-lX11\ -lm\ -ldl\ -lGL\ -lpthread
+wren_lang=true
+lua_lang=false
 development=true
+error=false
 
-EXTERNAL=src/external
-GLFW_SOURCE=$EXTERNAL/glfw/src
+external=src/external
+glfw_folder="$external/glfw/src"
 
-DEFINE=-D_GLFW_X11
+define=-D_GLFW_X11
 
-if [[ "$platform" != "windows" ]]; then
+config_windows()
+{
+  cc=x86_64-w64-mingw32-gcc
+  out="$out.exe"
+  platform="windows"
+  lflags="-lmingw32 -lopengl32 -lgdi32 -lwinmm -mwindows"
+  define=-D_GLFW_WIN32
+}
+
+clear_folders()
+{
+  echo "cleaning up folders.."
+  rm -r bin/
+  rm -r builds/
+}
+
+for arg in "$@"
+do
+  if [[ $arg == "windows" ]]; then
+    config_windows
+  fi
+  if [[ $arg == "release" ]]; then
+    cflags="$cflags -O3"
+    release="release"
+    sources="release.c"
+  fi
+  if [[ $arg == "clear" ]]; then
+    clear_folders
+  fi
+done
+
+if [[ $platform == "" ]]; then
   platform="linux"
 fi
 
-echo "compiling for $platform..."
+echo "compiling $platform $release.."
 
-if [[ $platform == "windows" ]]; then
-  CC=x86_64-w64-mingw32-gcc
-  FLAGS=-lmingw32\ -lgl3w\ -lglfw\ -lopengl32\ -lgdi32\ -lwinmm
-  out=tico.exe
-  DEFINE=-D_GLFW_WIN32
+folder="builds/$release/$platform"
+bin_folder="bin/$release/$platform"
+libs_folder="$folder/libs"
+objs_folder="$folder/objs"
+out="$bin_folder/$out"
+
+if [ ! -d $folder ]; then
+  echo "creating builds folder.."
+  mkdir -p "$folder"
 fi
 
-FOLDER=builds/$platform
-out="bin/$platform/$out"
-
-if [ ! -d "$FOLDER" ]; then
-  $(mkdir -p $FOLDER)
+if [ ! -d "bin/$release/$platform"  ]; then
+  echo "creating bin folder.."
+  mkdir -p "bin/$release/$platform"
 fi
 
-if [ ! -d "bin/$platform" ]; then
-  mkdir -p "bin/$platform"
+if [ -f $out ]; then
+  echo "cleaning up exec $out.."
+  rm "$out"
 fi
 
-if [ -f "$out" ]; then
-  echo "clearing executable"
-  (rm "$out")
-fi
-
-if [ ! -d "$FOLDER/libs" ]; then
+if [ ! -d "$libs_folder" ]; then
   echo "creating libs folder"
-  $(mkdir $FOLDER/libs)
+  mkdir -p "$libs_folder"
+  mkdir -p "$objs_folder"
 fi
 
-# if [ ! -f "$FOLDER/libs/libminiz.a" ]; then
-#   echo "compiling miniz static lib.."
-#   $($CC -c $EXTERNAL/miniz/miniz.c -o $FOLDER/miniz.o $INCLUDE)
-
-#   $(ar rcs $FOLDER/libs/libminiz.a $FOLDER/miniz.o)
-#   $(rm $FOLDER/miniz.o)
-#   FLAGS="-lminiz $FLAGS"
-# else
-#   FLAGS="-lminiz $FLAGS"
-# fi
-if [ ! -f "$FOLDER/libs/libzip.a" ]; then
+if [ ! -f "$libs_folder/libzip" ]; then
   echo "compiling zip static lib.."
-  $($CC -c $EXTERNAL/zip/src/zip.c -o $FOLDER/zip.o $INCLUDE)
+  $cc -c $external/zip/src/zip.c -o $objs_folder/zip.o $cflags
 
-  $(ar rcs $FOLDER/libs/libzip.a $FOLDER/zip.o)
-  $(rm $FOLDER/zip.o)
-  FLAGS="-lzip $FLAGS"
-else
-  FLAGS="-lzip $FLAGS"
+  touch $libs_folder/libzip
+  # ar rcs $libs_folder/libzip.a $objs_folder/zip.o
+  # rm $objs_folder/zip.o
 fi
 
-if [[ ! -f "$FOLDER/libs/libglfw.a" ]]; then
+if [[ ! -f "$libs_folder/libglfw" ]]; then
   echo "compiling glfw static lib .."
-  if [ -d "$FOLDER/glfw" ]; then
-    $(rm -r $FOLDER/glfw)
-  fi
+  # if [ -d "$FOLDER/glfw" ]; then
+  #   $(rm -r $FOLDER/glfw)
+  # fi
+  glfw_sources="init.c context.c input.c monitor.c window.c egl_context.c osmesa_context.c vulkan.c"
   if [[ $platform == "windows" ]]; then
-    $(mkdir $FOLDER/glfw)
-
-    $($CC -c $GLFW_SOURCE/init.c -o $FOLDER/glfw/init.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/context.c -o $FOLDER/glfw/context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/input.c -o $FOLDER/glfw/input.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/monitor.c -o $FOLDER/glfw/monitor.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/window.c -o $FOLDER/glfw/window.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_init.c -o $FOLDER/glfw/x11_init.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_monitor.c -o $FOLDER/glfw/x11_monitor.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_window.c -o $FOLDER/glfw/x11_window.o $DEFINE)
-    # $($CC -c $GLFW_SOURCE/xkb_unicode.c -o $FOLDER/glfw/xkb_unicode.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_thread.c -o $FOLDER/glfw/posix_thread.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_time.c -o $FOLDER/glfw/posix_time.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/wgl_context.c -o $FOLDER/glfw/wgl_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/egl_context.c -o $FOLDER/glfw/egl_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/osmesa_context.c -o $FOLDER/glfw/osmesa_context.o $DEFINE)
-    # $($CC -c $GLFW_SOURCE/glx_context.c -o $FOLDER/glfw/glx_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/win32_joystick.c -o $FOLDER/glfw/linux_joystick.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/vulkan.c -o $FOLDER/glfw/vulkan.o $DEFINE)
-    $(ar rcs $FOLDER/libs/libglfw.a $FOLDER/glfw/*.o)
-    $(rm -r $FOLDER/glfw)
+    glfw_sources="$glfw_sources win32_init.c win32_monitor.c win32_window.c win32_thread.c win32_time.c win32_joystick.c wgl_context.c"
   else
-    $(mkdir $FOLDER/glfw)
-
-    $($CC -c $GLFW_SOURCE/init.c -o $FOLDER/glfw/init.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/context.c -o $FOLDER/glfw/context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/input.c -o $FOLDER/glfw/input.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/monitor.c -o $FOLDER/glfw/monitor.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/window.c -o $FOLDER/glfw/window.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/x11_init.c -o $FOLDER/glfw/x11_init.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/x11_monitor.c -o $FOLDER/glfw/x11_monitor.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/x11_window.c -o $FOLDER/glfw/x11_window.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/xkb_unicode.c -o $FOLDER/glfw/xkb_unicode.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/posix_thread.c -o $FOLDER/glfw/posix_thread.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/posix_time.c -o $FOLDER/glfw/posix_time.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/egl_context.c -o $FOLDER/glfw/egl_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/osmesa_context.c -o $FOLDER/glfw/osmesa_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/glx_context.c -o $FOLDER/glfw/glx_context.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/linux_joystick.c -o $FOLDER/glfw/linux_joystick.o $DEFINE)
-    $($CC -c $GLFW_SOURCE/vulkan.c -o $FOLDER/glfw/vulkan.o $DEFINE)
-
-    $(ar rcs $FOLDER/libs/libglfw.a $FOLDER/glfw/*.o)
-    $(rm -r $FOLDER/glfw)
+    glfw_sources="$glfw_sources x11_init.c x11_monitor.c x11_window.c xkb_unicode.c posix_thread.c posix_time.c linux_joystick.c glx_context.c"
   fi
-fi
 
-if [ ! -f "$FOLDER/libs/libgl3w.a" ]; then
-  echo "compiling gl3w static lib.."
-  $($CC -c $EXTERNAL/GL/gl3w.c -o $FOLDER/gl3w.o $INCLUDE)
-
-  $(ar rcs $FOLDER/libs/libgl3w.a $FOLDER/gl3w.o)
-  $(rm $FOLDER/gl3w.o)
-fi
-
-if [ ! -f "$FOLDER/libs/libfreetype.a" ]; then
-  echo "compiling freetype static lib.."
-  if [ ! -d "$FOLDER/freetype" ]; then
-    $(mkdir $FOLDER/freetype)
-  fi
-  $($CC -c $EXTERNAL/freetype/src/base/ftsystem.c -o $FOLDER/freetype/ftsystem.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/base/ftinit.c -o $FOLDER/freetype/ftinit.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/base/ftdebug.c -o $FOLDER/freetype/ftdebug.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/base/ftbase.c -o $FOLDER/freetype/ftbase.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/base/ftbbox.c -o $FOLDER/freetype/ftbbox.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/autofit/autofit.c -o $FOLDER/freetype/autofit.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-
-  $($CC -c $EXTERNAL/freetype/src/base/ftglyph.c -o $FOLDER/freetype/ftglyph.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/base/ftbitmap.c -o $FOLDER/freetype/ftbitmap.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-
-  $($CC -c $EXTERNAL/freetype/src/truetype/truetype.c -o $FOLDER/freetype/truetype.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/sfnt/sfnt.c -o $FOLDER/freetype/sfnt.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/psnames/psnames.c -o $FOLDER/freetype/psnames.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/bdf/bdf.c -o $FOLDER/freetype/bdf.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/cff/cff.c -o $FOLDER/freetype/cff.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/cid/type1cid.c -o $FOLDER/freetype/type1cid.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/pcf/pcf.c -o $FOLDER/freetype/pcf.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/pfr/pfr.c -o $FOLDER/freetype/pfr.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/type1/type1.c -o $FOLDER/freetype/type1.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/type42/type42.c -o $FOLDER/freetype/type42.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/winfonts/winfnt.c -o $FOLDER/freetype/winfnt.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/psaux/psaux.c -o $FOLDER/freetype/psaux.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/pshinter/pshinter.c -o $FOLDER/freetype/pshinter.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/smooth/smooth.c -o $FOLDER/freetype/smooth.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-
-  $($CC -c $EXTERNAL/freetype/src/gzip/ftgzip.c -o $FOLDER/freetype/ftgzip.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  $($CC -c $EXTERNAL/freetype/src/lzw/ftlzw.c -o $FOLDER/freetype/ftlzw.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-
-  $($CC -c $EXTERNAL/freetype/src/raster/raster.c -o $FOLDER/freetype/raster.o $INCLUDE -DFT2_BUILD_LIBRARY $CFLAGS)
-  # $($CC $EXTERNAL/freetype/src/*/*.c -o $FOLDER/freetype.o $INCLUDE $CFLAGS)
-
-  $(ar rcs $FOLDER/libs/libfreetype.a $FOLDER/freetype/*.o)
-  # $(rm $FOLDER/freetype.o)
-  $(rm -r $FOLDER/freetype)
-  FLAGS="-lfreetype $FLAGS"
-else
-  FLAGS="-lfreetype $FLAGS"
-  # echo "skip"
-fi
-
-if $compile_wren; then
-  if [ ! -f "$FOLDER/libs/libwren.a" ]; then
-    echo "compiling wren.."
-    INCLUDE="$INCLUDE -I$EXTERNAL/wren/src/include -I$EXTERNAL/wren/src/vm -I$EXTERNAL/wren/src/optional"
-    wren_dir="$EXTERNAL/wren/src"
-    if [ ! -d "$FOLDER/wren" ]; then
-      $(mkdir $FOLDER/wren)
+  for glfwsrc in $glfw_sources; do
+    glfwobj=$(echo "$glfwsrc" | sed -e 's/\.c/.o/g')
+    $cc -c "$glfw_folder/$glfwsrc" -o "$objs_folder/$glfwobj" $cflags $define
+    if [[ $? -ne 0 ]]; then
+      echo "failed to compile $glfwsrc"
     fi
-    $($CC -c $wren_dir/vm/wren_compiler.c -o $FOLDER/wren/compiler.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_core.c -o $FOLDER/wren/core.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_debug.c -o $FOLDER/wren/debug.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_primitive.c -o $FOLDER/wren/primitive.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_utils.c -o $FOLDER/wren/utils.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_value.c -o $FOLDER/wren/value.o $INCLUDE)
-    $($CC -c $wren_dir/vm/wren_vm.c -o $FOLDER/wren/vm.o $INCLUDE)
+  done
 
-    $($CC -c $wren_dir/optional/wren_opt_meta.c -o $FOLDER/wren/opt_meta.o $INCLUDE)
-    $($CC -c $wren_dir/optional/wren_opt_random.c -o $FOLDER/wren/opt_random.o $INCLUDE)
+  touch $libs_folder/libglfw
 
-    $(ar rcs $FOLDER/libs/libwren.a $FOLDER/wren/*.o)
-    $(rm -r $FOLDER/wren)
-  fi
 
-  DEFINE="$DEFINE -DWREN_LANG"
-  FLAGS="$FLAGS -lwren"
-
+  # $(ar rcs $libs_folder/libglfw.a $objs_folder/*.o)
+  # rm $objs_folder/*
 fi
 
-if [ ! -f "$FOLDER/libs/libtico.a" ] || $development; then
-  echo "compiling tico static lib.."
-  if [ ! -d "$FOLDER/tico" ]; then
-    $(mkdir $FOLDER/tico)
+if [ ! -f "$libs_folder/libgl3w" ]; then
+  echo "compiling gl3w static lib.."
+  $cc -c $external/GL/gl3w.c -o $objs_folder/gl3w.o $cflags $include
+
+  touch $libs_folder/libgl3w
+  # $(ar rcs $libs_folder/libgl3w.a $objs_folder/gl3w.o)
+  # rm $objs_folder/gl3w.o
+fi
+
+if [ ! -f "$libs_folder/libfreetype" ]; then
+  echo "compiling freetype static lib.."
+  freetype_dir=$external/freetype/src
+  freetype_sources="base/ftsystem.c base/ftinit.c base/ftdebug.c base/ftbase.c base/ftbbox.c autofit/autofit.c\
+  base/ftglyph.c base/ftbitmap.c truetype/truetype.c sfnt/sfnt.c psnames/psnames.c bdf/bdf.c cff/cff.c cid/type1cid.c\
+  pcf/pcf.c pfr/pfr.c type1/type1.c type42/type42.c winfonts/winfnt.c psaux/psaux.c pshinter/pshinter.c smooth/smooth.c\
+  gzip/ftgzip.c lzw/ftlzw.c raster/raster.c"
+
+  for ftsrc in $freetype_sources; do
+    ftobj=$(echo $ftsrc | sed -e 's/\//_/g' | sed -e 's/\.c/.o/g')
+    $cc -c $freetype_dir/$ftsrc -o $objs_folder/$ftobj $include -DFT2_BUILD_LIBRARY $cflags
+  done
+
+  touch $libs_folder/libfreetype
+
+  # $(ar rcs $libs_folder/libfreetype.a $objs_folder/*.o)
+  # $(rm -r $objs_folder/*.o)
+fi
+
+if $wren_lang; then
+  if [ ! -f "$libs_folder/libwren" ]; then
+    echo "compiling wren.."
+    include="$include -I$external/wren/src/include -I$external/wren/src/vm -I$external/wren/src/optional"
+    wren_dir="$external/wren/src"
+
+    for wrensrc in $(ls $wren_dir/vm/ | grep '\.c'); do
+      wrenobj=$(echo "$wrensrc" | sed -e 's/\.c/.o/g')
+      $cc -c $wren_dir/vm/$wrensrc -o $objs_folder/$wrenobj $include $cflags
+    done
+
+    for wrensrc in $(ls $wren_dir/optional/ | grep '\.c'); do
+      wrenobj=$(echo "$wrensrc" | sed -e 's/\.c/.o/g')
+      $cc -c $wren_dir/optional/$wrensrc -o $objs_folder/$wrenobj $include $cflags
+    done
+
+    touch $libs_folder/libwren
+
+    # $(ar rcs $FOLDER/libs/libwren.a $FOLDER/wren/*.o)
+    # $(rm -r $FOLDER/wren)
   fi
-  $($CC -c src/core.c -o $FOLDER/tico/core.o $INCLUDE $DEFINE)
-  $($CC -c src/texture.c -o $FOLDER/tico/texture.o $INCLUDE $DEFINE)
-  $($CC -c src/tcwren.c -o $FOLDER/tico/tcwren.o $INCLUDE $DEFINE)
+
+  define="$define -DWREN_LANG"
+  # lflags="$lflags -lwren"
+fi
+
+if [ ! -f "$libs_folder/libtico.a" ] || $development; then
+  echo "compiling tico static lib.."
+  $cc -c src/core.c -o $objs_folder/tccore.o $include $define $cflags
+  $cc -c src/texture.c -o $objs_folder/tctexture.o $include $define $cflags
+  $cc -c src/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
   # $($CC -c src/tclua.c -o $FOLDER/tico/tclua.o)
 
-  $(ar rcs $FOLDER/libs/libtico.a $FOLDER/tico/*.o)
-  $(rm -r $FOLDER/tico)
-  FLAGS="-ltico $FLAGS"
+  $(ar rcs $libs_folder/libtico.a $objs_folder/*.o)
+  # $(rm -r $FOLDER/tico)
+  lflags="-ltico $lflags"
 else
-  FLAGS="-ltico $FLAGS"
+  lflags="-ltico $lflags"
   # echo "skip"
 fi
 
-echo "compiling executable.."
-CMD=$CC\ $FILES\ -o\ $out\ $CFLAGS\ -L$FOLDER/libs\ $LIBS\ $INCLUDE\ $FLAGS
-echo "$CMD"
-$($CMD)
+lflags="-L$libs_folder $lflags"
 
-if [ ! -f "$out" ]; then
+echo "compiling executable.."
+cmd="$cc $sources -o $out $cflags $lflags $include $cflags"
+echo "$cmd"
+
+$($cmd)
+
+if [ $? -eq 1 ]; then
   echo "build failed.."
 else
-  echo "build successful"
+  echo "build successful.."
 fi

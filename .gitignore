@@ -8,3 +8,6 @@ lite.zip
 *.sublime-project
 *.sublime-workspace
 .vscode
+tico.zip
+build-release.sh.old
+build.sh.old

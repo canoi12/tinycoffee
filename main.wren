@@ -2,12 +2,13 @@ import "scripts.enemy" for Boto
 import "scripts.player" for Knight
 import "scripts.scene" for Scene, SceneManager
 import "tico.graphics" for Canvas, Render, Color
+import "tico.audio" for Sound
 import "tico" for Config
 
 class Game {
   static config {
-    Config.title = "Pau no cu do Bolsonaro"
-    Config.width = 256
+    Config.title = "Presidente filho da puta"
+    Config.width = 860
   }
 
   static load() {

@@ -18,14 +18,14 @@
 #define STR(x) #x
 #define ASSERT(s) if (!(s)) {printf("tinycoffee: %s:%d: %s: Assertion '%s' failed\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, STR(s)); exit(-1);}
 
-#define ERROR(message...) tc_log(1, __FILE__, __PRETTY_FUNCTION__, __LINE__, message);
+#define ERROR(message...) tc_log(1, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message);
 
 #define LOG(message...) printf("tinycoffee: "); \
 printf(message);
 
 // #define TRACELOG(message...) printf("tinycoffee: %s:%d: %s: ", __FILE__, __LINE__, __PRETTY_FUNCTION__);\
 printf(message)
-#define TRACELOG(message...) tc_log(0, __FILE__, __PRETTY_FUNCTION__, __LINE__, message);
+#define TRACELOG(message...) tc_log(0, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message);
 
 
 #define max(a, b) ((a) > (b) ? (a) : (b))

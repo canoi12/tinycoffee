@@ -544,7 +544,7 @@ TCDEF void tc_unset_shader(void) {
 }
 
 TCDEF tc_shader tc_load_default_shader(tc_uint16 *vertexShader, tc_uint16 *fragmentShader) {
-	const tc_uint8 *vertexSource = "#version 330\n"
+	const tc_uint8 *vertexSource = (const tc_uint8*)"#version 330\n"
 														 "layout (location = 0) in vec2 in_Pos;\n"
 														 "layout (location = 1) in vec4 in_Color;\n"
 														 "layout (location = 2) in vec2 in_Texcoord;\n"
@@ -561,7 +561,7 @@ TCDEF tc_shader tc_load_default_shader(tc_uint16 *vertexShader, tc_uint16 *fragm
 														 "	v_Texcoord = in_Texcoord;\n"
 														 "}\n";
 
-	const tc_uint8 *fragmentSource = "#version 330\n"
+	const tc_uint8 *fragmentSource = (const tc_uint8*)"#version 330\n"
 															 "out vec4 FragColor;\n"
 															 "varying vec4 v_Color;\n"
 															 "varying vec2 v_Texcoord;\n"
@@ -576,7 +576,7 @@ TCDEF tc_shader tc_load_default_shader(tc_uint16 *vertexShader, tc_uint16 *fragm
 	*fragmentShader = tc_compile_shader(fragmentSource, GL_FRAGMENT_SHADER);
 
 	// shader.id = tc_load_shader_program(*vertexShader, *fragmentShader);
-  TRACELOG((tc_uint8*)"Default shader created");
+  TRACELOG("Default shader created");
 	return shader;
 }
 
@@ -593,7 +593,7 @@ TCDEF void tc_shader_send_worldview(tc_shader shader) {
 }
 
 TCDEF void tc_shader_send_uniform(tc_shader shader, const tc_uint8 *name, void *value, TC_SHADER_UNIFORM_ type) {
-	GLuint uniform = glGetUniformLocation(shader.id, name);
+	GLuint uniform = glGetUniformLocation(shader.id, (const GLchar*)name);
 	float *val = (float *)value;
 	switch (type)
 	{
@@ -609,6 +609,8 @@ TCDEF void tc_shader_send_uniform(tc_shader shader, const tc_uint8 *name, void *
 	case TC_UNIFORM_MATRIX:
 		glUniformMatrix4fv(uniform, 1, GL_FALSE, val);
 		break;
+  default:
+    printf("ok\n");
 	}
 }
 
@@ -670,7 +672,7 @@ TCDEF float tc_get_time() {
 
 TCDEF unsigned char *tc_read_file(const tc_uint8 *filename, size_t *outSize) {
   if (CORE.packed) {
-    return (unsigned char*)tc_fs_read_file_from_zip("data.pack", filename, outSize);
+    return (unsigned char*)tc_fs_read_file_from_zip((const tc_uint8*)"data.pack", filename, outSize);
   } else {
     return (unsigned char*)tc_fs_read_file(filename, outSize, TC_TRUE);
   }
@@ -679,7 +681,7 @@ TCDEF unsigned char *tc_read_file(const tc_uint8 *filename, size_t *outSize) {
 
 TCDEF void tc_write_file(const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode) {
   if (CORE.packed) {
-    tc_fs_write_file_to_zip("data.pack", filename, text, size, mode);
+    tc_fs_write_file_to_zip((const tc_uint8*)"data.pack", filename, text, size, mode);
   } else {
     tc_fs_write_file(filename, text, size, mode);
   }
@@ -717,10 +719,10 @@ TCDEF void tc_scripting_lua_update() {
 
 /* Utils */
 TCDEF tc_int8 *tc_replace_char(tc_int8 *str, tc_uint8 find, tc_uint8 replace) {
-  tc_int8 *currentPos = (tc_int8*)strchr(str, find);
+  tc_int8 *currentPos = (tc_int8*)strchr((const char*)str, find);
   while(currentPos) {
     *currentPos = replace;
-    currentPos = (tc_int8*)strchr(currentPos, find);
+    currentPos = (tc_int8*)strchr((const char*)currentPos, find);
   }
 
   return str;
@@ -735,14 +737,14 @@ TCDEF void tc_log(int type, const tc_uint8 *file, const tc_uint8 *function, tc_u
   va_list args;
 
   tc_uint8 err[15] = "";
-  if (type == 1) sprintf(err, "ERROR in ");
+  if (type == 1) sprintf((char*)err, "ERROR in ");
 
   tm_now = localtime(&t);
   tc_uint8 buf[10];
-  strftime(buf, sizeof(buf), "%H:%M:%S", tm_now);
+  strftime((char*)buf, sizeof(buf), "%H:%M:%S", tm_now);
   fprintf(stderr, "%s %s:%d %s%s(): ", buf, file, line, err, function);
   va_start(args, fmt);
-  vfprintf(stderr, fmt, args);
+  vfprintf(stderr, (const char*)fmt, args);
   va_end(args);
   fprintf(stderr, "\n");
 }

@@ -115,7 +115,9 @@ class Game {
 
 for now i'm developing on linux, so is easier to compile on it
 
-just run `build.sh $platform` (to build for windows you will need to install gcc-mingw32 compiler)
+just run `./build.sh 'platform'(linux or windows)` (to build for windows you will need to install gcc-mingw32 compiler)
+
+run `./build.sh release 'platform'` for release optimizations (longer compilation time)
 
 ## distribution
 
