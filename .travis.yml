@@ -11,6 +11,7 @@ addons:
       - libx11-dev
       - mesa-common-dev
       - libxcursor-dev
+      - libxrandr-dev
       - gcc
       - gcc-mingw-w64-x86-64
 
