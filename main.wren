@@ -2,14 +2,20 @@ import "scripts.enemy" for Boto
 import "scripts.player" for Knight
 import "scripts.scene" for Scene, SceneManager
 import "tico.graphics" for Canvas, Render, Color
+import "tico" for Config
 
 class Game {
+  static config {
+    Config.title = "Pau no cu do Bolsonaro"
+    Config.width = 256
+  }
+
   static load() {
     var scene = Scene.new()
     scene.create(Knight.new(32, 32))
     scene.create(Boto.new(32, 0))
     scene.create(Boto.new(64, 90))
-    
+
     SceneManager.load()
     SceneManager.add(scene)
     __canvas = Canvas.new(320, 190)
@@ -20,6 +26,7 @@ class Game {
   }
 
   static draw() {
+    Render.clear(Color.Black)
     __canvas.set()
     Render.clear(Color.BG)
     SceneManager.draw()

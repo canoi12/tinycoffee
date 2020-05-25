@@ -21,9 +21,11 @@ typedef struct {
   tc_bool mainLoaded;
 } tc_wren;
 
-TCDEF tc_wren tc_init_wren(tc_bool packed);
-TCDEF void tc_wren_update(tc_wren wren);
-TCDEF void tc_wren_draw(tc_wren wren);
+TCDEF tc_wren tc_init_wren(tc_config *config);
+TCDEF void tc_wren_game_conf(WrenVM *vm, tc_config *config);
+TCDEF void tc_wren_game_load(tc_wren wren);
+TCDEF void tc_wren_game_update(tc_wren wren);
+TCDEF void tc_wren_game_draw(tc_wren wren);
 
 TCDEF WrenForeignMethodFn tc_wren_bind_methods(WrenVM *vm, const char *module, const char *className, bool isStatic, const char *signature);
 TCDEF WrenForeignClassMethods tc_wren_bind_class(WrenVM *vm, const char *module, const char *className);
@@ -43,6 +45,7 @@ TCDEF tc_rectangle wrenGetSlotRectList(WrenVM *vm, tc_int8 slot);
 #include "modules/wren/input.h"
 #include "modules/wren/audio.h"
 #include "modules/wren/math.h"
+#include "modules/wren/tico.h"
 
 static void tc_wren_write(WrenVM *vm, const char *str) {
   printf("%s", str);
@@ -96,7 +99,7 @@ static char * tc_wren_load_module(WrenVM *vm, const char *name) {
   return buffer;
 }
 
-TCDEF tc_wren tc_init_wren(tc_bool packed) {
+TCDEF tc_wren tc_init_wren(tc_config *config) {
   tc_wren wren;
   wrenInitConfiguration(&wren.config);
   // wren.config.resolveModuleFn = tc_wren_resolve_module;
@@ -110,15 +113,17 @@ TCDEF tc_wren tc_init_wren(tc_bool packed) {
   tc_bool mainExists = TC_FALSE;
 
   tc_wren_module wrenModules[] = {
+    {"tico", tcWrenTicoModule},
     {"tico.graphics", tcWrenGraphicsModule},
     {"tico.input", tcWrenInputModule},
     {"tico.timer", tcWrenTimerModule},
     {"tico.audio", tcWrenAudioModule},
     {"tico.math", tcWrenMathModule}
   };
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 6; i++) {
     tc_wren_module mod = wrenModules[i];
     wrenInterpret(wren.vm, mod.name, mod.buffer);
+    TRACELOG("module %s loaded", mod.name);
   }
 
   // printf("%d\n", CORE.packed);
@@ -136,13 +141,17 @@ TCDEF tc_wren tc_init_wren(tc_bool packed) {
     wrenEnsureSlots(wren.vm, 1);
     wrenGetVariable(wren.vm, "main", "Game", 0);
     wren.classHandle = wrenGetSlotHandle(wren.vm, 0);
+    wren_config_init(config);
+
+    WrenHandle *configHandle = wrenMakeCallHandle(wren.vm, "config");
+    WrenInterpretResult result = wrenCall(wren.vm, configHandle);
+    // if (result == WREN_RESULT_SUCCESS) {
+    //   // wren_config_init(config);
+    //   tc_wren_game_conf(wren.vm, config);
+    // }
 
     wren_init_vec2(wren.vm);
     TRACELOG("Wren Vec2 initiated");
-
-    wrenEnsureSlots(wren.vm, 1);
-    wrenSetSlotHandle(wren.vm, 0, wren.classHandle);
-    wrenCall(wren.vm, wren.loadHandle);
 
     wren.mainLoaded = TC_TRUE;
   } else {
@@ -156,14 +165,29 @@ TCDEF tc_wren tc_init_wren(tc_bool packed) {
   return wren;
 }
 
-TCDEF void tc_wren_update(tc_wren wren) {
+TCDEF void tc_wren_game_conf(WrenVM *vm, tc_config *config) {
+  // tc_config *wconf = wrenGetSlotForeign(vm, 0);
+  // if (wconf->title) strcpy(config->title, wconf->title);
+  // config->width = wconf->width;
+  // config->height = wconf->height;
+  // memcpy(config, wconf, sizeof(tc_config));
+  // free(wconf);
+}
+
+TCDEF void tc_wren_game_load(tc_wren wren) {
+  if (!wren.mainLoaded) return;
+  wrenSetSlotHandle(wren.vm, 0, wren.classHandle);
+  wrenCall(wren.vm, wren.loadHandle);
+}
+
+TCDEF void tc_wren_game_update(tc_wren wren) {
   if (!wren.mainLoaded) return;
   wrenSetSlotHandle(wren.vm, 0, wren.classHandle);
   wrenSetSlotDouble(wren.vm, 1, tc_get_delta());
   wrenCall(wren.vm, wren.updateHandle);
 }
 
-TCDEF void tc_wren_draw(tc_wren wren) {
+TCDEF void tc_wren_game_draw(tc_wren wren) {
   if (!wren.mainLoaded) return;
   wrenSetSlotHandle(wren.vm, 0, wren.classHandle);
   wrenCall(wren.vm, wren.drawHandle);
@@ -223,6 +247,7 @@ tc_wren_class tcWrenClasses[] = {
   registerWrenClassInline("Audio", NULL, NULL, wrenAudioLib),
   registerWrenClassInline("Canvas", wren_canvas_allocate, wren_canvas_finalize, wrenCanvasLib),
   registerWrenClassInline("Vector2", wren_vec2_allocate, wren_vec2_finalize, wrenVector2Lib),
+  registerWrenClassInline("Config", NULL, NULL, wrenConfigLib),
   {NULL}
 };
 

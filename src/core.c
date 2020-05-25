@@ -23,6 +23,8 @@
 
 static void tc_window_resize_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
+  CORE.window.width = width;
+  CORE.window.height = height;
 }
 
 static void tc_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -62,6 +64,14 @@ TCDEF int tc_config_init (tc_config *config, const char *title, int width, int h
 }
 
 TCDEF int tc_init(tc_config *config) {
+    //Init wren lang
+#ifdef WREN_LANG
+  CORE.wren = tc_init_wren(config);
+#endif
+#ifdef LUA_LANG
+  CORE.lua = tc_init_lua();
+#endif
+
   if (!glfwInit()) {
     ERROR("Failed to init GLFW");
     return -1;
@@ -103,13 +113,11 @@ TCDEF int tc_init(tc_config *config) {
   tc_init_font_lib();
   CORE.defaultFont = tc_load_default_font();
 
-	//Init wren lang
 #ifdef WREN_LANG
-	CORE.wren = tc_init_wren(CORE.packed);
+  tc_wren_game_load(CORE.wren);
 #endif
-#ifdef LUA_LANG
-  CORE.lua = tc_init_lua();
-#endif
+
+
   glViewport(0, 0, CORE.window.width, CORE.window.height);
   TRACELOG("tico initiated");
   return TC_TRUE;
@@ -154,7 +162,7 @@ TCDEF void tc_swap_buffers() {
   glfwSwapBuffers(CORE.window.handle);
 }
 
-TCDEF int tc_should_close() {
+TCDEF tc_bool tc_should_close() {
   return tc_window_should_close(CORE.window);
 }
 
@@ -691,13 +699,13 @@ TCDEF void tc_rmdir(const tc_uint8 *path);
 /* Scripting */
 TCDEF void tc_scripting_wren_update() {
 	#ifdef WREN_LANG
-	tc_wren_update(CORE.wren);
+	tc_wren_game_update(CORE.wren);
 	#endif
 }
 
 TCDEF void tc_scripting_wren_draw() {
 	#ifdef WREN_LANG
-	tc_wren_draw(CORE.wren);
+	tc_wren_game_draw(CORE.wren);
 	#endif
 }
 

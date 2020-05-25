@@ -165,15 +165,7 @@ typedef struct {
 #include "font.h"
 #include "fs.h"
 
-#ifdef WREN_LANG
-  #include "tcwren.h"
-#endif
-
-#ifdef LUA_LANG
-  #include "tclua.h"
-#endif
-
-typedef struct {
+typedef struct tc_config {
   char title[256];
   int width;
   int height;
@@ -183,6 +175,14 @@ typedef struct {
   TC_WINDOW_FLAGS_ windowFlags;
   TC_INPUT_FLAGS_ inputFlags;
 } tc_config;
+
+#ifdef WREN_LANG
+  #include "tcwren.h"
+#endif
+
+#ifdef LUA_LANG
+  #include "tclua.h"
+#endif
 
 typedef struct {
   tc_window window;
@@ -213,7 +213,7 @@ TCDEF void tc_swap_buffers();
 TCDEF void tc_clear(tc_color color);
 TCDEF void tc_update_timer();
 
-TCDEF int tc_should_close();
+TCDEF tc_bool tc_should_close();
 TCDEF void tc_close();
 
 TCDEF void tc_begin_draw();

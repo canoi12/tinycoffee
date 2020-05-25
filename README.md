@@ -89,8 +89,15 @@ main.wren structure:
 // main.wren
 
 import "tico.graphics" for Texture, Color
+import "tico" for Config
 
 class Game {
+  static config {
+    Config.title = "my game"
+    Config.width = 1024
+    Config.height = 768
+  }
+
   tex {__tex}
 
   static load() {
