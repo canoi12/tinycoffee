@@ -207,7 +207,7 @@ TCDEF int tc_init_audio()
   ma_result result = ma_context_init(NULL, 0, &ctxConfig, &audio.system.ctx);
   if (result != MA_SUCCESS)
   {
-    ERROR("AUDIO", "Failed to init audio context\n");
+    ERROR("Failed to init audio context");
     return -1;
   }
 
@@ -222,7 +222,7 @@ TCDEF int tc_init_audio()
   result = ma_device_init(&audio.system.ctx, &devConfig, &audio.system.device);
   if (result != MA_SUCCESS)
   {
-    ERROR("AUDIO", "Failed to init device\n");
+    ERROR("Failed to init device");
     ma_context_uninit(&audio.system.ctx);
     return -1;
   }
@@ -230,7 +230,7 @@ TCDEF int tc_init_audio()
   result = tc_start_device();
   if (result != MA_SUCCESS)
   {
-    ERROR("AUDIO", "Failed to start device\n");
+    ERROR("Failed to start device");
     ma_context_uninit(&audio.system.ctx);
     ma_device_uninit(&audio.system.device);
     return -1;
@@ -238,7 +238,7 @@ TCDEF int tc_init_audio()
 
   if (ma_mutex_init(&audio.system.ctx, &audio.system.lock) != MA_SUCCESS)
   {
-    ERROR("AUDIO", "Failed to start mutex\n");
+    ERROR("Failed to start mutex");
     ma_device_uninit(&audio.system.device);
     ma_context_uninit(&audio.system.ctx);
     return -1;
@@ -280,7 +280,7 @@ TCDEF void tc_terminate_audio(void)
   }
   else
   {
-    ERROR("AUDIO", "Audio system could not be closed, not initialized\n");
+    ERROR("Audio system could not be closed, not initialized");
   }
 }
 
@@ -341,7 +341,7 @@ TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
 
   if (result != MA_SUCCESS)
   {
-    ERROR("AUDIO", "Failed to load sound '%s'\n", filename);
+    ERROR("Failed to load sound '%s'", filename);
     if (audioBuffer->data)
       free(audioBuffer->data);
     return NULL;

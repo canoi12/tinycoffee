@@ -63,7 +63,7 @@ TCDEF int tc_config_init (tc_config *config, const char *title, int width, int h
 
 TCDEF int tc_init(tc_config *config) {
   if (!glfwInit()) {
-    ERROR("INIT", "Failed to init GLFW\n");
+    ERROR("Failed to init GLFW");
     return -1;
   }
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -72,7 +72,7 @@ TCDEF int tc_init(tc_config *config) {
   CORE.window = tc_create_window(config->title, config->width, config->height, config->windowFlags);
 
   if (gl3wInit()) {
-    ERROR("INIT", "Failed to init gl3w\n");
+    ERROR("Failed to init gl3w");
     return -1;
   }
 
@@ -83,10 +83,10 @@ TCDEF int tc_init(tc_config *config) {
 	glfwSetCursorPosCallback(CORE.window.handle, tc_mouse_pos_callback);
 	glfwSetWindowFocusCallback(CORE.window.handle, tc_window_focus_callback);
 
-  TRACELOG("Setup callbacks\n");
+  TRACELOG("Setup callbacks");
 
   // Load render
-  unsigned int vertexShader, fragmentShader;
+  tc_uint16 vertexShader, fragmentShader;
   tc_load_default_shader(&vertexShader, &fragmentShader);
   // CORE.render = (tc_render){0};
   CORE.render = tc_create_render(vertexShader, fragmentShader);
@@ -97,7 +97,7 @@ TCDEF int tc_init(tc_config *config) {
   CORE.packed = TC_FALSE;
   if (tc_fs_file_exists("data.pack")) CORE.packed = TC_TRUE;
 
-  TRACELOG("packed: %d\n", CORE.packed);
+  TRACELOG("packed: %d", CORE.packed);
 
   // Init font lib
   tc_init_font_lib();
@@ -111,7 +111,7 @@ TCDEF int tc_init(tc_config *config) {
   CORE.lua = tc_init_lua();
 #endif
   glViewport(0, 0, CORE.window.width, CORE.window.height);
-  TRACELOG("tico initiated\n");
+  TRACELOG("tico initiated");
   return TC_TRUE;
 }
 
@@ -186,7 +186,7 @@ TCDEF tc_window tc_get_window() {
 }
 
 /* Textures */
-TCDEF tc_texture tc_create_texture(void *data, int width, int height) {
+TCDEF tc_texture tc_create_texture(void *data, tc_int16 width, tc_int16 height) {
   tc_texture tex = {0};
   glGenTextures(1, &tex.id);
   glBindTexture(GL_TEXTURE_2D, tex.id);
@@ -202,47 +202,47 @@ TCDEF tc_texture tc_create_texture(void *data, int width, int height) {
 
   return tex;
 }
-TCDEF tc_texture tc_load_texture(const char *filename) {
+TCDEF tc_texture tc_load_texture(const tc_uint8 *filename) {
   size_t size;
-  unsigned char *buffer = (unsigned char*)tc_read_file(filename, &size);
+  tc_uint8 *buffer = (tc_uint8*)tc_read_file(filename, &size);
   tc_texture texture = tc_load_texture_from_memory(buffer, size);
   if (texture.id == 0) {
-    ERROR("TEXTURE", "Failed to load image '%s'\n", filename);
+    ERROR("Failed to load image '%s'", filename);
   }
   free(buffer);
   return texture;
 }
 
-TCDEF tc_texture tc_load_texture_internal(const char *filename) {
+TCDEF tc_texture tc_load_texture_internal(const tc_uint8 *filename) {
   size_t size;
-  unsigned char *buffer = (unsigned char*)tc_fs_read_file_from_zip("data.bin", filename, &size);
+  tc_uint8 *buffer = (tc_uint8*)tc_fs_read_file_from_zip("data.bin", filename, &size);
 
   tc_texture texture = tc_load_texture_from_memory(buffer, size);
   if (texture.id == 0) {
-    ERROR("TEXTURE", "Failed to load image '%s'\n", filename);
+    ERROR("Failed to load image '%s'", filename);
   }
   free(buffer);
   return texture;
 }
 
-TCDEF tc_texture tc_load_texture_external(const char *filename) {
+TCDEF tc_texture tc_load_texture_external(const tc_uint8 *filename) {
   size_t size;
-  unsigned char *buffer = (unsigned char*)tc_fs_read_file(filename, &size, 1);
+  tc_uint8 *buffer = (tc_uint8*)tc_fs_read_file(filename, &size, 1);
 
   tc_texture texture = tc_load_texture_from_memory(buffer, size);
   if (texture.id == 0) {
-    ERROR("TEXTURE", "Failed to load image '%s'\n", filename);
+    ERROR("Failed to load image '%s'", filename);
   }
   free(buffer);
   return texture;
 }
 
-TCDEF tc_texture tc_load_texture_from_memory(const char *buffer, size_t bufferSize) {
+TCDEF tc_texture tc_load_texture_from_memory(const tc_uint8 *buffer, size_t bufferSize) {
   tc_texture tex = {0};
 
   int width, height, channels;
 
-  unsigned char *data = stbi_load_from_memory(buffer, bufferSize, &width, &height, &channels, 0);
+  tc_uint8 *data = stbi_load_from_memory(buffer, bufferSize, &width, &height, &channels, 0);
   if (!data) {
 //     ERROR("TEXTURE", "Failed to load image '%s'\n", filename);
     return tex;
@@ -341,12 +341,12 @@ TCDEF void tc_fill_triangle(float x0, float y0, float x1, float y1, float x2, fl
   tc_render_draw_triangle(&CORE.render, CORE.render.state.defaultTextureId, x0, y0, x1, y1, x2, y2, color);
 }
 
-TCDEF void tc_draw_text(const char *text, float x, float y, tc_color color) {
+TCDEF void tc_draw_text(const tc_uint8 *text, float x, float y, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
-	for (const char *p = text; *p; p++)
+	for (const tc_uint8 *p = text; *p; p++)
 	{
 // 		if (*p >= 32 && *p < 128)
 		{
@@ -378,12 +378,12 @@ TCDEF void tc_draw_text(const char *text, float x, float y, tc_color color) {
 	}
 }
 
-TCDEF void tc_draw_text_scale(const char *text, float x, float y, float sx, float sy, tc_color color) {
+TCDEF void tc_draw_text_scale(const tc_uint8 *text, float x, float y, float sx, float sy, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
-	for (const char *p = text; *p; p++)
+	for (const tc_uint8 *p = text; *p; p++)
 	{
 // 		if (*p >= 32 && *p < 128)
 		{
@@ -413,23 +413,23 @@ TCDEF void tc_draw_text_scale(const char *text, float x, float y, float sx, floa
 		}
 	}
 }
-TCDEF void tc_draw_text_ex(const char *text, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+TCDEF void tc_draw_text_ex(const tc_uint8 *text, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
 	// tc_render_draw_quad_ex(&CORE.render, CORE.defaultFont.texture.id, )
 }
-TCDEF void tc_draw_text_font(tc_font font, const char *text, float x, float y, tc_color color) {
+TCDEF void tc_draw_text_font(tc_font font, const tc_uint8 *text, float x, float y, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
-	for (const char *p = text; *p; p++) {
+	for (const tc_uint8 *p = text; *p; p++) {
 		vec2 pos;
 		tc_rectangle rect;
 		tc_font_get_rect(font, *p, &x, &y, &pos, &rect);
 		tc_render_draw_quad(&CORE.render, font.texture.id, rect, pos.x, pos.y, font.texture.width, font.texture.height, color);
 	}
 }
-TCDEF void tc_draw_text_font_scale(tc_font font, const char *text, float x, float y, float sx, float sy, tc_color color);
+TCDEF void tc_draw_text_font_scale(tc_font font, const tc_uint8 *text, float x, float y, float sx, float sy, tc_color color);
 
 
 /* Canvas */
-TCDEF tc_canvas tc_create_canvas(float width, float height) {
+TCDEF tc_canvas tc_create_canvas(tc_int16 width, tc_int16 height) {
 	tc_canvas canvas = {0};
 	glGenFramebuffers(1, &canvas.id);
 	glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
@@ -473,7 +473,7 @@ TCDEF void tc_draw_canvas_scale(tc_canvas canvas, float x, float y, float sx, fl
 }
 
 /* Shader */
-TCDEF tc_shader tc_create_shader(const char *vertexSource, const char *fragmentSource) {
+TCDEF tc_shader tc_create_shader(const tc_uint8 *vertexSource, const tc_uint8 *fragmentSource) {
 	tc_shader shader = {0};
 	unsigned int vertexShader = tc_compile_shader(vertexSource, GL_VERTEX_SHADER);
 	unsigned int fragmentShader = tc_compile_shader(fragmentSource, GL_FRAGMENT_SHADER);
@@ -483,12 +483,12 @@ TCDEF tc_shader tc_create_shader(const char *vertexSource, const char *fragmentS
 	return shader;
 }
 
-TCDEF unsigned int tc_compile_shader(const char *source, int type) {
+TCDEF tc_uint16 tc_compile_shader(const tc_uint8 *source, tc_uint16 type) {
 	unsigned int shader = glCreateShader(type);
 
-	const char *shaderType = type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT";
+	const tc_uint8 *shaderType = (tc_uint8*)(type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT");
 
-	glShaderSource(shader, 1, &source, NULL);
+	glShaderSource(shader, 1, (const GLchar* const*)&source, NULL);
 	glCompileShader(shader);
 	int success;
 	char infoLog[512];
@@ -496,13 +496,13 @@ TCDEF unsigned int tc_compile_shader(const char *source, int type) {
 	if (!success)
 	{
 		glGetShaderInfoLog(shader, 512, NULL, infoLog);
-    ERROR("SHADER", "%s::Compilation failed: %s\n", shaderType, infoLog);
+    ERROR("%s::Compilation failed: %s", shaderType, infoLog);
 	}
 
 	return shader;
 }
 
-TCDEF unsigned int tc_load_shader_program(unsigned int vertexShader, unsigned int fragmentShader) {
+TCDEF tc_uint16 tc_load_shader_program(tc_uint16 vertexShader, tc_uint16 fragmentShader) {
 	int success;
 	char infoLog[512];
 
@@ -515,7 +515,7 @@ TCDEF unsigned int tc_load_shader_program(unsigned int vertexShader, unsigned in
 	if (!success)
 	{
 		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-    ERROR("SHADER", "Linking failed: %s\n", infoLog);
+    ERROR("Linking failed: %s", infoLog);
 	}
 
 	return shaderProgram;
@@ -535,8 +535,8 @@ TCDEF void tc_unset_shader(void) {
 	tc_shader_send_worldview(CORE.render.state.currentShader);
 }
 
-TCDEF tc_shader tc_load_default_shader(unsigned int *vertexShader, unsigned int *fragmentShader) {
-	const char *vertexSource = "#version 330\n"
+TCDEF tc_shader tc_load_default_shader(tc_uint16 *vertexShader, tc_uint16 *fragmentShader) {
+	const tc_uint8 *vertexSource = "#version 330\n"
 														 "layout (location = 0) in vec2 in_Pos;\n"
 														 "layout (location = 1) in vec4 in_Color;\n"
 														 "layout (location = 2) in vec2 in_Texcoord;\n"
@@ -553,7 +553,7 @@ TCDEF tc_shader tc_load_default_shader(unsigned int *vertexShader, unsigned int 
 														 "	v_Texcoord = in_Texcoord;\n"
 														 "}\n";
 
-	const char *fragmentSource = "#version 330\n"
+	const tc_uint8 *fragmentSource = "#version 330\n"
 															 "out vec4 FragColor;\n"
 															 "varying vec4 v_Color;\n"
 															 "varying vec2 v_Texcoord;\n"
@@ -568,7 +568,7 @@ TCDEF tc_shader tc_load_default_shader(unsigned int *vertexShader, unsigned int 
 	*fragmentShader = tc_compile_shader(fragmentSource, GL_FRAGMENT_SHADER);
 
 	// shader.id = tc_load_shader_program(*vertexShader, *fragmentShader);
-  TRACELOG("Default shader created\n");
+  TRACELOG((tc_uint8*)"Default shader created");
 	return shader;
 }
 
@@ -580,11 +580,11 @@ TCDEF void tc_shader_send_worldview(tc_shader shader) {
 	glGetIntegerv(GL_VIEWPORT, view);
 	matrix_ortho(&world, 0, view[2], view[3], 0, 0, 1);
 
-	tc_shader_send_uniform(shader, "world", world.data, TC_UNIFORM_MATRIX);
-	tc_shader_send_uniform(shader, "view", mview.data, TC_UNIFORM_MATRIX);
+	tc_shader_send_uniform(shader, (tc_uint8*)"world", world.data, TC_UNIFORM_MATRIX);
+	tc_shader_send_uniform(shader, (tc_uint8*)"view", mview.data, TC_UNIFORM_MATRIX);
 }
 
-TCDEF void tc_shader_send_uniform(tc_shader shader, const char *name, void *value, TC_SHADER_UNIFORM_ type) {
+TCDEF void tc_shader_send_uniform(tc_shader shader, const tc_uint8 *name, void *value, TC_SHADER_UNIFORM_ type) {
 	GLuint uniform = glGetUniformLocation(shader.id, name);
 	float *val = (float *)value;
 	switch (type)
@@ -606,36 +606,36 @@ TCDEF void tc_shader_send_uniform(tc_shader shader, const char *name, void *valu
 
 /* Input */
 
-TCDEF int tc_is_key_down(TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_is_key_down(TC_KEYBOARD_KEY_ key) {
 	return tc_input_key_down(CORE.input, key);
 }
 
-TCDEF int tc_is_key_up(TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_is_key_up(TC_KEYBOARD_KEY_ key) {
 	return tc_input_key_up(CORE.input, key);
 }
 
-TCDEF int tc_is_key_pressed(TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_is_key_pressed(TC_KEYBOARD_KEY_ key) {
 
 	return tc_input_key_pressed(CORE.input, key);
 }
 
-TCDEF int tc_is_key_released(TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_is_key_released(TC_KEYBOARD_KEY_ key) {
 	return tc_input_key_released(CORE.input, key);
 }
 
-TCDEF int tc_is_mouse_down(TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_is_mouse_down(TC_MOUSE_BUTTON_ button) {
 	return tc_input_mouse_down(CORE.input, button);
 }
 
-TCDEF int tc_is_mouse_up(TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_is_mouse_up(TC_MOUSE_BUTTON_ button) {
 	return tc_input_mouse_up(CORE.input, button);
 }
 
-TCDEF int tc_is_mouse_pressed(TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_is_mouse_pressed(TC_MOUSE_BUTTON_ button) {
 	return tc_input_mouse_pressed(CORE.input, button);
 }
 
-TCDEF int tc_is_mouse_released(TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_is_mouse_released(TC_MOUSE_BUTTON_ button) {
 	return tc_input_mouse_released(CORE.input, button);
 }
 
@@ -650,7 +650,7 @@ TCDEF float tc_get_delta() {
 	return CORE.timer.delta;
 }
 
-TCDEF int tc_get_fps() {
+TCDEF tc_int16 tc_get_fps() {
 	return CORE.timer.fps;
 }
 
@@ -660,7 +660,7 @@ TCDEF float tc_get_time() {
 
 /* Filesystem */
 
-TCDEF unsigned char *tc_read_file(const char *filename, size_t *outSize) {
+TCDEF unsigned char *tc_read_file(const tc_uint8 *filename, size_t *outSize) {
   if (CORE.packed) {
     return (unsigned char*)tc_fs_read_file_from_zip("data.pack", filename, outSize);
   } else {
@@ -669,7 +669,7 @@ TCDEF unsigned char *tc_read_file(const char *filename, size_t *outSize) {
   return NULL;
 }
 
-TCDEF void tc_write_file(const char *filename, const char *text, size_t size, TC_WRITE_MODE mode) {
+TCDEF void tc_write_file(const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode) {
   if (CORE.packed) {
     tc_fs_write_file_to_zip("data.pack", filename, text, size, mode);
   } else {
@@ -678,15 +678,15 @@ TCDEF void tc_write_file(const char *filename, const char *text, size_t size, TC
   return;
 }
 
-TCDEF tc_bool tc_file_exists(const char *filename) {
+TCDEF tc_bool tc_file_exists(const tc_uint8 *filename) {
   if (CORE.packed) {
     return tc_fs_file_exists_in_zip("data.pack", filename);
   } else {
     return tc_fs_file_exists(filename);
   }
 }
-TCDEF void tc_mkdir(const char *path);
-TCDEF void tc_rmdir(const char *path);
+TCDEF void tc_mkdir(const tc_uint8 *path);
+TCDEF void tc_rmdir(const tc_uint8 *path);
 
 /* Scripting */
 TCDEF void tc_scripting_wren_update() {
@@ -708,12 +708,33 @@ TCDEF void tc_scripting_lua_update() {
 }
 
 /* Utils */
-TCDEF char *tc_replace_char(char *str, char find, char replace) {
-  char *currentPos = strchr(str, find);
+TCDEF tc_int8 *tc_replace_char(tc_int8 *str, tc_uint8 find, tc_uint8 replace) {
+  tc_int8 *currentPos = (tc_int8*)strchr(str, find);
   while(currentPos) {
     *currentPos = replace;
-    currentPos = strchr(currentPos, find);
+    currentPos = (tc_int8*)strchr(currentPos, find);
   }
 
   return str;
+}
+
+/* Log */
+
+TCDEF void tc_log(int type, const tc_uint8 *file, const tc_uint8 *function, tc_uint16 line, const tc_uint8 *fmt, ...) {
+  time_t t = time(NULL);
+  struct tm *tm_now;
+
+  va_list args;
+
+  tc_uint8 err[15] = "";
+  if (type == 1) sprintf(err, "ERROR in ");
+
+  tm_now = localtime(&t);
+  tc_uint8 buf[10];
+  strftime(buf, sizeof(buf), "%H:%M:%S", tm_now);
+  fprintf(stderr, "%s %s:%d %s%s(): ", buf, file, line, err, function);
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+  fprintf(stderr, "\n");
 }

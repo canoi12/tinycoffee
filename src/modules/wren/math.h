@@ -32,8 +32,10 @@ static const char *tcWrenMathModule =
 WrenHandle *vec2Handle;
 
 static void wren_init_vec2(WrenVM *vm) {
-  wrenGetVariable(vm, "tico.math", "Vector2", 1);
-  vec2Handle = wrenGetSlotHandle(vm, 1);
+  wrenEnsureSlots(vm, 1);
+  // wrenInterpret(vm, "teste", "import \"tico.math\"");
+  wrenGetVariable(vm, "tico.math", "Vector2", 0);
+  vec2Handle = wrenGetSlotHandle(vm, 0);
 }
 
 // Vector2 class

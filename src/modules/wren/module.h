@@ -3,6 +3,8 @@
 
 // #include "tinycoffee.h"
 
+#include "../../external/wren/src/include/wren.h"
+
 #define registerWrenClass(name, allocate, finalize, lib) \
 tc_wren_class wren##name##Class = { \
   #name, \

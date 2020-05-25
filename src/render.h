@@ -23,24 +23,24 @@ typedef enum {
 } RENDER_DRAW_MODE;
 
 typedef struct tc_batch {
-  unsigned int *indices;
+  tc_uint32 *indices;
   tc_vertex *vertices;
   tc_vertex *verticesPtr;
 
-  unsigned int indexCount;
+  tc_uint16 indexCount;
 
-  unsigned int vao;
-  unsigned int vbo[2];
+  tc_uint32 vao;
+  tc_uint32 vbo[2];
 } tc_batch;
 
 typedef struct {
   tc_batch batch;
   struct {
-    unsigned int defaultVertexShader;
-    unsigned int defaultFragmentShader;
+    tc_uint16 defaultVertexShader;
+    tc_uint16 defaultFragmentShader;
 
-    unsigned int defaultTextureId;
-    unsigned int currentTextureId;
+    tc_uint8 defaultTextureId;
+    tc_uint8 currentTextureId;
 
     tc_shader defaultShader;
     tc_shader currentShader;
@@ -52,7 +52,7 @@ typedef struct {
   } state;
 } tc_render;
 
-TCDEF tc_render tc_create_render(unsigned int vertexShader, unsigned int fragmentShader);
+TCDEF tc_render tc_create_render(tc_uint16 vertexShader, tc_uint16 fragmentShader);
 TCDEF void tc_destroy_render(tc_render *render);
 
 TCDEF void tc_render_draw_mode(tc_render *render, RENDER_DRAW_MODE mode);
@@ -65,18 +65,18 @@ TCDEF void tc_end_batch(tc_render *render);
 TCDEF void tc_flush_batch(tc_render *render);
 TCDEF void tc_reset_batch(tc_render *render);
 
-TCDEF void tc_render_draw_quad(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, tc_color color);
-TCDEF void tc_render_draw_quad_scale(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, float sx, float sy, tc_color color);
-TCDEF void tc_render_draw_quad_ex(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, float angle, float sx, float sy, float cx, float cy, tc_color color);
+TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, tc_color color);
+TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, float sx, float sy, tc_color color);
+TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, float angle, float sx, float sy, float cx, float cy, tc_color color);
 
-TCDEF void tc_render_draw_circle(tc_render *render, unsigned int textureId, float x, float y, float radius, tc_color color);
-TCDEF void tc_render_draw_triangle(tc_render *render, unsigned int textureId, float x0, float y0, float x1, float y1, float x2, float y2, tc_color color);
+TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, float x, float y, float radius, tc_color color);
+TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, float x0, float y0, float x1, float y1, float x2, float y2, tc_color color);
 
 #endif /* TC_RENDER_H */
 
 #if defined(TC_RENDER_IMPLEMENTATION)
-TCDEF tc_render tc_create_render(unsigned int vertexShader, unsigned int fragmentShader) {
-  TRACELOG("Creating render\n");
+TCDEF tc_render tc_create_render(tc_uint16 vertexShader, tc_uint16 fragmentShader) {
+  TRACELOG("Creating render");
   tc_render render = {0};
   render.batch = tc_create_batch();
   render.state.defaultVertexShader = vertexShader;
@@ -94,7 +94,7 @@ TCDEF tc_render tc_create_render(unsigned int vertexShader, unsigned int fragmen
   render.batch.indexCount = 0;
   render.state.drawMode = TC_TRIANGLES;
 
-  TRACELOG("Render created\n");
+  TRACELOG("Render created");
 
   return render;
 }
@@ -150,7 +150,7 @@ TCDEF tc_batch tc_create_batch() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, batch.vbo[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesSize, batch.indices, GL_STATIC_DRAW);
 
-  TRACELOG("Batch created\n");
+  TRACELOG("Batch created");
 
 	return batch;
 }
@@ -193,7 +193,7 @@ TCDEF void tc_reset_batch(tc_render *render) {
   tc_begin_batch(render);
 }
 
-TCDEF void tc_render_draw_quad(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, tc_color color) {
+TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
 		tc_reset_batch(render);
 
@@ -253,7 +253,7 @@ TCDEF void tc_render_draw_quad(tc_render *render, unsigned int textureId, tc_rec
 	render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_quad_scale(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, float sx, float sy, tc_color color) {
+TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, float sx, float sy, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
 		tc_reset_batch(render);
 
@@ -301,7 +301,7 @@ TCDEF void tc_render_draw_quad_scale(tc_render *render, unsigned int textureId, 
 	render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_quad_ex(tc_render *render, unsigned int textureId, tc_rectangle rect, float x, float y, float width, float height, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rectangle rect, float x, float y, float width, float height, float angle, float sx, float sy, float cx, float cy, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 
@@ -359,7 +359,7 @@ TCDEF void tc_render_draw_quad_ex(tc_render *render, unsigned int textureId, tc_
   render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_circle(tc_render *render, unsigned int textureId, float x, float y, float radius, tc_color color) {
+TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, float x, float y, float radius, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 
@@ -405,7 +405,7 @@ TCDEF void tc_render_draw_circle(tc_render *render, unsigned int textureId, floa
   render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_triangle(tc_render *render, unsigned int textureId, float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
+TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 

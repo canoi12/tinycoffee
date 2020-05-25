@@ -151,8 +151,8 @@ typedef enum {
 
 typedef struct {
   struct {
-    int buttonDown[MOUSE_BUTTON_LAST];
-    int prevButton[MOUSE_BUTTON_LAST];
+    tc_bool buttonDown[MOUSE_BUTTON_LAST];
+    tc_bool prevButton[MOUSE_BUTTON_LAST];
     double x;
     double y;
     double fixX;
@@ -170,22 +170,22 @@ typedef struct {
 TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags);
 TCDEF void tc_input_poll(tc_input *input);
 
-TCDEF int tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF int tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF int tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF int tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key);
+TCDEF tc_bool tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key);
+TCDEF tc_bool tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key);
+TCDEF tc_bool tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key);
+TCDEF tc_bool tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key);
 
-TCDEF int tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF int tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF int tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF int tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button);
+TCDEF tc_bool tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button);
+TCDEF tc_bool tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button);
+TCDEF tc_bool tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button);
+TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button);
 
-TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y);
+TCDEF void tc_input_get_mouse_pos(tc_input input, tc_int32 *x, tc_int32 *y);
 TCDEF void tc_input_get_mouse_posv(tc_input input, vec2 *mousePos);
 
 TCDEF void tc_input_fix_mouse_pos(tc_input *input);
 TCDEF void tc_input_unfix_mouse_pos(tc_input *input);
-TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y);
+TCDEF void tc_input_get_mouse_delta(tc_input input, tc_int32 *x, tc_int32 *y);
 TCDEF void tc_input_get_mouse_deltav(tc_input input, vec2 *deltaPos);
 
 #endif /* TC_INPU_H */
@@ -220,34 +220,34 @@ TCDEF void tc_input_poll(tc_input *input) {
 		input->mouseState.prevButton[i] = input->mouseState.buttonDown[i];
 }
 
-TCDEF int tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key) {
   if (!input.keyboardState.active)
   return input.keyboardState.keyDown[key];
 }
-TCDEF int tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key) {
   return !input.keyboardState.prevKey[key] && input.keyboardState.keyDown[key];
 }
-TCDEF int tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key) {
   return !input.keyboardState.keyDown[key];
 }
-TCDEF int tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key) {
+TCDEF tc_bool tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key) {
   return input.keyboardState.prevKey[key] && !input.keyboardState.keyDown[key];
 }
 
-TCDEF int tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button) {
   return input.mouseState.buttonDown[button];
 }
-TCDEF int tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button) {
   return !input.mouseState.prevButton[button] && input.mouseState.buttonDown[button];
 }
-TCDEF int tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button) {
   return !input.mouseState.buttonDown[button];
 }
-TCDEF int tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button) {
+TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button) {
   return input.mouseState.prevButton[button] && !input.mouseState.buttonDown[button];
 }
 
-TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y) {
+TCDEF void tc_input_get_mouse_pos(tc_input input, tc_int32 *x, tc_int32 *y) {
   if (x) *x = input.mouseState.x;
   if (y) *y = input.mouseState.y;
 }
@@ -268,7 +268,7 @@ TCDEF void tc_input_unfix_mouse_pos(tc_input *input) {
   ASSERT(input != NULL);
   input->mouseState.fixed = TC_FALSE;
 }
-TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y) {
+TCDEF void tc_input_get_mouse_delta(tc_input input, tc_int32 *x, tc_int32 *y) {
   if (x) *x = input.mouseState.fixX - input.mouseState.x;
   if (y) *y = input.mouseState.fixY - input.mouseState.y;
 }

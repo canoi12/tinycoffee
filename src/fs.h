@@ -30,39 +30,39 @@ typedef struct {
   FILE *fp;
 } tc_file;
 
-TCDEF char *tc_fs_read_file(const char *filename, size_t *size, tc_bool readBinary);
-TCDEF char *tc_fs_read_file_from_zip(const char *zipName, const char *filename, size_t *size);
-TCDEF void tc_fs_write_file(const char *filename, const char *text, size_t size, TC_WRITE_MODE mode);
-TCDEF void tc_fs_write_file_to_zip(const char *zipName, const char *filename, const char *text, size_t size, TC_WRITE_MODE mode);
+TCDEF tc_uint8 *tc_fs_read_file(const tc_uint8 *filename, size_t *size, tc_bool readBinary);
+TCDEF tc_uint8 *tc_fs_read_file_from_zip(const tc_uint8 *zipName, const tc_uint8 *filename, size_t *size);
+TCDEF void tc_fs_write_file(const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode);
+TCDEF void tc_fs_write_file_to_zip(const tc_uint8 *zipName, const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode);
 
-TCDEF void tc_fs_delete_file(const char *filename);
-TCDEF void tc_fs_delete_file_from_zip(const char *zipName, const char *filename);
-TCDEF tc_bool tc_fs_file_exists(const char *filename);
-TCDEF tc_bool tc_fs_file_exists_in_zip(const char *zipName, const char *filename);
+TCDEF void tc_fs_delete_file(const tc_uint8 *filename);
+TCDEF void tc_fs_delete_file_from_zip(const tc_uint8 *zipName, const tc_uint8 *filename);
+TCDEF tc_bool tc_fs_file_exists(const tc_uint8 *filename);
+TCDEF tc_bool tc_fs_file_exists_in_zip(const tc_uint8 *zipName, const tc_uint8 *filename);
 
-TCDEF void tc_fs_mkdir(const char *path);
-TCDEF void tc_fs_mkdir_in_zip(const char *zipName, const char *path);
-TCDEF void tc_fs_rmdir(const char *path);
-TCDEF void tc_fs_rmdir_in_zip(const char *zipName, const char *path);
-TCDEF tc_bool tc_fs_directory_exists(const char *path);
-TCDEF tc_bool tc_fs_directory_exists_in_zip(const char *zipName, const char *filename);
+TCDEF void tc_fs_mkdir(const tc_uint8 *path);
+TCDEF void tc_fs_mkdir_in_zip(const tc_uint8 *zipName, const tc_uint8 *path);
+TCDEF void tc_fs_rmdir(const tc_uint8 *path);
+TCDEF void tc_fs_rmdir_in_zip(const tc_uint8 *zipName, const tc_uint8 *path);
+TCDEF tc_bool tc_fs_directory_exists(const tc_uint8 *path);
+TCDEF tc_bool tc_fs_directory_exists_in_zip(const tc_uint8 *zipName, const tc_uint8 *filename);
 
-TCDEF tc_file tc_fs_get_info(const char *path);
+TCDEF tc_file tc_fs_get_info(const tc_uint8 *path);
 
-TCDEF tc_file tc_fs_open_file(const char *filename);
+TCDEF tc_file tc_fs_open_file(const tc_uint8 *filename);
 TCDEF void tc_fs_close_file(tc_file *file);
 
 #endif
 
 #if defined(TC_FILESYSTEM_IMPLEMENTATION)
 
-TCDEF char * tc_fs_read_file(const char *filename, size_t *outSize, tc_bool readBinary) {
-  char read[2] = "r";
+TCDEF tc_uint8 * tc_fs_read_file(const tc_uint8 *filename, size_t *outSize, tc_bool readBinary) {
+  tc_uint8 read[2] = "r";
   if (readBinary) read[1] = 'b';
   FILE *fp;
   fp = fopen(filename, read);
   if (!fp) {
-    ERROR("FS", "File not found '%s'\n", filename);
+    ERROR("File not found '%s'", filename);
     return NULL;
   }
   size_t size;
@@ -72,7 +72,7 @@ TCDEF char * tc_fs_read_file(const char *filename, size_t *outSize, tc_bool read
 
   if (outSize) *outSize = size;
 
-  char *buffer = malloc(size + 1);
+  tc_uint8 *buffer = malloc(size + 1);
   int _ = fread(buffer, 1, size, fp); (void)_;
   buffer[size] = '\0';
   fclose(fp);
@@ -80,14 +80,14 @@ TCDEF char * tc_fs_read_file(const char *filename, size_t *outSize, tc_bool read
   return buffer;
 }
 
-TCDEF char * tc_fs_read_file_from_zip(const char *zipName, const char *filename, size_t *outSize) {
+TCDEF tc_uint8 * tc_fs_read_file_from_zip(const tc_uint8 *zipName, const tc_uint8 *filename, size_t *outSize) {
   void *buffer;
   size_t size;
   struct zip_t *zip = zip_open(zipName, 0, 'r');
   ASSERT(zip != NULL);
   tc_bool failed = zip_entry_open(zip, filename);
   if (failed < 0) {
-    ERROR("FS", "Failed to open file '%s'\n", filename);
+    ERROR("Failed to open file '%s'", filename);
     zip_close(zip);
     return NULL;
   }
@@ -96,11 +96,11 @@ TCDEF char * tc_fs_read_file_from_zip(const char *zipName, const char *filename,
   zip_entry_close(zip);
   zip_close(zip);
 
-  return (char*)buffer;
+  return (tc_uint8*)buffer;
 }
 
-TCDEF void tc_fs_write_file(const char *filename, const char *text, size_t size, TC_WRITE_MODE mode) {
-  char writeMode[2] = "w\0";
+TCDEF void tc_fs_write_file(const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode) {
+  tc_uint8 writeMode[2] = "w\0";
   if (mode & TC_APPEND) writeMode[0] = 'a';
   if (mode & TC_BINARY) writeMode[1] = 'r';
 
@@ -109,20 +109,20 @@ TCDEF void tc_fs_write_file(const char *filename, const char *text, size_t size,
   FILE *fp;
   fp = fopen(filename, writeMode);
   if (!fp) {
-    ERROR("FS", "Cannot create file '%s'\n", filename);
+    ERROR("Cannot create file '%s'", filename);
     return;
   }
   // int write = fwrite(text, 1, bufSize, fp);
   for (int i = 0; i < bufSize; i++) {
     int write = fputc(text[i], fp);
     if (write == EOF) {
-      ERROR("FS", "Failed to write file '%s'\n", filename);
+      ERROR("Failed to write file '%s'", filename);
       fclose(fp);
       return;
     }
   }
   // if (write != bufSize) {
-  //   ERROR("FS", "Failed to write file '%s'\n", filename);
+  //   ERROR("Failed to write file '%s'", filename);
   //   fclose(fp);
   //   return;
   // }
@@ -130,14 +130,14 @@ TCDEF void tc_fs_write_file(const char *filename, const char *text, size_t size,
   fclose(fp);
 }
 
-TCDEF void tc_fs_write_file_to_zip(const char *zipName, const char *filename, const char *text, size_t size, TC_WRITE_MODE mode) {
-  char writeMode = 'w';
+TCDEF void tc_fs_write_file_to_zip(const tc_uint8 *zipName, const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode) {
+  tc_uint8 writeMode = 'w';
   if (mode & TC_APPEND) writeMode = 'a';
   struct zip_t *zip = zip_open(zipName, 0, writeMode);
   ASSERT(zip != NULL);
   tc_bool failed = zip_entry_open(zip, filename);
   if (failed < 0) {
-    ERROR("FS", "Failed to open file '%s' from zip '%s'", filename, zipName);
+    ERROR("Failed to open file '%s' from zip '%s'", filename, zipName);
     zip_close(zip);
     return;
   }
@@ -146,13 +146,13 @@ TCDEF void tc_fs_write_file_to_zip(const char *zipName, const char *filename, co
   zip_close(zip);
 }
 
-TCDEF void tc_fs_delete_file(const char *filename) {
+TCDEF void tc_fs_delete_file(const tc_uint8 *filename) {
   if (remove(filename)) {
-    ERROR("FS", "Cannot remove file '%s'\n", filename);
+    ERROR("Cannot remove file '%s'", filename);
   }
 }
 
-TCDEF tc_bool tc_fs_file_exists(const char *filename) {
+TCDEF tc_bool tc_fs_file_exists(const tc_uint8 *filename) {
   FILE *fp;
   fp = fopen(filename, "r");
   if (!fp) {
@@ -162,7 +162,7 @@ TCDEF tc_bool tc_fs_file_exists(const char *filename) {
   return TC_TRUE;
 }
 
-TCDEF tc_bool tc_fs_file_exists_in_zip(const char* zipName, const char *filename) {
+TCDEF tc_bool tc_fs_file_exists_in_zip(const tc_uint8* zipName, const tc_uint8 *filename) {
   struct zip_t *zip = zip_open(zipName, 0, 'r');
   tc_bool failed = zip_entry_open(zip, filename);
   if (failed < 0) {
@@ -174,7 +174,7 @@ TCDEF tc_bool tc_fs_file_exists_in_zip(const char* zipName, const char *filename
   return TC_TRUE;
 }
 
-TCDEF void tc_fs_mkdir(const char *path) {
+TCDEF void tc_fs_mkdir(const tc_uint8 *path) {
 #if defined(__unix__)
 	int check = mkdir(path, 0775);
 #else
@@ -182,29 +182,29 @@ TCDEF void tc_fs_mkdir(const char *path) {
 #endif
 	if (check)
 	{
-		ERROR("FS", "Failed to create folder '%s'\n", path);
+		ERROR("Failed to create folder '%s'", path);
 	}
 }
 
-TCDEF void tc_fs_mkdir_in_zip(const char *zipName, const char *path) {
+TCDEF void tc_fs_mkdir_in_zip(const tc_uint8 *zipName, const tc_uint8 *path) {
 
 }
 
-TCDEF void tc_fs_rmdir(const char *path) {
+TCDEF void tc_fs_rmdir(const tc_uint8 *path) {
   tc_bool check = rmdir(path);
   if (check) {
-    ERROR("FS", "Failed to remove directory '%s'\n", path);
+    ERROR("Failed to remove directory '%s'", path);
   }
 }
 
-TCDEF tc_bool tc_fs_directory_exists(const char *path) {
+TCDEF tc_bool tc_fs_directory_exists(const tc_uint8 *path) {
   struct stat sb;
 	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) return 1;
 
 	return 0;
 }
 
-TCDEF tc_bool tc_fs_directory_exists_in_zip(const char *zipName, const char *path) {
+TCDEF tc_bool tc_fs_directory_exists_in_zip(const tc_uint8 *zipName, const tc_uint8 *path) {
   struct zip_t *zip = zip_open(zipName, 0, 'r');
   ASSERT(zip != NULL);
   tc_bool result = zip_entry_open(zip, path);
@@ -217,7 +217,7 @@ TCDEF tc_bool tc_fs_directory_exists_in_zip(const char *zipName, const char *pat
   return TC_TRUE;
 }
 
-TCDEF tc_file tc_fs_get_info(const char *path) {
+TCDEF tc_file tc_fs_get_info(const tc_uint8 *path) {
   tc_file file = {0};
   if (tc_fs_file_exists(path)) {
     file.type = TC_FILE;

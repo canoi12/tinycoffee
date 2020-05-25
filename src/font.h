@@ -42,7 +42,7 @@ typedef struct {
       float tx; // x offset of glyph in texture coordinates
     } cInfo;
 
-    int size;
+    tc_uint8 size;
     FT_Face face;
 
     unsigned int atlasVao;
@@ -51,15 +51,15 @@ typedef struct {
 
 TCDEF void tc_init_font_lib();
 TCDEF tc_font tc_load_default_font(void);
-TCDEF tc_font tc_load_font(const char *filename, int size);
-TCDEF tc_font tc_load_font_internal(const char *filename, int fontSize);
-TCDEF tc_font tc_load_font_external(const char *filename, int fontSize);
-TCDEF tc_font tc_load_font_from_memory(const char *buffer, size_t bufSize, int fontSize);
-TCDEF tc_font tc_load_font_from_texture(tc_texture tex, int fontWidth, int fontHeight);
+TCDEF tc_font tc_load_font(const tc_uint8 *filename, tc_uint8 size);
+TCDEF tc_font tc_load_font_internal(const tc_uint8 *filename, tc_uint8 fontSize);
+TCDEF tc_font tc_load_font_external(const tc_uint8 *filename, tc_uint8 fontSize);
+TCDEF tc_font tc_load_font_from_memory(const tc_uint8 *buffer, size_t bufSize, tc_uint8 fontSize);
+TCDEF tc_font tc_load_font_from_texture(tc_texture tex, tc_uint16 fontWidth, tc_uint16 fontHeight);
 TCDEF void tc_unload_font(tc_font *font);
 
-TCDEF void tc_font_get_rect(tc_font font, const char c, float *x, float *y, vec2 *outPos, tc_rectangle *rect);
-TCDEF void tc_font_get_rect_scale(tc_font font, const char c, float *x, float *y, vec2 *outPos, tc_rectangle *rect, float sx, float sy);
+TCDEF void tc_font_get_rect(tc_font font, const tc_uint8 c, float *x, float *y, vec2 *outPos, tc_rectangle *rect);
+TCDEF void tc_font_get_rect_scale(tc_font font, const tc_uint8 c, float *x, float *y, vec2 *outPos, tc_rectangle *rect, float sx, float sy);
 
 #endif /* TC_FONT_H */
 
@@ -67,12 +67,12 @@ TCDEF void tc_font_get_rect_scale(tc_font font, const char c, float *x, float *y
 
 FT_Library ft;
 
-static const char * data = "";
+static const tc_uint8 * data = "";
 
 TCDEF void tc_init_font_lib() {
   if (FT_Init_FreeType(&ft))
 	{
-		ERROR("FONT", "Font lib init failed\n");
+		ERROR("Font lib init failed");
 	}
 }
 
@@ -82,31 +82,31 @@ TCDEF tc_font tc_load_default_font(void) {
   return font;
 }
 
-TCDEF tc_font tc_load_font(const char *filename, int size) {
+TCDEF tc_font tc_load_font(const tc_uint8 *filename, tc_uint8 size) {
   // if (CORE.packed) {
   //   return tc_load_font_internal(filename, size);
   // } else {
   //   return tc_load_font_external(filename, size);
   // }
   size_t bufSize;
-  unsigned char *buffer = tc_read_file(filename, &bufSize);
+  tc_uint8 *buffer = tc_read_file(filename, &bufSize);
   tc_font font = tc_load_font_from_memory(buffer, bufSize, size);
   if (font.size == 0) {
-  	ERROR("FONT", "Failed to load font '%s'\n", filename);
+  	ERROR("Failed to load font '%s'", filename);
   }
   free(buffer);
   return font;
 }
 
-TCDEF tc_font tc_load_font_internal(const char *filename, int fontSize) {
+TCDEF tc_font tc_load_font_internal(const tc_uint8 *filename, tc_uint8 fontSize) {
   size_t size;
-  unsigned char *buffer = tc_fs_read_file_from_zip("data.pack", filename, &size);
+  tc_uint8 *buffer = tc_fs_read_file_from_zip("data.pack", filename, &size);
 
   return tc_load_font_from_memory(buffer, size, fontSize);
 }
-TCDEF tc_font tc_load_font_external(const char *filename, int fontSize) {
+TCDEF tc_font tc_load_font_external(const tc_uint8 *filename, tc_uint8 fontSize) {
   size_t size;
-  unsigned char *buffer = tc_fs_read_file(filename, &size, TC_TRUE);
+  tc_uint8 *buffer = tc_fs_read_file(filename, &size, TC_TRUE);
 
   return tc_load_font_from_memory(buffer, size, fontSize);
 //   tc_font font = {0};
@@ -188,11 +188,11 @@ TCDEF tc_font tc_load_font_external(const char *filename, int fontSize) {
 // 	return font;
 }
 
-TCDEF tc_font tc_load_font_from_memory(const char *buffer, size_t bufSize, int fontSize) {
+TCDEF tc_font tc_load_font_from_memory(const tc_uint8 *buffer, size_t bufSize, tc_uint8 fontSize) {
 	tc_font font = {0};
 	if (FT_New_Memory_Face(ft, buffer, bufSize, 0, &font.face))
 	{
-		ERROR("FONT", "Failed to load font from memory\n");
+		ERROR("Failed to load font from memory");
 		return font;
 	}
 
@@ -207,7 +207,7 @@ TCDEF tc_font tc_load_font_from_memory(const char *buffer, size_t bufSize, int f
 	{
 		if (FT_Load_Char(font.face, i, FT_LOAD_RENDER))
 		{
-			ERROR("FONT", "Failed to load character '%c' from memory\n", i);
+			ERROR("Failed to load character '%c' from memory", i);
 			continue;
 		}
 
@@ -256,7 +256,7 @@ TCDEF tc_font tc_load_font_from_memory(const char *buffer, size_t bufSize, int f
 	return font;
 }
 
-TCDEF void tc_font_get_rect(tc_font font, const char c, float *x, float *y, vec2 *outPos, tc_rectangle *rect) {
+TCDEF void tc_font_get_rect(tc_font font, const tc_uint8 c, float *x, float *y, vec2 *outPos, tc_rectangle *rect) {
 	// // const char *p = c;
 	// if (c >= 32 && c < 128)
 	// {
@@ -288,7 +288,7 @@ TCDEF void tc_font_get_rect(tc_font font, const char c, float *x, float *y, vec2
 	tc_font_get_rect_scale(font, c, x, y, outPos, rect, 1, 1);
 }
 
-TCDEF void tc_font_get_rect_scale(tc_font font, const char c, float *x, float *y, vec2 *outPos, tc_rectangle *rect, float sx, float sy) {
+TCDEF void tc_font_get_rect_scale(tc_font font, const tc_uint8 c, float *x, float *y, vec2 *outPos, tc_rectangle *rect, float sx, float sy) {
 	// const char *p = c;
 	if (c == '\n') {
   	  *x = 0;

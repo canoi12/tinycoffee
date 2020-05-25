@@ -90,12 +90,14 @@ main.wren structure:
 import "tico.graphics" for Texture, Color
 
 class Game {
-  construct load() {
-    _tex = Texture.load(filename)
+  tex {__tex}
+
+  static load() {
+    __tex = Texture.load(filename)
   }
-  update(dt) {}
-  draw() {
-    _tex.draw(0, 0, Color.White)
+  static update(dt) {}
+  static draw() {
+    tex.draw(0, 0, Color.White)
   }
 }
 

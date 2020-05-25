@@ -35,7 +35,6 @@ static const char *tcWrenGraphicsModule =
 " static BG { __bg }\n"
 "}\n"
 "Color.load()\n"
-"System.print(\"teste\")\n"
 "foreign class Texture {\n"
 " construct create(data, width, height) {}\n"
 " construct load(filename) {}\n"
