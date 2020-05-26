@@ -18,7 +18,7 @@ I'm using in this project:
 - [miniaudio](https://github.com/dr-soft/miniaudio/) (include dr_flac, dr_mp3 and dr_wav)
 - [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
 - [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
-- ~[freetype](https://www.freetype.org/)~
+- ~[freetype](https://www.freetype.org/)~ (changed to `stb_truetype`, but maybe give the option to use it in the future (?))
 - [cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)
 
 ## TODO:
