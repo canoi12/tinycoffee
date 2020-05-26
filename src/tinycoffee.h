@@ -308,6 +308,8 @@ TCDEF void tc_scripting_lua_draw();
 
 /* Utils */
 TCDEF tc_int8 *tc_replace_char(tc_int8 *str, tc_uint8 find, tc_uint8 replace);
+TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, tc_int32* codepoint);
+TCDEF tc_uint16 tc_utf8_decode(const tc_uint8 *p);
 
 /* Log */
 

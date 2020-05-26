@@ -7,8 +7,6 @@ import "tico" for Config
 
 class Game {
   static config {
-    Config.title = "Presidente filho da puta"
-    Config.width = 860
   }
 
   static load() {
@@ -36,7 +34,10 @@ class Game {
 //     Render.fillRectangle(0, 64, 320, 32, Color.White)
     Render.fillCircle(64, 32, 8, Color.White)
     Render.drawCircle(64, 128, 16, Color.White)
-    Render.drawRectangle(0, 0, 320, 190, Color.White)
+//     Render.drawRectangle(0, 0, 320, 190, Color.White)
+
+    Render.drawText("aeeeewçÇçÇçÇçÇç", 0, 0, Color.White)
+//     Render.drawText("THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG", 0, 16, Color.White)
     __canvas.unset()
     __canvas.draw(0, 0, 2, 2, Color.White)
   }

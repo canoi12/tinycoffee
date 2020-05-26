@@ -5,7 +5,7 @@ out=tico
 sources=main.c
 release="debug"
 include=-Isrc\ -Isrc/external\ -Isrc/external/freetype/include
-cflags=-Wall\ -g\ --std=gnu99
+cflags=-g\ --std=gnu99
 lflags=-lX11\ -lm\ -ldl\ -lGL\ -lpthread
 wren_lang=true
 lua_lang=false
@@ -126,24 +126,24 @@ if [ ! -f "$libs_folder/libgl3w" ]; then
   # rm $objs_folder/gl3w.o
 fi
 
-if [ ! -f "$libs_folder/libfreetype" ]; then
-  echo "compiling freetype static lib.."
-  freetype_dir=$external/freetype/src
-  freetype_sources="base/ftsystem.c base/ftinit.c base/ftdebug.c base/ftbase.c base/ftbbox.c autofit/autofit.c\
-  base/ftglyph.c base/ftbitmap.c truetype/truetype.c sfnt/sfnt.c psnames/psnames.c bdf/bdf.c cff/cff.c cid/type1cid.c\
-  pcf/pcf.c pfr/pfr.c type1/type1.c type42/type42.c winfonts/winfnt.c psaux/psaux.c pshinter/pshinter.c smooth/smooth.c\
-  gzip/ftgzip.c lzw/ftlzw.c raster/raster.c"
+# if [ ! -f "$libs_folder/libfreetype" ]; then
+#   echo "compiling freetype static lib.."
+#   freetype_dir=$external/freetype/src
+#   freetype_sources="base/ftsystem.c base/ftinit.c base/ftdebug.c base/ftbase.c base/ftbbox.c autofit/autofit.c\
+#   base/ftglyph.c base/ftbitmap.c truetype/truetype.c sfnt/sfnt.c psnames/psnames.c bdf/bdf.c cff/cff.c cid/type1cid.c\
+#   pcf/pcf.c pfr/pfr.c type1/type1.c type42/type42.c winfonts/winfnt.c psaux/psaux.c pshinter/pshinter.c smooth/smooth.c\
+#   gzip/ftgzip.c lzw/ftlzw.c raster/raster.c"
 
-  for ftsrc in $freetype_sources; do
-    ftobj=$(echo $ftsrc | sed -e 's/\//_/g' | sed -e 's/\.c/.o/g')
-    $cc -c $freetype_dir/$ftsrc -o $objs_folder/$ftobj $include -DFT2_BUILD_LIBRARY $cflags
-  done
+#   for ftsrc in $freetype_sources; do
+#     ftobj=$(echo $ftsrc | sed -e 's/\//_/g' | sed -e 's/\.c/.o/g')
+#     $cc -c $freetype_dir/$ftsrc -o $objs_folder/$ftobj $include -DFT2_BUILD_LIBRARY $cflags
+#   done
 
-  touch $libs_folder/libfreetype
+#   touch $libs_folder/libfreetype
 
-  # $(ar rcs $libs_folder/libfreetype.a $objs_folder/*.o)
-  # $(rm -r $objs_folder/*.o)
-fi
+#   # $(ar rcs $libs_folder/libfreetype.a $objs_folder/*.o)
+#   # $(rm -r $objs_folder/*.o)
+# fi
 
 if $wren_lang; then
   if [ ! -f "$libs_folder/libwren" ]; then

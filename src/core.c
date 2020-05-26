@@ -354,35 +354,22 @@ TCDEF void tc_draw_text(const tc_uint8 *text, float x, float y, tc_color color) 
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
-	for (const tc_uint8 *p = text; *p; p++)
+  tc_uint8* p = (tc_uint8*)text;
+	while (*p)
 	{
-// 		if (*p >= 32 && *p < 128)
-		{
-			// float x2 = x + font.c[*p].bl;
-			// float y2 = y + (font.texture.height - font.c[*p].bt);
-			// float w = font.c[*p].bw;
-			// float h = font.c[*p].bh;
-
-			// float s0 = font.c[*p].tx * font.texture.width;
-			// float t0 = 0;
-			// // float s1 = font.c[*p].tx + font.c[*p].bw;
-			// float s1 = font.c[*p].bw;
-			// float t1 = font.c[*p].bh;
-
-			// // printf("%c %f\n", *p, s1);
-
-			// x += font.c[*p].ax;
-			// y += font.c[*p].ay;
-			// if (!w || !h)
-			// 	continue;
-
-			// tc_rectangle rect = {s0, t0, s1, t1};
-			// tc_render_draw_quad(&CORE.render, font.texture.id, rect, x2, y2, font.texture.width, font.texture.height, color);
-			vec2 pos;
-			tc_rectangle rect;
-			tc_font_get_rect(font, *p, &x0, &y0, &pos, &rect);
-			tc_render_draw_quad(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, color);
-		}
+		vec2 pos;
+		tc_rectangle rect;
+    // tc_uint16 codepoint = tc_utf8_decode(p);
+    // tc_uint8 c[2];
+    // c[0] = *p;
+    // if (c[0] > 128) {
+    //   c[1] = *(++p);
+    // }
+    // tc_uint16 codepoint = tc_utf8_decode(c);
+    tc_int32 codepoint;
+    p = tc_utf8_codepoint(p, &codepoint);
+		tc_font_get_rect(font, codepoint, &x0, &y0, &pos, &rect);
+		tc_render_draw_quad(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, color);
 	}
 }
 
@@ -391,34 +378,15 @@ TCDEF void tc_draw_text_scale(const tc_uint8 *text, float x, float y, float sx, 
   tc_font font = CORE.defaultFont;
   float x0 = 0;
   float y0 = 0;
-	for (const tc_uint8 *p = text; *p; p++)
+  tc_uint8 *p = (tc_uint8*)text;
+	while(*p)
 	{
-// 		if (*p >= 32 && *p < 128)
-		{
-			// float x2 = x + font.c[*p].bl;
-			// float y2 = y + (font.texture.height - font.c[*p].bt);
-			// float w = font.c[*p].bw;
-			// float h = font.c[*p].bh;
-
-			// float s0 = font.c[*p].tx * font.texture.width;
-			// float t0 = 0;
-			// // float s1 = font.c[*p].tx + font.c[*p].bw;
-			// float s1 = font.c[*p].bw;
-			// float t1 = font.c[*p].bh;
-
-			// // printf("%c %f\n", *p, s1);
-
-			// x += font.c[*p].ax * sx;
-			// y += font.c[*p].ay * sy;
-			// if (!w || !h)
-			// 	continue;
-
-			// tc_rectangle rect = {s0, t0, s1, t1};
-			vec2 pos;
-			tc_rectangle rect;
-			tc_font_get_rect_scale(font, *p, &x0, &y0, &pos, &rect, sx, sy);
-			tc_render_draw_quad_scale(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, sx, sy, color);
-		}
+		vec2 pos;
+		tc_rectangle rect;
+    tc_int32 codepoint;
+    p = tc_utf8_codepoint(p, &codepoint);
+		tc_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy);
+		tc_render_draw_quad_scale(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, sx, sy, color);
 	}
 }
 TCDEF void tc_draw_text_ex(const tc_uint8 *text, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
@@ -726,6 +694,70 @@ TCDEF tc_int8 *tc_replace_char(tc_int8 *str, tc_uint8 find, tc_uint8 replace) {
   }
 
   return str;
+}
+
+#define MAXUNICODE 0x10FFFF
+
+TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, tc_int32* codepoint) {
+  tc_uint8 *n;
+  tc_uint8 c = p[0];
+  if (c < 0x80) {
+    *codepoint = c;
+    n = p + 1;
+    return n;
+  }
+
+  switch (c & 0xf0) {
+    case 0xf0: {
+      *codepoint = ((p[0] & 0x07) << 18) | ((p[1] & 0x3f) << 12) | ((p[2] & 0x3f) << 6) | ((p[3] & 0x3f));
+      n = p + 4;
+      break;
+    }
+    case 0xe0: {
+      *codepoint = ((p[0] & 0x0f) << 12) | ((p[1] & 0x3f) << 6) | ((p[2] & 0x3f));
+      n = p + 3;
+      break;
+    }
+    case 0xc0:
+    case 0xd0: {
+      *codepoint = ((p[0] & 0x1f) << 6) | ((p[1] & 0x3f));
+      n = p + 2;
+      break;
+    }
+    default:
+    {
+      *codepoint = -1;
+      n = n + 1;
+    }
+  }
+
+  if (*codepoint > MAXUNICODE) *codepoint = -1;
+
+  return n;
+}
+
+TCDEF tc_uint16 tc_utf8_decode(const tc_uint8 *p) {
+  static const tc_uint32 limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
+  const tc_uint8 *s = (const tc_uint8 *)p;
+  tc_uint32 c = s[0];
+  tc_uint32 res = 0;  /* final result */
+  if (c < 0x80)  /* ascii? */
+    res = c;
+  else {
+    int count = 0;  /* to count number of continuation bytes */
+    while (c & 0x40) {  /* still have continuation bytes? */
+      int cc = s[++count];  /* read next byte */
+      if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
+        return -1;  /* invalid byte sequence */
+      res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
+      c <<= 1;  /* to test next bit */
+    }
+    res |= ((c & 0x7F) << (count * 5));  /* add first byte */
+    if (count > 3 || res > MAXUNICODE || res <= limits[count])
+      return -1;  /* invalid byte sequence */
+    s += count;  /* skip continuation bytes read */
+  }
+  return res;
 }
 
 /* Log */
