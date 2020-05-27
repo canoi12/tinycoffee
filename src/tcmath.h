@@ -129,8 +129,8 @@ typedef struct matrix_s {
 TCDEF void matrix_identity(matrix *m);
 TCDEF void matrix_clone(matrix *m, matrix s);
 TCDEF void matrix_row(vec4 *v, matrix m, int row);
-TCDEF void matrixranslate(matrix *m, float x, float y, float z);
-TCDEF void matrixranslatev(matrix *m, vec3 v);
+TCDEF void matrix_translate(matrix *m, float x, float y, float z);
+TCDEF void matrix_translatev(matrix *m, vec3 v);
 TCDEF void matrix_scale(matrix *m, float x, float y, float z);
 TCDEF void matrix_scaleV(matrix *m, vec3 v);
 TCDEF void matrix_rotate(matrix *m, float x, float y, float z, float angle);
@@ -277,7 +277,7 @@ TCDEF void matrix_ortho(matrix *m, float l, float r, float b, float t, float n, 
 
 	m->data[2][2] = -2.f/(f-n);
 	m->data[2][0] = m->data[2][1] = m->data[2][3] = 0.f;
-	
+
 	m->data[3][0] = -(r+l)/(r-l);
 	m->data[3][1] = -(t+b)/(t-b);
 	m->data[3][2] = -(f+n)/(f-n);

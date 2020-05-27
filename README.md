@@ -16,9 +16,9 @@ I'm using in this project:
 - [lua](https://www.lua.org/)
 - [wren](http://wren.io/)
 - [miniaudio](https://github.com/dr-soft/miniaudio/) (include dr_flac, dr_mp3 and dr_wav)
-- [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis)
+- [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
 - [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
-- [freetype](https://www.freetype.org/)
+- ~[freetype](https://www.freetype.org/)~ (changed to `stb_truetype`, but maybe give the option to use it in the future (?))
 - [cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)
 
 ## TODO:
@@ -26,17 +26,17 @@ I'm using in this project:
 - [x] draw outlined shapes
 - [x] draw triangles and circles
 - [ ] wrap for lua
-- [ ] wrap for wren
+- [ ] wrap for wren (work in progress)
 - [ ] json parser
 - [ ] autopack textures on the fly
 - [ ] joystick support
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
-- [ ] make game specific modules like camera, tilemap, physics..
+- [ ] make game specific modules like camera, tilemap, physics, etc.
 - [ ] fuse game executable with zip (like love2d)
 - [ ] make simple editors using cimgui (animations, tilemap, scene..)
 - [ ] custom shaders (like love2d or gms, with default variable for matrices)
 - [ ] support for more audio types
-- [ ] struct with options to init engine
+- [x] struct with options to init engine (need to add more options)
 - [ ] load audio static (decode in memory)
 
 ### working

@@ -1,24 +1,18 @@
-import "scripts.enemy" for Boto
-import "scripts.player" for Knight
-import "scripts.scene" for Scene, SceneManager
-import "tico.graphics" for Canvas, Render, Color
-import "tico.audio" for Sound
 import "tico" for Config
+import "tico.graphics" for Render, Color, Canvas
+import "tico.graphics" for Font
+import "scripts.scene" for SceneManager, GameScene
 
 class Game {
   static config {
-    Config.title = "Presidente filho da puta"
-    Config.width = 860
+    Config.title = "Knightvania"
+    Config.width = 640
+    Config.height = 380
   }
 
   static load() {
-    var scene = Scene.new()
-    scene.create(Knight.new(32, 32))
-    scene.create(Boto.new(32, 0))
-    scene.create(Boto.new(64, 90))
-
     SceneManager.load()
-    SceneManager.add(scene)
+    SceneManager.add(GameScene.new())
     __canvas = Canvas.new(320, 190)
   }
 
@@ -27,16 +21,9 @@ class Game {
   }
 
   static draw() {
-    Render.clear(Color.Black)
     __canvas.set()
     Render.clear(Color.BG)
     SceneManager.draw()
-//     Render.drawRectangle(256, 32, 64, 32, Color.White)
-//     Render.drawRectangle(0, 0, 320, 32, Color.White)
-//     Render.fillRectangle(0, 64, 320, 32, Color.White)
-    Render.fillCircle(64, 32, 8, Color.White)
-    Render.drawCircle(64, 128, 16, Color.White)
-    Render.drawRectangle(0, 0, 320, 190, Color.White)
     __canvas.unset()
     __canvas.draw(0, 0, 2, 2, Color.White)
   }

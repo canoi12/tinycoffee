@@ -21,6 +21,8 @@
 #define TC_INPUT_IMPLEMENTATION
 #include "input.h"
 
+tc_core CORE;
+
 static void tc_window_resize_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   CORE.window.width = width;
@@ -54,16 +56,16 @@ static void tc_window_focus_callback(GLFWwindow *window, int focused)
 		tc_stop_device();
 }
 
-TCDEF int tc_config_init (tc_config *config, const char *title, int width, int height) {
-  if (title) sprintf(config->title, "%s", title);
-  else sprintf(config->title, "tiny coffee");
+TCDEF tc_bool tc_config_init (tc_config *config, const tc_uint8 *title, tc_uint16 width, tc_uint16 height) {
+  if (title) sprintf((char *)config->title, "%s", title);
+  else sprintf((char *)config->title, "tiny coffee");
   config->width = width;
   config->height = height;
   config->windowFlags = 0;
   config->packed = 0;
 }
 
-TCDEF int tc_init(tc_config *config) {
+TCDEF tc_bool tc_init(tc_config *config) {
     //Init wren lang
 #ifdef WREN_LANG
   CORE.wren = tc_init_wren(config);
@@ -110,7 +112,7 @@ TCDEF int tc_init(tc_config *config) {
   TRACELOG("packed: %d", CORE.packed);
 
   // Init font lib
-  tc_init_font_lib();
+  // tc_init_font_lib();
   CORE.defaultFont = tc_load_default_font();
 
 #ifdef WREN_LANG
@@ -119,6 +121,7 @@ TCDEF int tc_init(tc_config *config) {
 
 
   glViewport(0, 0, CORE.window.width, CORE.window.height);
+//   glLineWidth(2);
   TRACELOG("tico initiated");
   return TC_TRUE;
 }
@@ -133,10 +136,17 @@ TCDEF void tc_poll_events() {
 	tc_input_poll(&CORE.input);
 	tc_update_timer();
 	glfwPollEvents();
+}
 
-// 	#ifdef WREN_LANG
-// 		tc_wren_update(CORE.wren);
-// 	#endif
+TCDEF void tc_main_loop() {
+  while(!tc_should_close()) {
+    tc_poll_events();
+    tc_scripting_wren_update();
+
+    tc_begin_draw();
+    tc_scripting_wren_draw();
+    tc_end_draw();
+  }
 }
 
 TCDEF void tc_clear(tc_color color) {
@@ -174,6 +184,7 @@ TCDEF void tc_begin_draw() {
   tc_begin_batch(&CORE.render);
   glUseProgram(CORE.render.state.defaultShader.id);
   tc_shader_send_worldview(CORE.render.state.currentShader);
+//   glEnable(GL_SCISSOR_TEST);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
@@ -292,148 +303,104 @@ TCDEF void tc_delete_texture(tc_texture *tex) {
 }
 
 /** draw texture **/
-TCDEF void tc_draw_texture(tc_texture tex, float x, float y, tc_color color) {
+TCDEF void tc_draw_texture(tc_texture tex, tc_int32 x, tc_int32 y, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_render_draw_quad(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, color);
 }
-TCDEF void tc_draw_texture_scale(tc_texture tex, float x, float y, float scaleX, float scaleY, tc_color color) {
+TCDEF void tc_draw_texture_scale(tc_texture tex, tc_int32 x, tc_int32 y, float scaleX, float scaleY, tc_color color) {
 	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_scale(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, scaleX, scaleY, color);
 }
-TCDEF void tc_draw_texture_ex(tc_texture tex, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+TCDEF void tc_draw_texture_ex(tc_texture tex, tc_int32 x, tc_int32 y, float angle, float sx, float sy, tc_int32 cx, tc_int32 cy, tc_color color) {
 	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_ex(&CORE.render, tex.id, (tc_rectangle){0, 0, tex.width, tex.height}, x, y, tex.width, tex.height, angle, sx, sy, cx, sy, color);
 }
 
 /** draw texture part **/
-TCDEF void tc_draw_texture_part(tc_texture tex, tc_rectangle rect, float x, float y, tc_color color) {
+TCDEF void tc_draw_texture_part(tc_texture tex, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_color color) {
 	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, color);
 }
 
-TCDEF void tc_draw_texture_part_scale(tc_texture tex, tc_rectangle rect, float x, float y, float sx, float sy, tc_color color) {
+TCDEF void tc_draw_texture_part_scale(tc_texture tex, tc_rectangle rect, tc_int32 x, tc_int32 y, float sx, float sy, tc_color color) {
 	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_scale(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, sx, sy, color);
 }
 
-TCDEF void tc_draw_texture_part_ex(tc_texture tex, tc_rectangle rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+TCDEF void tc_draw_texture_part_ex(tc_texture tex, tc_rectangle rect, tc_int32 x, tc_int32 y, float angle, float sx, float sy, tc_int32 cx, tc_int32 cy, tc_color color) {
 	tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_render_draw_quad_ex(&CORE.render, tex.id, rect, x, y, tex.width, tex.height, angle, sx, sy, cx, cy, color);
 }
 
 /* draw primitives */
-TCDEF void tc_draw_rectangle(float x, float y, float width, float height, tc_color color) {
+TCDEF void tc_draw_rectangle(tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_LINES);
   tc_render_draw_quad(&CORE.render, CORE.render.state.defaultTextureId, (tc_rectangle){0, 0, width, height}, x, y, width, height, color);
 }
-TCDEF void tc_fill_rectangle(float x, float y, float width, float height, tc_color color) {
+TCDEF void tc_fill_rectangle(tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_render_draw_quad(&CORE.render, CORE.render.state.defaultTextureId, (tc_rectangle){0, 0, width, height}, x, y, width, height, color);
 }
 
-TCDEF void tc_draw_circle(float x, float y, float radius, tc_color color) {
+TCDEF void tc_draw_circle(tc_int32 x, tc_int32 y, float radius, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_LINES);
   tc_render_draw_circle(&CORE.render, CORE.render.state.defaultTextureId, x, y, radius, color);
 }
-TCDEF void tc_fill_circle(float x, float y, float radius, tc_color color) {
+TCDEF void tc_fill_circle(tc_int32 x, tc_int32 y, float radius, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_render_draw_circle(&CORE.render, CORE.render.state.defaultTextureId, x, y, radius, color);
 }
 
-TCDEF void tc_draw_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
+TCDEF void tc_draw_triangle(tc_int32 x0, tc_int32 y0, tc_int32 x1, tc_int32 y1, tc_int32 x2, tc_int32 y2, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_LINES);
   tc_render_draw_triangle(&CORE.render, CORE.render.state.defaultTextureId, x0, y0, x1, y1, x2, y2, color);
 }
-TCDEF void tc_fill_triangle(float x0, float y0, float x1, float y1, float x2, float y2, tc_color color) {
+TCDEF void tc_fill_triangle(tc_int32 x0, tc_int32 y0, tc_int32 x1, tc_int32 y1, tc_int32 x2, tc_int32 y2, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
   tc_render_draw_triangle(&CORE.render, CORE.render.state.defaultTextureId, x0, y0, x1, y1, x2, y2, color);
 }
 
-TCDEF void tc_draw_text(const tc_uint8 *text, float x, float y, tc_color color) {
-  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
-  tc_font font = CORE.defaultFont;
-  float x0 = 0;
-  float y0 = 0;
-	for (const tc_uint8 *p = text; *p; p++)
-	{
-// 		if (*p >= 32 && *p < 128)
-		{
-			// float x2 = x + font.c[*p].bl;
-			// float y2 = y + (font.texture.height - font.c[*p].bt);
-			// float w = font.c[*p].bw;
-			// float h = font.c[*p].bh;
-
-			// float s0 = font.c[*p].tx * font.texture.width;
-			// float t0 = 0;
-			// // float s1 = font.c[*p].tx + font.c[*p].bw;
-			// float s1 = font.c[*p].bw;
-			// float t1 = font.c[*p].bh;
-
-			// // printf("%c %f\n", *p, s1);
-
-			// x += font.c[*p].ax;
-			// y += font.c[*p].ay;
-			// if (!w || !h)
-			// 	continue;
-
-			// tc_rectangle rect = {s0, t0, s1, t1};
-			// tc_render_draw_quad(&CORE.render, font.texture.id, rect, x2, y2, font.texture.width, font.texture.height, color);
-			vec2 pos;
-			tc_rectangle rect;
-			tc_font_get_rect(font, *p, &x0, &y0, &pos, &rect);
-			tc_render_draw_quad(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, color);
-		}
-	}
+TCDEF void tc_draw_text(const tc_uint8 *text, tc_int32 x, tc_int32 y, tc_color color) {
+  tc_draw_text_font(CORE.defaultFont, text, x, y, color);
 }
 
-TCDEF void tc_draw_text_scale(const tc_uint8 *text, float x, float y, float sx, float sy, tc_color color) {
-  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
-  tc_font font = CORE.defaultFont;
-  float x0 = 0;
-  float y0 = 0;
-	for (const tc_uint8 *p = text; *p; p++)
-	{
-// 		if (*p >= 32 && *p < 128)
-		{
-			// float x2 = x + font.c[*p].bl;
-			// float y2 = y + (font.texture.height - font.c[*p].bt);
-			// float w = font.c[*p].bw;
-			// float h = font.c[*p].bh;
-
-			// float s0 = font.c[*p].tx * font.texture.width;
-			// float t0 = 0;
-			// // float s1 = font.c[*p].tx + font.c[*p].bw;
-			// float s1 = font.c[*p].bw;
-			// float t1 = font.c[*p].bh;
-
-			// // printf("%c %f\n", *p, s1);
-
-			// x += font.c[*p].ax * sx;
-			// y += font.c[*p].ay * sy;
-			// if (!w || !h)
-			// 	continue;
-
-			// tc_rectangle rect = {s0, t0, s1, t1};
-			vec2 pos;
-			tc_rectangle rect;
-			tc_font_get_rect_scale(font, *p, &x0, &y0, &pos, &rect, sx, sy);
-			tc_render_draw_quad_scale(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, sx, sy, color);
-		}
-	}
+TCDEF void tc_draw_text_scale(const tc_uint8 *text, tc_int32 x, tc_int32 y, float sx, float sy, tc_color color) {
+  tc_draw_text_font_scale(CORE.defaultFont, text, x, y, sx, sy, color);
 }
-TCDEF void tc_draw_text_ex(const tc_uint8 *text, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+
+TCDEF void tc_draw_text_ex(const tc_uint8 *text, tc_int32 x, tc_int32 y, float angle, float sx, float sy, tc_int32 cx, tc_int32 cy, tc_color color) {
 	// tc_render_draw_quad_ex(&CORE.render, CORE.defaultFont.texture.id, )
 }
-TCDEF void tc_draw_text_font(tc_font font, const tc_uint8 *text, float x, float y, tc_color color) {
+
+TCDEF void tc_draw_text_font(tc_font font, const tc_uint8 *text, tc_int32 x, tc_int32 y, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
-	for (const tc_uint8 *p = text; *p; p++) {
+  float x0 = 0;
+  float y0 = 0;
+  tc_uint8 *p = (tc_uint8*)text;
+	while (*p) {
 		vec2 pos;
 		tc_rectangle rect;
-		tc_font_get_rect(font, *p, &x, &y, &pos, &rect);
-		tc_render_draw_quad(&CORE.render, font.texture.id, rect, pos.x, pos.y, font.texture.width, font.texture.height, color);
+		tc_int32 codepoint;
+		p = tc_utf8_codepoint(p, &codepoint);
+		tc_font_get_rect(font, codepoint, &x0, &y0, &pos, &rect);
+		tc_render_draw_quad(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, color);
 	}
 }
-TCDEF void tc_draw_text_font_scale(tc_font font, const tc_uint8 *text, float x, float y, float sx, float sy, tc_color color);
+
+TCDEF void tc_draw_text_font_scale(tc_font font, const tc_uint8 *text, tc_int32 x, tc_int32 y, float sx, float sy, tc_color color) {
+  tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
+  float x0 = 0;
+  float y0 = 0;
+  tc_uint8 *p = (tc_uint8*)text;
+	while (*p) {
+		vec2 pos;
+		tc_rectangle rect;
+		tc_int32 codepoint;
+		p = tc_utf8_codepoint(p, &codepoint);
+		tc_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy);
+		tc_render_draw_quad_scale(&CORE.render, font.texture.id, rect, x + pos.x, y + pos.y, font.texture.width, font.texture.height, sx, sy, color);
+	}
+}
 
 
 /* Canvas */
@@ -469,12 +436,12 @@ TCDEF void tc_unset_canvas(tc_canvas canvas) {
 	tc_shader_send_worldview(CORE.render.state.currentShader);
 }
 
-TCDEF void tc_draw_canvas(tc_canvas canvas, float x, float y, tc_color color) {
+TCDEF void tc_draw_canvas(tc_canvas canvas, tc_int32 x, tc_int32 y, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_rectangle rect = {0, 0, canvas.tex.width, canvas.tex.height};
 	tc_render_draw_quad(&CORE.render, canvas.tex.id, rect, x, y, canvas.tex.width, -canvas.tex.height, color);
 }
-TCDEF void tc_draw_canvas_scale(tc_canvas canvas, float x, float y, float sx, float sy, tc_color color) {
+TCDEF void tc_draw_canvas_scale(tc_canvas canvas, tc_int32 x, tc_int32 y, float sx, float sy, tc_color color) {
   tc_render_draw_mode(&CORE.render, TC_TRIANGLES);
 	tc_rectangle rect = {0, 0, canvas.tex.width, canvas.tex.height};
 	tc_render_draw_quad_scale(&CORE.render, canvas.tex.id, rect, x, y, canvas.tex.width, -canvas.tex.height, sx, sy, color);
@@ -726,6 +693,70 @@ TCDEF tc_int8 *tc_replace_char(tc_int8 *str, tc_uint8 find, tc_uint8 replace) {
   }
 
   return str;
+}
+
+#define MAXUNICODE 0x10FFFF
+
+TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, tc_int32* codepoint) {
+  tc_uint8 *n;
+  tc_uint8 c = p[0];
+  if (c < 0x80) {
+    *codepoint = c;
+    n = p + 1;
+    return n;
+  }
+
+  switch (c & 0xf0) {
+    case 0xf0: {
+      *codepoint = ((p[0] & 0x07) << 18) | ((p[1] & 0x3f) << 12) | ((p[2] & 0x3f) << 6) | ((p[3] & 0x3f));
+      n = p + 4;
+      break;
+    }
+    case 0xe0: {
+      *codepoint = ((p[0] & 0x0f) << 12) | ((p[1] & 0x3f) << 6) | ((p[2] & 0x3f));
+      n = p + 3;
+      break;
+    }
+    case 0xc0:
+    case 0xd0: {
+      *codepoint = ((p[0] & 0x1f) << 6) | ((p[1] & 0x3f));
+      n = p + 2;
+      break;
+    }
+    default:
+    {
+      *codepoint = -1;
+      n = n + 1;
+    }
+  }
+
+  if (*codepoint > MAXUNICODE) *codepoint = -1;
+
+  return n;
+}
+
+TCDEF tc_uint16 tc_utf8_decode(const tc_uint8 *p) {
+  static const tc_uint32 limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
+  const tc_uint8 *s = (const tc_uint8 *)p;
+  tc_uint32 c = s[0];
+  tc_uint32 res = 0;  /* final result */
+  if (c < 0x80)  /* ascii? */
+    res = c;
+  else {
+    int count = 0;  /* to count number of continuation bytes */
+    while (c & 0x40) {  /* still have continuation bytes? */
+      int cc = s[++count];  /* read next byte */
+      if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
+        return -1;  /* invalid byte sequence */
+      res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
+      c <<= 1;  /* to test next bit */
+    }
+    res |= ((c & 0x7F) << (count * 5));  /* add first byte */
+    if (count > 3 || res > MAXUNICODE || res <= limits[count])
+      return -1;  /* invalid byte sequence */
+    s += count;  /* skip continuation bytes read */
+  }
+  return res;
 }
 
 /* Log */

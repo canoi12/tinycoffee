@@ -12,12 +12,21 @@ class Knight is Entity {
     _time = 0
     _flip = 1
     _velocity = Vector2.new(0, 0)
+    _animation = "idle"
     _animations = {
       "idle": [
         [0, 0, 32, 32],
         [32, 0, 32, 32],
         [64, 0, 32, 32],
         [96, 0, 32, 32]
+      ],
+      "walk": [
+        [0, 32, 32, 32],
+        [32, 32, 32, 32],
+        [64, 32, 32, 32],
+        [96, 32, 32, 32],
+        [0, 64, 32, 32],
+        [32, 64, 32, 32]
       ]
     }
   }
@@ -36,6 +45,8 @@ class Knight is Entity {
     if (Input.isKeyDown(Key.UP)) _velocity.y = -_speed
     if (Input.isKeyDown(Key.DOWN)) _velocity.y = _speed
 
+    if (_velocity.y != 0 || _velocity.x != 0) _animation = "walk" else _animation = "idle"
+
 //     _velocity = _velocity * dt
 //     _velocity = test
     position = position + (_velocity * dt)
@@ -46,13 +57,11 @@ class Knight is Entity {
       _time = 0
       _frame = _frame + 1
     }
-    if (_frame >= _animations["idle"].count) _frame = 0
+    if (_frame >= _animations[_animation].count) _frame = 0
 
   }
 
   draw() {
-    _tex.drawPart(_animations["idle"][_frame], position.x, position.y, 0, _flip, 1, 16, 16, Color.White)
-    Render.drawRectangle(position.x - 15, position.y - 16, 31, 31, Color.White)
-    Render.fillCircle(position.x, position.y, 1, Color.Red)
+    _tex.drawPart(_animations[_animation][_frame], position.x, position.y, 0, _flip, 1, 16, 16, Color.White)
   }
 }

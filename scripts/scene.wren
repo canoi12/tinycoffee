@@ -1,3 +1,9 @@
+import "tico" for Camera
+import "tico.math" for Vector2
+import "tico.graphics" for Render, Color
+import "scripts.player" for Knight
+
+
 class SceneManager {
   static add(scene) {
     __current = scene
@@ -9,18 +15,25 @@ class SceneManager {
   }
 
   static update(dt) {
-    if (__current) __current.update(dt)
+    if (__current != Null) __current.update(dt)
   }
 
   static draw() {
-    if (__current) __current.draw()
+    if (__current != Null) __current.draw()
   }
 }
 
 class Scene {
   objects {_objects}
+  objects=(value) { _objects = value }
+  camera {_camera}
+  camera=(value) { _camera = value }
+
   construct new() {
-    _objects = []
+    objects = []
+    camera = Camera.new(0, 0, 320, 190)
+    camera.center = Vector2.new(160, 95)
+    camera.zoom = 1
   }
 
   create(object) {
@@ -33,8 +46,26 @@ class Scene {
     }
   }
   draw() {
+//     camera.attach()
     for (object in objects) {
       object.draw()
     }
+    Render.drawRectangle(0, 0, 32, 32, Color.White)
+    Render.drawCircle(90, 90, 15, Color.White)
+//     camera.detach()
+  }
+}
+
+class GameScene is Scene {
+  construct new() {
+    super()
+
+    _player = Knight.new(0, 0)
+    create(_player)
+  }
+
+  update(dt) {
+    super.update(dt)
+    camera.follow(_player.position)
   }
 }
