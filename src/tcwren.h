@@ -95,7 +95,7 @@ static char * tc_wren_load_module(WrenVM *vm, const char *name) {
 
   tc_uint8 *buffer = tc_read_file(rname, NULL);
   free(rname);
-  
+
   return buffer;
 }
 
@@ -177,6 +177,7 @@ TCDEF void tc_wren_game_conf(WrenVM *vm, tc_config *config) {
 TCDEF void tc_wren_game_load(tc_wren wren) {
   if (!wren.mainLoaded) return;
   wrenSetSlotHandle(wren.vm, 0, wren.classHandle);
+
   wrenCall(wren.vm, wren.loadHandle);
 }
 
@@ -248,6 +249,8 @@ tc_wren_class tcWrenClasses[] = {
   registerWrenClassInline("Canvas", wren_canvas_allocate, wren_canvas_finalize, wrenCanvasLib),
   registerWrenClassInline("Vector2", wren_vec2_allocate, wren_vec2_finalize, wrenVector2Lib),
   registerWrenClassInline("Config", NULL, NULL, wrenConfigLib),
+  registerWrenClassInline("Camera", wren_camera_allocate, wren_camera_finalize, wrenCameraLib),
+  registerWrenClassInline("Font", wren_font_allocate, wren_font_finalize, wrenFontLib),
   {NULL}
 };
 

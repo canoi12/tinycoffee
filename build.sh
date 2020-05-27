@@ -176,6 +176,7 @@ if [ ! -f "$libs_folder/libtico.a" ] || $development; then
   $cc -c src/core.c -o $objs_folder/tccore.o $include $define $cflags
   $cc -c src/texture.c -o $objs_folder/tctexture.o $include $define $cflags
   $cc -c src/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
+  $cc -c src/modules/camera.c -o $objs_folder/tccamera.o $include $define $cflags
   # $($CC -c src/tclua.c -o $FOLDER/tico/tclua.o)
 
   $(ar rcs $libs_folder/libtico.a $objs_folder/*.o)
@@ -198,4 +199,7 @@ if [ $? -eq 1 ]; then
   echo "build failed.."
 else
   echo "build successful.."
+  if [[ $release == "release" ]]; then
+    strip $out
+  fi
 fi

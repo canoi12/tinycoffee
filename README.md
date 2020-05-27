@@ -31,12 +31,12 @@ I'm using in this project:
 - [ ] autopack textures on the fly
 - [ ] joystick support
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
-- [ ] make game specific modules like camera, tilemap, physics..
+- [ ] make game specific modules like camera, tilemap, physics, etc.
 - [ ] fuse game executable with zip (like love2d)
 - [ ] make simple editors using cimgui (animations, tilemap, scene..)
 - [ ] custom shaders (like love2d or gms, with default variable for matrices)
 - [ ] support for more audio types
-- [ ] struct with options to init engine
+- [x] struct with options to init engine (need to add more options)
 - [ ] load audio static (decode in memory)
 
 ### working

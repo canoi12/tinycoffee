@@ -11,3 +11,5 @@ lite.zip
 tico.zip
 build-release.sh.old
 build.sh.old
+.lite_*
+error.txt

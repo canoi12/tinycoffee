@@ -9,8 +9,14 @@ static const char *tcWrenGraphicsModule =
 " foreign static drawRectangle(x, y, w, h, color)\n"
 " foreign static fillCircle(x, y, radius, color)\n"
 " foreign static drawCircle(x, y, radius, color)\n"
-" foreign static drawText(text, x, y, color)\n"
-" foreign static drawText(text, x, y, sx, sy, color)\n"
+"}\n"
+"foreign class Font {\n"
+" construct load(filename) {}\n"
+" construct load(filename, size) {}\n"
+" foreign static print(text, x, y, color)\n"
+" foreign static print(text, x, y, sx, sy, color)\n"
+" foreign print(text, x, y, color)\n"
+" foreign print(text, x, y, sx, sy, color)\n"
 "}\n"
 "foreign class ColorF {\n"
 " construct new(r,g,b) {}\n"
@@ -120,32 +126,6 @@ static void wren_draw_circle(WrenVM *vm) {
   tc_draw_circle(x, y, radius, *color);
 }
 
-static void wren_draw_text(WrenVM *vm) {
-  wrenInitSlot(0);
-  const char *text = wrenGetSlotString(vm, nextSlot());
-  float x = wrenGetSlotDouble(vm, nextSlot());
-  float y = wrenGetSlotDouble(vm, nextSlot());
-  tc_color *color = &WHITE;
-  if (wrenGetSlotCount(vm) > nextSlot()) color = wrenGetSlotForeign(vm, slot);
-  // wrenEnsureSlots(vm, 0);
-
-  tc_draw_text(text, x, y, *color);
-}
-
-static void wren_draw_text_scale(WrenVM *vm) {
-  wrenInitSlot(0);
-  const char *text = wrenGetSlotString(vm, nextSlot());
-  float x = wrenGetSlotDouble(vm, nextSlot());
-  float y = wrenGetSlotDouble(vm, nextSlot());
-  float sx = wrenGetSlotDouble(vm, nextSlot());
-  float sy = wrenGetSlotDouble(vm, nextSlot());
-  tc_color *color = &WHITE;
-  if (wrenGetSlotCount(vm) > nextSlot()) color = wrenGetSlotForeign(vm, slot);
-  // wrenEnsureSlots(vm, 0);
-
-  tc_draw_text_scale(text, x, y, sx, sy, *color);
-}
-
 tc_wren_lib wrenRenderLib[] = {
   {"s_clear()", wren_graphics_clear},
   {"s_clear(_)", wren_graphics_clear},
@@ -153,9 +133,54 @@ tc_wren_lib wrenRenderLib[] = {
   {"s_fillRectangle(_,_,_,_,_)", wren_fill_rectangle},
   {"s_drawRectangle(_,_,_,_,_)", wren_draw_rectangle},
   {"s_fillCircle(_,_,_,_)", wren_fill_circle},
-  {"s_drawCircle(_,_,_,_)", wren_draw_circle},
-  {"s_drawText(_,_,_,_)", wren_draw_text},
-  {"s_drawText(_,_,_,_,_,_)", wren_draw_text_scale}
+  {"s_drawCircle(_,_,_,_)", wren_draw_circle}
+};
+
+/* Font class */
+
+static void wren_font_allocate(WrenVM *vm) {
+  tc_font *font = wrenSetSlotNewForeign(vm, 0, 0, sizeof(tc_font));
+  const tc_uint8 *filename = wrenGetSlotString(vm, 1);
+  tc_uint8 size = 16;
+  if (wrenGetSlotCount(vm) > 2) size = wrenGetSlotDouble(vm, 2);
+
+//   *font = tc_load_font(filename, size);
+  size_t buffSize;
+  tc_uint8 *data = tc_read_file(filename, &buffSize);
+  tc_init_font(font, data, buffSize, size);
+  free(data);
+}
+
+static void wren_font_finalize(void *data) {
+  tc_font *font = data;
+  tc_destroy_font(font);
+  free(font);
+}
+
+static void wren_font_print(WrenVM *vm) {
+  wrenInitSlot(0);
+  tc_font *font = wrenGetSlotForeign(vm, slot);
+  if (font->size == 0) *font = CORE.defaultFont;
+  const tc_uint8* text = wrenGetSlotString(vm, nextSlot());
+  tc_int32 x = wrenGetSlotDouble(vm, nextSlot());
+  tc_int32 y = wrenGetSlotDouble(vm, nextSlot());
+  float sx = 1;
+  float sy = 1;
+  tc_color *color = &WHITE;
+  if (wrenGetSlotCount(vm) > 5) {
+    sx = wrenGetSlotDouble(vm, nextSlot());
+    sy = wrenGetSlotDouble(vm, nextSlot());
+  }
+  color = wrenGetSlotForeign(vm, nextSlot());
+
+  tc_draw_text_font_scale(*font, text, x, y, sx, sy, *color);
+}
+
+static tc_wren_lib wrenFontLib[] = {
+  {"s_print(_,_,_,_)", wren_font_print},
+  {"s_print(_,_,_,_,_,_)", wren_font_print},
+  {"print(_,_,_,_)", wren_font_print},
+  {"print(_,_,_,_,_,_)", wren_font_print}
 };
 
 /* Texture class */
