@@ -1,6 +1,7 @@
 import "tico" for Camera
 import "tico.math" for Vector2
 import "tico.graphics" for Render, Color
+import "tico.graphics" for Font
 import "scripts.player" for Knight
 
 
@@ -34,6 +35,7 @@ class Scene {
     camera = Camera.new(0, 0, 320, 190)
     camera.center = Vector2.new(160, 95)
     camera.zoom = 1
+    _font = Font.load("assets/extrude.ttf", 16)
   }
 
   create(object) {
@@ -46,13 +48,15 @@ class Scene {
     }
   }
   draw() {
-//     camera.attach()
+    camera.attach()
     for (object in objects) {
       object.draw()
     }
     Render.drawRectangle(0, 0, 32, 32, Color.White)
     Render.drawCircle(90, 90, 15, Color.White)
-//     camera.detach()
+    _font.print("aeeeeeeee", 0, 0, Color.White)
+    Font.print("aaeaeasdasdadaewa", 0, 32, Color.Black)
+    camera.detach()
   }
 }
 

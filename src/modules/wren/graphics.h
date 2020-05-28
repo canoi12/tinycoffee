@@ -160,7 +160,7 @@ static void wren_font_finalize(void *data) {
 static void wren_font_print(WrenVM *vm) {
   wrenInitSlot(0);
   tc_font *font = wrenGetSlotForeign(vm, slot);
-  if (font->size == 0) *font = CORE.defaultFont;
+//   if (font->size == 0) *font = CORE.defaultFont;
   const tc_uint8* text = wrenGetSlotString(vm, nextSlot());
   tc_int32 x = wrenGetSlotDouble(vm, nextSlot());
   tc_int32 y = wrenGetSlotDouble(vm, nextSlot());
@@ -173,7 +173,8 @@ static void wren_font_print(WrenVM *vm) {
   }
   color = wrenGetSlotForeign(vm, nextSlot());
 
-  tc_draw_text_font_scale(*font, text, x, y, sx, sy, *color);
+  if (font->size == 0) tc_draw_text_scale(text, x, y, sx, sy, *color);
+  else tc_draw_text_font_scale(*font, text, x, y, sx, sy, *color);
 }
 
 static tc_wren_lib wrenFontLib[] = {
