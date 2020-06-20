@@ -162,8 +162,8 @@ static void wren_font_print(WrenVM *vm) {
   tc_font *font = wrenGetSlotForeign(vm, slot);
 //   if (font->size == 0) *font = CORE.defaultFont;
   const tc_uint8* text = wrenGetSlotString(vm, nextSlot());
-  tc_int32 x = wrenGetSlotDouble(vm, nextSlot());
-  tc_int32 y = wrenGetSlotDouble(vm, nextSlot());
+  int x = wrenGetSlotDouble(vm, nextSlot());
+  int y = wrenGetSlotDouble(vm, nextSlot());
   float sx = 1;
   float sy = 1;
   tc_color *color = &WHITE;
@@ -249,7 +249,7 @@ static void wren_texture_draw_ex(WrenVM *vm) {
 static void wren_texture_draw_part(WrenVM *vm) {
   wrenInitSlot(0);
   tc_texture *tex = wrenGetSlotForeign(vm, slot);
-  tc_rectangle rect = wrenGetSlotRectList(vm, nextSlot());
+  tc_rect rect = wrenGetSlotRectList(vm, nextSlot());
   float x = wrenGetSlotDouble(vm, nextSlot());
   float y = wrenGetSlotDouble(vm, nextSlot());
   tc_color *color = &WHITE;
@@ -261,7 +261,7 @@ static void wren_texture_draw_part(WrenVM *vm) {
 static void wren_texture_draw_part_scale(WrenVM *vm) {
   wrenInitSlot(0);
   tc_texture *tex = wrenGetSlotForeign(vm, slot);
-  tc_rectangle rect = wrenGetSlotRectList(vm, nextSlot());
+  tc_rect rect = wrenGetSlotRectList(vm, nextSlot());
   float x = wrenGetSlotDouble(vm, nextSlot());
   float y = wrenGetSlotDouble(vm, nextSlot());
   float sx = wrenGetSlotDouble(vm, nextSlot());
@@ -275,7 +275,7 @@ static void wren_texture_draw_part_scale(WrenVM *vm) {
 static void wren_texture_draw_part_ex(WrenVM *vm) {
   wrenInitSlot(0);
   tc_texture *tex = wrenGetSlotForeign(vm, slot);
-  tc_rectangle rect = wrenGetSlotRectList(vm, nextSlot());
+  tc_rect rect = wrenGetSlotRectList(vm, nextSlot());
   float x = wrenGetSlotDouble(vm, nextSlot());
   float y = wrenGetSlotDouble(vm, nextSlot());
   float angle = wrenGetSlotDouble(vm, nextSlot());

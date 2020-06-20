@@ -1,30 +1,35 @@
 import "tico" for Config
-import "tico.graphics" for Render, Color, Canvas
-import "tico.graphics" for Font
-import "scripts.scene" for SceneManager, GameScene
+import "tico.math" for Vector2
+
+class Vector {
+  x { _x }
+  y { _y }
+  x=(value) { _x = value }
+  y=(value) { _y = value }
+
+  construct new(x, y) {
+    _x = x
+    _y = y
+  }
+}
 
 class Game {
   static config {
-    Config.title = "Knightvania"
+//     Config.title = "Knightvania"
     Config.width = 640
     Config.height = 380
   }
 
   static load() {
-    SceneManager.load()
-    SceneManager.add(GameScene.new())
-    __canvas = Canvas.new(320, 190)
   }
 
   static update(dt) {
-    SceneManager.update(dt)
+    for (i in 1..100) {
+      var a = Vector.new(0, 0)
+//       var b = Vector2.new(1, 1)
+    }
   }
 
   static draw() {
-    __canvas.set()
-    Render.clear(Color.BG)
-    SceneManager.draw()
-    __canvas.unset()
-    __canvas.draw(0, 0, 2, 2, Color.White)
   }
 }

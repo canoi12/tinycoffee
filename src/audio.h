@@ -191,7 +191,7 @@ static void tc_data_callback(ma_device *pDevice, void *pOutput, const void *pInp
         }
         else
         {
-          audioBuffer->playing = TC_FALSE;
+          audioBuffer->playing = tc_false;
         }
       }
     }
@@ -248,12 +248,12 @@ TCDEF int tc_init_audio()
   for (i = 0; i < MAX_AUDIO_BUFFER_CHANNELS; i++)
   {
     tc_audiobuffer *buffer = &audio.multiChannel.buffer[i];
-    buffer->playing = TC_FALSE;
+    buffer->playing = tc_false;
     buffer->volume = 1.f;
     buffer->pitch = 1.f;
-    buffer->loaded = TC_FALSE;
-    buffer->paused = TC_FALSE;
-    buffer->loop = TC_FALSE;
+    buffer->loaded = tc_false;
+    buffer->paused = tc_false;
+    buffer->loop = tc_false;
     buffer->id = i;
   }
 
@@ -346,11 +346,11 @@ TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
       free(audioBuffer->data);
     return NULL;
   }
-  audioBuffer->loaded = TC_TRUE;
-  audioBuffer->playing = TC_FALSE;
-  audioBuffer->paused = TC_TRUE;
+  audioBuffer->loaded = tc_true;
+  audioBuffer->playing = tc_false;
+  audioBuffer->paused = tc_true;
   audioBuffer->usage = usage;
-  audioBuffer->loop = TC_FALSE;
+  audioBuffer->loop = tc_false;
 
   return audioBuffer;
 }
@@ -360,8 +360,8 @@ TCDEF void tc_play_buffer(tc_audiobuffer *audioBuffer)
   if (audioBuffer)
   {
     LOG("Playing sound %d\n", audioBuffer->id);
-    audioBuffer->playing = TC_TRUE;
-    audioBuffer->paused = TC_FALSE;
+    audioBuffer->playing = tc_true;
+    audioBuffer->paused = tc_false;
   }
 }
 
@@ -369,7 +369,7 @@ TCDEF void tc_stop_buffer(tc_audiobuffer *audioBuffer)
 {
   if (audioBuffer)
   {
-    audioBuffer->playing = TC_FALSE;
+    audioBuffer->playing = tc_false;
     ma_decoder_seek_to_pcm_frame(&audioBuffer->decoder, 0);
   }
 }
@@ -378,8 +378,8 @@ TCDEF void tc_pause_buffer(tc_audiobuffer *audioBuffer)
 {
   if (audioBuffer)
   {
-    audioBuffer->paused = TC_TRUE;
-    audioBuffer->playing = TC_FALSE;
+    audioBuffer->paused = tc_true;
+    audioBuffer->playing = tc_false;
   }
 }
 
@@ -403,7 +403,7 @@ TCDEF void tc_unload_buffer(tc_audiobuffer *audioBuffer)
 {
   if (!audioBuffer)
   {
-    audioBuffer->loaded = TC_FALSE;
+    audioBuffer->loaded = tc_false;
     ma_decoder_uninit(&audioBuffer->decoder);
   }
 }

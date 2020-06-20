@@ -10,6 +10,7 @@ lflags=-lX11\ -lm\ -ldl\ -lGL\ -lpthread
 wren_lang=true
 lua_lang=false
 development=true
+editor=true
 error=false
 
 external=src/external
@@ -145,9 +146,39 @@ fi
 #   # $(rm -r $objs_folder/*.o)
 # fi
 
+# if [ ! -f "$libs_folder/libnuklear" ]; then
+#   echo "compiling nuklear static lib.."
+#   $cc -c src/nuklear.c -o $objs_folder/nuklear.o $include $cflags
+#   if [ $? -eq 0 ]; then
+#     touch $libs_folder/libnuklear
+#   else
+#     echo "failed to compile nuklear"
+#   fi
+# fi
+
+if [ ! -f "$libs_folder/libcjson" ]; then
+  echo "compiling cjson static lib.."
+  $cc -c src/external/cjson/cJSON.c -o $objs_folder/cjson.o $include $cflags
+  if [ $? -eq 0 ]; then
+    touch $libs_folder/libcjson
+  else
+    echo "failed to compile cjson"
+  fi
+fi
+
+if [ ! -f "$libs_folder/libmicrou" ]; then
+  echo "compiling microui static lib.."
+  $cc -c src/ui/microui.c -o $objs_folder/microui.o $include $cflags
+  if [ $? -eq 0 ]; then
+    touch $libs_folder/libmicroui
+  else
+    echo "failed to compile microui"
+  fi
+fi
+
 if $wren_lang; then
   if [ ! -f "$libs_folder/libwren" ]; then
-    echo "compiling wren.."
+    echo "compiling wren static lib.."
     include="$include -I$external/wren/src/include -I$external/wren/src/vm -I$external/wren/src/optional"
     wren_dir="$external/wren/src"
 
@@ -171,12 +202,29 @@ if $wren_lang; then
   # lflags="$lflags -lwren"
 fi
 
+if $lua_lang; then
+  if [ ! -f "$libs_folder/liblua" ]; then
+    echo "compiling lua static lib.."
+    lua_dir="$external/lua/src"
+    for luasrc in $(ls $luadir | grep '\.c'); do
+      luaobj=$(echo "$luasrc" | sed -e 's/\.c/.o/g')
+      $cc -c $lua_dir/$luasrc -o $objs_folder/$luaobj $include $cflags
+    done
+
+    touch $libs_folder/liblua
+  fi
+
+  define="$define -DLUA_LANG"
+fi
+
 if [ ! -f "$libs_folder/libtico.a" ] || $development; then
   echo "compiling tico static lib.."
   $cc -c src/core.c -o $objs_folder/tccore.o $include $define $cflags
   $cc -c src/texture.c -o $objs_folder/tctexture.o $include $define $cflags
   $cc -c src/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
   $cc -c src/modules/camera.c -o $objs_folder/tccamera.o $include $define $cflags
+  $cc -c src/ui/tcui.c -o $objs_folder/tcui.o $include $define $cflags
+  $cc -c src/editors/editor.c -o $objs_folder/tceditor.o $include $define $cflags
   # $($CC -c src/tclua.c -o $FOLDER/tico/tclua.o)
 
   $(ar rcs $libs_folder/libtico.a $objs_folder/*.o)

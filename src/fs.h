@@ -156,10 +156,10 @@ TCDEF tc_bool tc_fs_file_exists(const tc_uint8 *filename) {
   FILE *fp;
   fp = fopen(filename, "r");
   if (!fp) {
-    return TC_FALSE;
+    return tc_false;
   }
   fclose(fp);
-  return TC_TRUE;
+  return tc_true;
 }
 
 TCDEF tc_bool tc_fs_file_exists_in_zip(const tc_uint8* zipName, const tc_uint8 *filename) {
@@ -167,11 +167,11 @@ TCDEF tc_bool tc_fs_file_exists_in_zip(const tc_uint8* zipName, const tc_uint8 *
   tc_bool failed = zip_entry_open(zip, filename);
   if (failed < 0) {
     zip_close(zip);
-    return TC_FALSE;
+    return tc_false;
   }
   zip_entry_close(zip);
   zip_close(zip);
-  return TC_TRUE;
+  return tc_true;
 }
 
 TCDEF void tc_fs_mkdir(const tc_uint8 *path) {
@@ -210,11 +210,11 @@ TCDEF tc_bool tc_fs_directory_exists_in_zip(const tc_uint8 *zipName, const tc_ui
   tc_bool result = zip_entry_open(zip, path);
   if (result < 0) {
     zip_close(zip);
-    return TC_FALSE;
+    return tc_false;
   }
   zip_entry_close(zip);
   zip_close(zip);
-  return TC_TRUE;
+  return tc_true;
 }
 
 TCDEF tc_file tc_fs_get_info(const tc_uint8 *path) {

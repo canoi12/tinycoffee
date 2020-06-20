@@ -23,21 +23,22 @@ typedef enum {
 } RENDER_DRAW_MODE;
 
 typedef struct tc_batch {
-  tc_uint32 *indices;
+  int *indices;
   tc_vertex *vertices;
   tc_vertex *verticesPtr;
 
-  tc_uint16 indexCount;
+  int indexCount;
 
-  tc_uint32 vao;
-  tc_uint32 vbo[2];
+  int vao;
+  int vbo[2];
 } tc_batch;
 
 typedef struct {
   tc_batch batch;
   struct {
-    tc_uint16 defaultVertexShader;
-    tc_uint16 defaultFragmentShader;
+    tc_uint8 drawCalls;
+    int defaultVertexShader;
+    int defaultFragmentShader;
 
     tc_uint8 defaultTextureId;
     tc_uint8 currentTextureId;
@@ -54,7 +55,7 @@ typedef struct {
   } state;
 } tc_render;
 
-TCDEF tc_render tc_create_render(tc_uint16 vertexShader, tc_uint16 fragmentShader);
+TCDEF tc_render tc_create_render(int vertexShader, int fragmentShader);
 TCDEF void tc_destroy_render(tc_render *render);
 
 TCDEF void tc_render_draw_mode(tc_render *render, RENDER_DRAW_MODE mode);
@@ -67,17 +68,17 @@ TCDEF void tc_end_batch(tc_render *render);
 TCDEF void tc_flush_batch(tc_render *render);
 TCDEF void tc_reset_batch(tc_render *render);
 
-TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, tc_color color);
-TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, float sx, float sy, tc_color color);
-TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, float angle, float sx, float sy, float cx, float cy, tc_color color);
+TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, tc_color color);
+TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, float sx, float sy, tc_color color);
+TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, float angle, float sx, float sy, float cx, float cy, tc_color color);
 
-TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, tc_int32 x, tc_int32 y, float radius, tc_color color);
-TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, tc_int32 x0, tc_int32 y0, tc_int32 x1, tc_int32 y1, tc_int32 x2, tc_int32 y2, tc_color color);
+TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, int x, int y, float radius, tc_color color);
+TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, int x0, int y0, int x1, int y1, int x2, int y2, tc_color color);
 
 #endif /* TC_RENDER_H */
 
 #if defined(TC_RENDER_IMPLEMENTATION)
-TCDEF tc_render tc_create_render(tc_uint16 vertexShader, tc_uint16 fragmentShader) {
+TCDEF tc_render tc_create_render(int vertexShader, int fragmentShader) {
   TRACELOG("Creating render");
   tc_render render = {0};
   render.batch = tc_create_batch();
@@ -95,6 +96,7 @@ TCDEF tc_render tc_create_render(tc_uint16 vertexShader, tc_uint16 fragmentShade
 
   render.batch.indexCount = 0;
   render.state.drawMode = TC_TRIANGLES;
+  render.state.drawCalls = 0;
 
   TRACELOG("Render created");
 
@@ -174,6 +176,7 @@ TCDEF void tc_end_batch(tc_render *render) {
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size, render->batch.vertices);
 }
 TCDEF void tc_flush_batch(tc_render *render) {
+  if (render->batch.indexCount <= 0) return;
   if (render->state.camera != NULL) {
     tc_shader_send_uniform(render->state.currentShader, "model", render->state.camera->data, TC_UNIFORM_MATRIX);
   } else {
@@ -190,7 +193,8 @@ TCDEF void tc_flush_batch(tc_render *render) {
 	else glDrawArrays(GL_LINES, 0, render->batch.indexCount);
 //   glDrawArrays(GL_LINES, 0, 6);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+// 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  render->state.drawCalls++;
 	render->batch.indexCount = 0;
 }
 TCDEF void tc_reset_batch(tc_render *render) {
@@ -199,33 +203,28 @@ TCDEF void tc_reset_batch(tc_render *render) {
   tc_begin_batch(render);
 }
 
-TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, tc_color color) {
+TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
 		tc_reset_batch(render);
 
   // vec4_t uv = vec4(0, 0, 1, 1);
-  tc_bool inv = TC_FALSE;
+  tc_bool inv = tc_false;
 	if (height < 0) {
-    inv = TC_TRUE;
+    inv = tc_true;
 		height = -height;
 	}
 
-  // tc_rectangle r;
-  // r.x = rect.x / width;
-	// r.y = rect.y / height;
-	// r.width = rect.width / width;
-	// r.height = rect.height / height;
-	float s0 = rect.x / width;
-	float t0 = rect.y / height;
-	float s1 = s0 + (rect.width / width);
-	float t1 = t0 + (rect.height / height);
+	float s0 = (float)rect.x / (float)width;
+	float t0 = (float)rect.y / (float)height;
+	float s1 = s0 + ((float)rect.w / (float)width);
+	float t1 = t0 + ((float)rect.h / (float)height);
   if (inv) {
-    tc_int32 yy = t0;
+    int yy = t0;
     t0 = t1;
     t1 = yy;
   }
 
-  vec4 pos = vec4_new(x, y, x + rect.width, y + rect.height);
+  vec4 pos = vec4_new(x, y, x + rect.w, y + rect.h);
   vec4 uv = vec4_new(s0, t0, s1, t1);
 
   if (render->state.drawMode == TC_TRIANGLES) {
@@ -262,29 +261,24 @@ TCDEF void tc_render_draw_quad(tc_render *render, tc_uint8 textureId, tc_rectang
 	render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, float sx, float sy, tc_color color) {
+TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, float sx, float sy, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
 		tc_reset_batch(render);
 
   // vec4_t uv = vec4(0, 0, 1, 1);
-  tc_bool inv = TC_FALSE;
+  tc_bool inv = tc_false;
 	if (height < 0) {
-    inv = TC_TRUE;
+    inv = tc_true;
 		height = -height;
 	}
 
-  // tc_rectangle r;
-  // r.x = rect.x / width;
-	// r.y = rect.y / height;
-	// r.width = rect.width / width;
-	// r.height = rect.height / height;
-	float s0 = rect.x / width;
-	float t0 = rect.y / height;
-	float s1 = s0 + (rect.width / width);
-	float t1 = t0 + (rect.height / height);
+	float s0 = (float)rect.x / (float)width;
+	float t0 = (float)rect.y / (float)height;
+	float s1 = s0 + ((float)rect.w / (float)width);
+	float t1 = t0 + ((float)rect.h / (float)height);
 
   if (inv) {
-    tc_int32 y = t0;
+    int y = t0;
     t0 = t1;
     t1 = y;
   }
@@ -292,7 +286,7 @@ TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_r
   // width *= sx;
   // height *= sy;
 
-  vec4 pos = vec4_new(x, y, x + rect.width*sx, y + rect.height*sy);
+  vec4 pos = vec4_new(x, y, x + rect.w*sx, y + rect.h*sy);
   vec4 uv = vec4_new(s0, t0, s1, t1);
 
 	render->batch.verticesPtr[0] = vertexc(pos.x, pos.y, color, uv.x, uv.y);
@@ -310,13 +304,13 @@ TCDEF void tc_render_draw_quad_scale(tc_render *render, tc_uint8 textureId, tc_r
 	render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rectangle rect, tc_int32 x, tc_int32 y, tc_int32 width, tc_int32 height, float angle, float sx, float sy, float cx, float cy, tc_color color) {
+TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rect rect, int x, int y, int width, int height, float angle, float sx, float sy, float cx, float cy, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 
-  tc_bool inv = TC_FALSE;
+  tc_bool inv = tc_false;
 	if (height < 0) {
-    inv = TC_TRUE;
+    inv = tc_true;
 		height = -height;
 	}
 
@@ -325,9 +319,9 @@ TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rect
 	matrix_translate(&model, x, y, 0);
 	matrix_rotate_z(&model, angle);
 	// matrix_translate(&model, -cx, -cy, 0);
-	matrix_scale(&model, rect.width * sx, rect.height * sy, 1);
-	float ox = cx / rect.width;
-	float oy = cy / rect.height;
+	matrix_scale(&model, rect.w * sx, rect.h * sy, 1);
+	float ox = cx / (float)rect.w;
+	float oy = cy / (float)rect.h;
 	matrix pos = {
 			-ox, -oy, 0, 0,
 			1-ox, -oy, 0, 0,
@@ -336,15 +330,15 @@ TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rect
 
 	matrix_mul(&pos, model, pos);
 
-  // tc_rectangle r;
+  // tc_rect r;
 	// r.x = rect.x / width;
 	// r.y = rect.y / height;
 	// r.width = rect.width / width;
 	// r.height = rect.height / height;
-  float s0 = rect.x / width;
-	float t0 = rect.y / height;
-	float s1 = s0 + (rect.width / width);
-	float t1 = t0 + (rect.height / height);
+  float s0 = rect.x / (float)width;
+	float t0 = rect.y / (float)height;
+	float s1 = s0 + (rect.w / (float)width);
+	float t1 = t0 + (rect.h / (float)height);
 
   if (inv) {
     float y = t0;
@@ -368,7 +362,7 @@ TCDEF void tc_render_draw_quad_ex(tc_render *render, tc_uint8 textureId, tc_rect
   render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, tc_int32 x, tc_int32 y, float radius, tc_color color) {
+TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, int x, int y, float radius, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 
@@ -414,7 +408,7 @@ TCDEF void tc_render_draw_circle(tc_render *render, tc_uint8 textureId, tc_int32
   render->state.currentTextureId = textureId;
 }
 
-TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, tc_int32 x0, tc_int32 y0, tc_int32 x1, tc_int32 y1, tc_int32 x2, tc_int32 y2, tc_color color) {
+TCDEF void tc_render_draw_triangle(tc_render *render, tc_uint8 textureId, int x0, int y0, int x1, int y1, int x2, int y2, tc_color color) {
   if (render->batch.indexCount >= MAX_INDICES || render->state.currentTextureId != textureId)
     tc_reset_batch(render);
 

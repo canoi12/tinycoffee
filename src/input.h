@@ -153,10 +153,12 @@ typedef struct {
   struct {
     tc_bool buttonDown[MOUSE_BUTTON_LAST];
     tc_bool prevButton[MOUSE_BUTTON_LAST];
-    double x;
-    double y;
+    int x;
+    int y;
     double fixX;
     double fixY;
+    float scrollX;
+    float scrollY;
     tc_bool fixed;
     tc_bool active;
   } mouseState;
@@ -180,12 +182,12 @@ TCDEF tc_bool tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button);
 TCDEF tc_bool tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button);
 TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button);
 
-TCDEF void tc_input_get_mouse_pos(tc_input input, tc_int32 *x, tc_int32 *y);
+TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y);
 TCDEF void tc_input_get_mouse_posv(tc_input input, vec2 *mousePos);
 
 TCDEF void tc_input_fix_mouse_pos(tc_input *input);
 TCDEF void tc_input_unfix_mouse_pos(tc_input *input);
-TCDEF void tc_input_get_mouse_delta(tc_input input, tc_int32 *x, tc_int32 *y);
+TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y);
 TCDEF void tc_input_get_mouse_deltav(tc_input input, vec2 *deltaPos);
 
 #endif /* TC_INPU_H */
@@ -202,12 +204,12 @@ TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags) {
 	input.mouseState.fixY = 0;
 	input.mouseState.fixed = 0;
 	if (flags == TC_INPUT_INIT_ALL) {
-	  input.keyboardState.active = TC_TRUE;
-	  input.mouseState.active = TC_TRUE;
+	  input.keyboardState.active = tc_true;
+	  input.mouseState.active = tc_true;
 	}
 
-	if (flags & TC_INIT_KEYBOARD) input.keyboardState.active = TC_TRUE;
-	if (flags & TC_INIT_MOUSE) input.mouseState.active = TC_TRUE;
+	if (flags & TC_INIT_KEYBOARD) input.keyboardState.active = tc_true;
+	if (flags & TC_INIT_MOUSE) input.mouseState.active = tc_true;
 
   return input;
 }
@@ -247,7 +249,7 @@ TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button) {
   return input.mouseState.prevButton[button] && !input.mouseState.buttonDown[button];
 }
 
-TCDEF void tc_input_get_mouse_pos(tc_input input, tc_int32 *x, tc_int32 *y) {
+TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y) {
   if (x) *x = input.mouseState.x;
   if (y) *y = input.mouseState.y;
 }
@@ -262,13 +264,13 @@ TCDEF void tc_input_fix_mouse_pos(tc_input *input) {
   ASSERT(input != NULL);
   input->mouseState.fixX = input->mouseState.x;
   input->mouseState.fixY = input->mouseState.y;
-  input->mouseState.fixed = TC_TRUE;
+  input->mouseState.fixed = tc_true;
 }
 TCDEF void tc_input_unfix_mouse_pos(tc_input *input) {
   ASSERT(input != NULL);
-  input->mouseState.fixed = TC_FALSE;
+  input->mouseState.fixed = tc_false;
 }
-TCDEF void tc_input_get_mouse_delta(tc_input input, tc_int32 *x, tc_int32 *y) {
+TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y) {
   if (x) *x = input.mouseState.fixX - input.mouseState.x;
   if (y) *y = input.mouseState.fixY - input.mouseState.y;
 }

@@ -33,8 +33,8 @@ TCDEF WrenForeignClassMethods tc_wren_bind_class(WrenVM *vm, const char *module,
 TCDEF WrenForeignMethodFn tc_wren_read_from_lib(const tc_uint8 *signature, tc_wren_lib *lib);
 TCDEF WrenForeignMethodFn tc_wren_read_from_class(const tc_uint8 *signature, tc_bool isStatic, tc_wren_class wrenClass);
 
-TCDEF tc_color wrenGetSlotColorList(WrenVM *vm, tc_int8 slot);
-TCDEF tc_rectangle wrenGetSlotRectList(WrenVM *vm, tc_int8 slot);
+TCDEF tc_color wrenGetSlotColorList(WrenVM *vm, int slot);
+TCDEF tc_rect wrenGetSlotRectList(WrenVM *vm, int slot);
 
 #endif /* TC_WREN_H */
 
@@ -110,7 +110,7 @@ TCDEF tc_wren tc_init_wren(tc_config *config) {
   wren.config.bindForeignClassFn = tc_wren_bind_class;
 
   wren.vm = wrenNewVM(&wren.config);
-  tc_bool mainExists = TC_FALSE;
+  tc_bool mainExists = tc_false;
 
   tc_wren_module wrenModules[] = {
     {"tico", tcWrenTicoModule},
@@ -153,10 +153,10 @@ TCDEF tc_wren tc_init_wren(tc_config *config) {
     wren_init_vec2(wren.vm);
     TRACELOG("Wren Vec2 initiated");
 
-    wren.mainLoaded = TC_TRUE;
+    wren.mainLoaded = tc_true;
   } else {
     ERROR("WREN", "main.wren not found");
-    wren.mainLoaded = TC_FALSE;
+    wren.mainLoaded = tc_false;
   }
 
   // wrenInterpret(wren.vm, NULL, "System.print(\"Wren Module loaded\")");
@@ -214,7 +214,7 @@ TCDEF WrenForeignMethodFn tc_wren_read_from_class(const tc_uint8 *signature, tc_
   return tc_wren_read_from_lib(sSignature, class.lib);
 }
 
-TCDEF tc_color wrenGetSlotColorList(WrenVM *vm, tc_int8 slot) {
+TCDEF tc_color wrenGetSlotColorList(WrenVM *vm, int slot) {
   tc_color color = WHITE;
   int size = wrenGetListCount(vm, slot);
   for (int i = 0; i < size; i++) {
@@ -225,8 +225,8 @@ TCDEF tc_color wrenGetSlotColorList(WrenVM *vm, tc_int8 slot) {
   return color;
 }
 
-TCDEF tc_rectangle wrenGetSlotRectList(WrenVM *vm, tc_int8 slot) {
-  tc_rectangle rect = {0};
+TCDEF tc_rect wrenGetSlotRectList(WrenVM *vm, int slot) {
+  tc_rect rect = {0};
   int size = wrenGetListCount(vm, slot);
   for (int i = 0; i < size; i++) {
     wrenGetListElement(vm, slot, i, 0);

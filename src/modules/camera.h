@@ -7,7 +7,7 @@
   #define TCDEF extern
 #endif
 
-TCDEF tc_camera tc_create_camera(tc_int32 x, tc_int32 y, tc_int32 w, tc_int32 h);
+TCDEF tc_camera tc_create_camera(int x, int y, int w, int h);
 TCDEF void tc_destroy_camera(tc_camera *camera);
 
 TCDEF void tc_camera_rotate(float angle);
@@ -21,7 +21,7 @@ TCDEF void tc_detach_camera();
 
 #if defined(TC_CAMERA_IMPLEMENTATION)
 
-TCDEF tc_camera tc_create_camera(tc_int32 x, tc_int32 y, tc_int32 w, tc_int32 h) {
+TCDEF tc_camera tc_create_camera(int x, int y, int w, int h) {
   tc_camera camera = {0};
 
   camera.x = x;
@@ -49,16 +49,19 @@ TCDEF void tc_attach_camera(tc_camera *camera) {
   matrix_scale(&camera->view, camera->scale.x, camera->scale.y, 1);
   matrix_translate(&camera->view, camera->center.x/camera->scale.x, camera->center.y/camera->scale.y, 0);
 
+  tc_scissor(0, 0, camera->width, camera->height);
   CORE.render.state.camera = &camera->view;
-  GLint view[4];
-  glGetIntegerv(GL_VIEWPORT, view);
-  glScissor(0, view[3] - camera->height, camera->width, camera->height);
-  glEnable(GL_SCISSOR_TEST);
+//   glGetIntegerv(GL_VIEWPORT, view);
+//   glScissor(0, view[3] - camera->height, camera->width, camera->height);
+//   glEnable(GL_SCISSOR_TEST);
 }
 
 TCDEF void tc_detach_camera() {
+//   glDisable(GL_SCISSOR_TEST);
   tc_reset_batch(&CORE.render);
-  glDisable(GL_SCISSOR_TEST);
+  GLint view[4];
+  glGetIntegerv(GL_VIEWPORT, view);
+  tc_scissor(0, 0, view[2], view[3]);
   CORE.render.state.camera = NULL;
 }
 

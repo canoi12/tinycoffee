@@ -64,7 +64,7 @@ class GameScene is Scene {
   construct new() {
     super()
 
-    _player = Knight.new(0, 0)
+    _player = Knight.new(32, 32)
     create(_player)
   }
 

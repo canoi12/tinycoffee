@@ -19,7 +19,9 @@ I'm using in this project:
 - [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
 - [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
 - ~[freetype](https://www.freetype.org/)~ (changed to `stb_truetype`, but maybe give the option to use it in the future (?))
-- [cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)
+- ~[cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)~ (maybe in the future, as a C++ compiler is needed, and i want to maintain all in C)
+- [nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
+- [microui](https://github.com/rxi/microui)
 
 ## TODO:
 
@@ -31,10 +33,11 @@ I'm using in this project:
 - [ ] autopack textures on the fly
 - [ ] joystick support
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
-- [ ] make game specific modules like camera, tilemap, physics, etc.
+- [ ] make specific game modules like camera, tilemap, physics, etc.
 - [ ] fuse game executable with zip (like love2d)
-- [ ] make simple editors using cimgui (animations, tilemap, scene..)
-- [ ] custom shaders (like love2d or gms, with default variable for matrices)
+- [ ] make simple editors (animations, tilemap, scene..)
+- [ ] user custom shaders (like love2d and gms, with default variables for attributes and uniforms)
+- [ ] default custom shaders (palette swap, limit palette colors, palette based shadows)
 - [ ] support for more audio types
 - [x] struct with options to init engine (need to add more options)
 - [ ] load audio static (decode in memory)
