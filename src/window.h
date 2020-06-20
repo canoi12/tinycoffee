@@ -1,99 +1,138 @@
-#ifndef TC_WINDOW_H
-#define TC_WINDOW_H
+#ifndef TICO_WINDOW_H
+#define TICO_WINDOW_H
 
 #include "tinycoffee.h"
 
-#ifndef TCDEF
-  #define TCDEF extern
-#endif
-
 typedef enum {
   TC_WINDOW_DEFAULT = 0,
-  TC_WINDOW_FULLSCREEN = 1 << 0,
-  TC_WINDOW_RESIZABLE = 1 << 1
-} TC_WINDOW_FLAGS_;
+  TC_WINDOW_FULLSCREEN = 1 << 1,
+  TC_WINDOW_RESIZABLE = 1 << 2,
+  TC_WINDOW_VSYNC = 1 << 3,
+} TC_WINDOW_FLAGS;
 
 typedef struct {
   GLFWwindow *handle;
-  int width;
-  int height;
+  tc_uint8 title[256];
+  int x;
+  int y;
+  unsigned int width;
+  unsigned int height;
   tc_bool fullscreen;
-} tc_window;
+  tc_Rect bkpMode;
+  tc_bool resizable;
+} tc_Window;
 
-TCDEF tc_window tc_create_window(const tc_uint8 *title, int width, int height, TC_WINDOW_FLAGS_ flags);
-TCDEF void tc_destroy_window(tc_window *window);
+TCDEF tc_Window tc_create_window(const tc_uint8 *title, int width, int height, TC_WINDOW_FLAGS flags);
+TCDEF void tc_destroy_window(tc_Window *window);
 
-TCDEF tc_bool tc_window_should_close(tc_window window);
-TCDEF void tc_close_window(tc_window window);
+TCDEF void tc_get_window_pos(tc_Window *window, int *x, int *y);
+TCDEF void tc_set_window_pos(tc_Window *window, int x, int y);
+TCDEF void tc_get_window_size(tc_Window *window, int *width, int *height);
+TCDEF void tc_set_window_size(tc_Window *window, int width, int height);
 
-TCDEF int tc_window_get_width(tc_window window);
-TCDEF void tc_window_set_width(tc_window *window, int width);
+TCDEF tc_uint8* tc_get_window_title(tc_Window *window);
+TCDEF void tc_set_window_title(tc_Window *window, const tc_uint8 *title);
 
-TCDEF int tc_window_get_height(tc_window window);
-TCDEF void tc_window_set_height(tc_window *window, int height);
+TCDEF tc_bool tc_get_window_fullscreen(tc_Window *window);
+TCDEF void tc_set_window_fullscreen(tc_Window *window, tc_bool fullscreen);
 
-TCDEF void tc_window_get_size(tc_window window, int *width, int *height);
-TCDEF void tc_window_set_size(tc_window *window, int width, int height);
+TCDEF tc_bool tc_get_window_resizable(tc_Window *window);
+TCDEF void tc_set_window_resizable(tc_Window *window, tc_bool resizable);
 
-#endif
+#endif /* TICO_WINDOW_H */
 
-#if defined(TC_WINDOW_IMPLEMENTATION)
+#if defined(TICO_WINDOW_IMPLEMENTATION)
 
-TCDEF tc_window tc_create_window(const tc_uint8 *title, int width, int height, TC_WINDOW_FLAGS_ flags) {
-  tc_window window = {0};
-  tc_uint8 *ttitle = (tc_uint8*)title;
-  if (width < 64) width = 64;
-  if (height < 64) height = 64;
+TCDEF tc_Window tc_create_window(const tc_uint8 *title, int width, int height, TC_WINDOW_FLAGS flags) {
+  tc_Window window = {0};
+  if (!title) sprintf(window.title, "tico %s", TICO_VERSION);
+  else strcpy(window.title, title);
+  window.width = tc_max(width, 10);
+  window.height = tc_max(height, 10);
+  window.fullscreen = tc_false;
+  window.resizable = tc_true;
 
-  window.handle = glfwCreateWindow(width, height, ttitle, NULL, NULL);
+  window.handle = glfwCreateWindow(window.width, window.height, window.title, NULL, NULL);
   if (!window.handle) {
-    ERROR("WINDOW", "Failed to create GLFW window\n");
-    return window;
+    TRACEERR("Failed to create window");
+    exit(1);
   }
 
-  window.width = width;
-  window.height = height;
+  tc_get_window_pos(&window, &window.x, &window.y);
+  tc_get_window_size(&window, &window.width, &window.height);
+//   glfwSwapInterval(1);
+
+  if (flags & TC_WINDOW_FULLSCREEN) {
+    tc_set_window_fullscreen(&window, tc_true);
+  }
+  if (~flags & TC_WINDOW_RESIZABLE) {
+    tc_set_window_resizable(&window, tc_false);
+  }
+
 
   glfwMakeContextCurrent(window.handle);
 
+  glfwSwapInterval(1);
+  if (~flags & TC_WINDOW_VSYNC) {
+    glfwSwapInterval(0);
+  }
+
   return window;
 }
-TCDEF void tc_destroy_window(tc_window *window) {
+
+TCDEF void tc_destroy_window(tc_Window *window) {
   glfwDestroyWindow(window->handle);
 }
 
-TCDEF tc_bool tc_window_should_close(tc_window window) {
-  return glfwWindowShouldClose(window.handle);
+TCDEF void tc_get_window_pos(tc_Window *window, int *x, int *y) {
+  glfwGetWindowPos(window->handle, x, y);
 }
-
-TCDEF void tc_close_window(tc_window window) {
-  glfwSetWindowShouldClose(window.handle, tc_true);
+TCDEF void tc_set_window_pos(tc_Window *window, int x, int y) {
+  glfwSetWindowPos(window->handle, x, y);
 }
-
-TCDEF int tc_window_get_width(tc_window window) { return window.width; }
-TCDEF void tc_window_set_width(tc_window *window, int width) {
-  ASSERT(window != NULL);
-  glfwSetWindowSize(window->handle, width, window->height);
-  window->width = width;
+TCDEF void tc_get_window_size(tc_Window *window, int *width, int *height) {
+  glfwGetWindowSize(window->handle, width, height);
 }
-
-TCDEF int tc_window_get_height(tc_window window) { return window.height; }
-TCDEF void tc_window_set_height(tc_window *window, int height) {
-  ASSERT(window != NULL);
-  glfwSetWindowSize(window->handle, window->width, height);
-  window->height = height;
-}
-
-TCDEF void tc_window_get_size(tc_window window, int *width, int *height) {
-  if (width) *width = window.width;
-  if (height) *height = window.height;
-}
-TCDEF void tc_window_set_size(tc_window *window, int width, int height) {
-  ASSERT(window != NULL);
+TCDEF void tc_set_window_size(tc_Window *window, int width, int height) {
   glfwSetWindowSize(window->handle, width, height);
-  window->width = width;
-  window->height = height;
 }
 
+TCDEF tc_uint8* tc_get_window_title(tc_Window *window) {
+  return window->title;
+}
+TCDEF void tc_set_window_title(tc_Window *window, const tc_uint8 *title) {
+  strcpy(window->title, title);
+  glfwSetWindowTitle(window->handle, title);
+}
 
-#endif
+TCDEF tc_bool tc_get_window_fullscreen(tc_Window *window) {
+  return window->fullscreen;
+}
+TCDEF void tc_set_window_fullscreen(tc_Window *window, tc_bool fullscreen) {
+  if (window->fullscreen == fullscreen) return;
+
+  if (fullscreen) {
+    const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+    tc_get_window_pos(window, &window->bkpMode.x, &window->bkpMode.y);
+    tc_get_window_size(window, &window->bkpMode.w, &window->bkpMode.h);
+    glfwSetWindowMonitor(window->handle, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, 0);
+    window->fullscreen = tc_true;
+  } else {
+//     TRACELOG(
+    glfwSetWindowMonitor(window->handle, NULL, window->bkpMode.x, window->bkpMode.y, window->bkpMode.w, window->bkpMode.h, 0);
+    window->fullscreen = tc_false;
+  }
+}
+
+TCDEF tc_bool tc_get_window_resizable(tc_Window *window) {
+  return window->resizable;
+}
+TCDEF void tc_set_window_resizable(tc_Window *window, tc_bool resizable) {
+  if (window->resizable == resizable) return;
+
+  glfwSetWindowAttrib(window->handle, GLFW_RESIZABLE, !window->resizable);
+  window->resizable = !window->resizable;
+}
+
+#endif /* TICO_WINDOW_IMPLEMENTATION */

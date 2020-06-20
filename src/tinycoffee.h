@@ -1,286 +1,213 @@
-#ifndef TINY_COFFEE_H
-#define TINY_COFFEE_H
+#ifndef TICO_H
+#define TICO_H
+
+#define TICO_VERSION "0.1.3"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <stdarg.h>
 
 #include "external/GL/gl3w.h"
 
 #define GLFW_INCLUDE_NONE
 #include "external/glfw/include/GLFW/glfw3.h"
 
-#define TICO_VERSION "0.1.3"
-
 #define STR(x) #x
 #define ASSERT(s) if (!(s)) {TRACELOG("Assertion '%s' failed", STR(s)); exit(-1);}
 
-#define ERROR(message...) tc_log(1, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message);
+#define TRACEERR(message...) tc_tracelog(1, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message)
+#define ERRLOG(message...) tc_log(1, (const tc_uint8*)message)
 
-#define LOG(message...) printf("tinycoffee: "); \
-printf(message);
-
-#define TRACELOG(message...) tc_log(0, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message);
+#define TRACELOG(message...) tc_tracelog(0, (const tc_uint8*)__FILE__, (const tc_uint8*)__PRETTY_FUNCTION__, __LINE__, (const tc_uint8*)message)
+#define LOG(message...) tc_log(0, (const tc_uint8*)message)
 
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define clamp(v, mi, ma) (min((ma), max((v), (mi))))
+#ifndef TC_MALLOC
+  #define TC_MALLOC malloc
+#endif
+#ifndef TC_CALLOC
+  #define TC_CALLOC calloc
+#endif
+#ifndef TC_REALLOC
+  #define TC_REALLOC realloc
+#endif
+#ifndef TC_FREE
+  #define TC_FREE free
+#endif
 
 #define PI 3.14159
 
 #define deg2rad(a) ((a) * PI/180)
+#define rad2deg(a) ((a) * 180/PI)
 
-#define vertex(x, y, s, t) ((tc_vertex){(x), (y), 1.f, 1.f, 1.f, 1.f, (s), (t)})
-#define vertexc(x, y, col, s, t) ((tc_vertex){(x), (y), (col.r)/255.f, (col.g)/255.f, (col.b)/255.f, (col.a)/255.f, (s), (t)})
-#define rgba(r, g, b, a) ((tc_color){(r), (g), (b), (a)})
-#define rgb(r, g, b) ((tc_color){(r), (g), (b), 255})
-#define color(r, g, b, a) rgba(r, g, b, a)
-#define color3(r, g, b) rgb(r, g, b)
-#define rect(x, y, w, h) ((tc_rect){(x), (y), (w), (h)})
+#define tc_vertex(x, y, s, t) ((tc_Vertex){(x), (y), 1.f, 1.f, 1.f, 1.f, (s), (t)})
+#define tc_vertexc(x, y, col, s, t) ((tc_Vertex){(x), (y), (col.r)/255.f, (col.g)/255.f, (col.b)/255.f, (col.a)/255.f, (s), (t)})
+#define tc_rgba(r, g, b, a) ((tc_Color){(r), (g), (b), (a)})
+#define tc_rgb(r, g, b) ((tc_Color){(r), (g), (b), 255})
+#define tc_color(r, g, b, a) tc_rgba(r, g, b, a)
+#define tc_color3(r, g, b) tc_rgb(r, g, b)
+#define tc_rectf(x, y, w, h) ((tc_Rectf){(x), (y), (w), (h)})
+#define tc_rect(x, y, w, h) ((tc_Rect){(x), (y), (w), (h)})
 
-#define WHITE rgb(255, 255, 255)
-#define BLACK rgb(0, 0, 0)
-#define BLUE rgb(48, 52, 109)
-#define RED rgb(208, 70, 72)
-#define GREEN rgb(52, 101, 36)
-#define GRAY rgb(78, 74, 78)
-#define BROWN rgb(133, 76, 48)
-#define BG rgb(75, 90, 90)
+#define WHITE tc_rgb(255, 255, 255)
+#define BLACK tc_rgb(0, 0, 0)
+#define BLUE tc_rgb(48, 52, 109)
+#define RED tc_rgb(208, 70, 72)
+#define GREEN tc_rgb(52, 101, 36)
+#define GRAY tc_rgb(78, 74, 78)
+#define BROWN tc_rgb(133, 76, 48)
+#define BG tc_rgb(75, 90, 90)
 
-typedef unsigned char byte;
+#define tc_max(a, b) ((a) < (b) ? (b) : (a))
+#define tc_min(a, b) ((a) < (b) ? (a) : (b))
+// #define tc_clamp(v, a, b) (tc_max((a), tc_min((v), (b))))
+
+typedef unsigned char tc_byte;
 typedef unsigned char tc_uint8;
-
-#define tc_true 1
-#define tc_false 0
-
-typedef int tc_bool;
-
-#include "tctypes.h"
 
 #ifndef TCDEF
   #define TCDEF
 #endif
 
-#include "external/stb_image.h"
+#define tc_false 0
+#define tc_true 1
 
-#include "tcmath.h"
-#include "audio.h"
-#include "window.h"
-#include "render.h"
-#include "input.h"
-#include "font.h"
-#include "fs.h"
-#include "ui/tcui.h"
-#include "external/cjson/cJSON.h"
-#include "editors/editor.h"
+typedef int tc_bool;
 
 typedef struct {
-  int x;
-  int y;
-  int width;
-  int height;
-  vec2 scale;
-  vec2 center;
-  float angle;
-  matrix view;
-} tc_camera;
+  union {
+    int data[4];
+    struct {
+      int x;
+      int y;
+      int w;
+      int h;
+    };
+  };
+} tc_Rect;
 
-typedef struct tc_config {
+typedef struct {
+  union {
+    float data[4];
+    struct {
+      float x;
+      float y;
+      float w;
+      float h;
+    };
+  };
+} tc_Rectf;
+
+typedef struct {
+  union {
+    tc_byte data[4];
+    struct {
+      tc_byte r;
+      tc_byte g;
+      tc_byte b;
+      tc_byte a;
+    };
+  };
+} tc_Color;
+
+#include "external/hashmap.h"
+
+#include "tcmath.h"
+#include "window.h"
+
+#include "audio.h"
+#include "render.h"
+#include "graphics.h"
+#include "font.h"
+#include "input.h"
+#include "filesystem.h"
+
+#include "ui/tcui.h"
+
+#include "debug.h"
+
+typedef enum {
+  TC_INIT_ALL = 0,
+  TC_INIT_GRAPHICS,
+  TC_INIT_INPUT,
+  TC_INIT_FILESYSTEM,
+  TC_INIT_WREN,
+  TC_INIT_LUA
+} TC_INIT_FLAGS;
+
+typedef struct {
   tc_uint8 title[256];
+  tc_uint8 path[128];
   int width;
   int height;
-  tc_bool initWren;
-  tc_bool initLua;
-  tc_bool packed;
-  TC_WINDOW_FLAGS_ windowFlags;
-  TC_INPUT_FLAGS_ inputFlags;
-} tc_config;
+  TC_INIT_FLAGS flags;
+  TC_WINDOW_FLAGS windowFlags;
+} tc_Config;
+
+typedef struct {
+  double currentTime;
+  double lastTime;
+  double fpsLastTime;
+  float delta;
+  int fps;
+  int frames;
+} tc_Timer;
 
 #ifdef WREN_LANG
   #include "tcwren.h"
 #endif
-
 #ifdef LUA_LANG
   #include "tclua.h"
 #endif
 
 typedef struct {
-  tc_window window;
-  tc_render render;
-  tc_input input;
-  tc_font defaultFont;
-  tc_timer timer;
-  tc_bool packed;
-  mu_Context *muCtx;
+  tc_Render render;
+  tc_Input input;
+  tc_Window window;
+  tc_Config config;
+  tc_Timer timer;
+  tc_Font defaultFont;
 #ifdef WREN_LANG
-  tc_wren wren;
+  tc_Wren wren;
 #endif
 #ifdef LUA_LANG
-  tc_lua lua;
+  tc_Lua lua;
 #endif
-  struct {
-    tc_rect rect[4];
-    tc_texture tex;
-  } icons;
-} tc_core;
+  tc_bool packed;
+} tc_Core;
 
-extern tc_core CORE;
+extern tc_Core Core;
 
-// tc_core CORE;
-
-/***********************
- * Core
- ***********************/
-TCDEF tc_bool tc_config_init(tc_config *config, const tc_uint8 *title, int width, int height);
-TCDEF tc_bool tc_init(tc_config *config);
+TCDEF void tc_init_config_json(tc_Config *config);
+TCDEF tc_Config tc_init_config(const tc_uint8 *title, int width, int height, int argc, char ** argv);
+TCDEF tc_bool tc_init(tc_Config *config);
 TCDEF void tc_terminate();
-TCDEF void tc_poll_events();
-TCDEF void tc_swap_buffers();
-
-TCDEF void tc_main_loop();
-
-TCDEF void tc_clear(tc_color color);
-TCDEF void tc_update_timer();
 
 TCDEF tc_bool tc_should_close();
+TCDEF void tc_update();
+TCDEF void tc_poll_events();
 TCDEF void tc_close();
+
+TCDEF void tc_clear(tc_Color color);
+TCDEF void tc_swap_buffers();
 
 TCDEF void tc_begin_draw();
 TCDEF void tc_end_draw();
 
-// TCDEF tc_render tc_get_render();
-// TCDEF tc_window tc_get_window();
+TCDEF void tc_main_loop();
 
-/*************************
- * Texture
- *************************/
-TCDEF tc_texture tc_create_texture(void *data, int width, int height);
-TCDEF tc_texture tc_load_texture(const tc_uint8 *filename);
-TCDEF tc_texture tc_load_texture_internal(const tc_uint8 *filename);
-TCDEF tc_texture tc_load_texture_external(const tc_uint8 *filename);
-TCDEF tc_texture tc_load_texture_from_memory(const tc_uint8 *buffer, size_t bufferSize);
-TCDEF void tc_delete_texture(tc_texture *texture);
-
-// Draw textures
-TCDEF void tc_draw_texture(tc_texture texture, int x, int y, tc_color color);
-TCDEF void tc_draw_texture_scale(tc_texture texture, int x, int y, float scaleX, float scaleY, tc_color color);
-TCDEF void tc_draw_texture_ex(tc_texture texture, int x, int y, float angle, float scaleX, float scaleY, int centerX, int centerY, tc_color color);
-TCDEF void tc_draw_texture_part(tc_texture texture, tc_rect rect, int x, int y, tc_color color);
-TCDEF void tc_draw_texture_part_scale(tc_texture texture, tc_rect rect, int x, int y, float scaleX, float scaleY, tc_color color);
-TCDEF void tc_draw_texture_part_ex(tc_texture texture, tc_rect rect, int x, int y, float angle, float scaleX, float scaleY, int centerX, int centerY, tc_color color);
-
-// Draw shapes
-TCDEF void tc_draw_rectangle(int x, int y, int width, int height, tc_color color);
-TCDEF void tc_fill_rectangle(int x, int y, int width, int height, tc_color color);
-TCDEF void tc_draw_circle(int x, int y, float radius, tc_color color);
-TCDEF void tc_fill_circle(int x, int y, float radius, tc_color color);
-TCDEF void tc_draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, tc_color color);
-TCDEF void tc_fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, tc_color color);
-
-// Draw text
-TCDEF void tc_draw_text(const tc_uint8 *text, int x, int y, tc_color color);
-TCDEF void tc_draw_text_scale(const tc_uint8 *text, int x, int y, float sx, float sy, tc_color color);
-TCDEF void tc_draw_text_ex(const tc_uint8 *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_color color);
-TCDEF void tc_draw_text_font(tc_font font, const tc_uint8 *text, int x, int y, tc_color color);
-TCDEF void tc_draw_text_font_scale(tc_font font, const tc_uint8 *text, int x, int y, float sx, float sy, tc_color color);
-
-/*********************
- * Canvas
- *********************/
-TCDEF tc_canvas tc_create_canvas(int width, int height);
-TCDEF void tc_delete_canvas(tc_canvas *canvas);
-
-TCDEF void tc_set_canvas(tc_canvas canvas);
-TCDEF void tc_unset_canvas();
-
-TCDEF void tc_draw_canvas(tc_canvas canvas, int x, int y, tc_color color);
-TCDEF void tc_draw_canvas_scale(tc_canvas canvas, int x, int y, float scaleX, float scaleY, tc_color color);
-TCDEF void tc_draw_canvas_ex(tc_canvas canvas, int x, int y, float angle, float scaleX, float scaleY, int centerX, int centerY, tc_color color);
-
-/**********************
- * Shader
- **********************/
-TCDEF tc_shader tc_create_shader(const tc_uint8 *vertexSource, const tc_uint8 *fragmentSource);
-
-TCDEF int tc_compile_shader(const tc_uint8 *source, int type);
-TCDEF int tc_load_shader_program(int vertexShader, int fragmentShader);
-
-TCDEF void tc_set_shader(tc_shader shader);
-
-TCDEF tc_shader tc_load_default_shader(int *vertexShader, int *fragmentShader);
-TCDEF void tc_shader_send_worldview(tc_shader shader);
-TCDEF void tc_shader_send_uniform(tc_shader shader, const tc_uint8 *name, void *value, TC_SHADER_UNIFORM_ type);
-
-/**********************
- * Input
- **********************/
-TCDEF tc_bool tc_is_key_down(TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_is_key_up(TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_is_key_pressed(TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_is_key_released(TC_KEYBOARD_KEY_ key);
-
-TCDEF tc_bool tc_is_mouse_down(TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_is_mouse_up(TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_is_mouse_pressed(TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_is_mouse_released(TC_MOUSE_BUTTON_ button);
-
-/**********************
- * Timer
- **********************/
+TCDEF float tc_get_time();
 TCDEF float tc_get_delta();
 TCDEF int tc_get_fps();
-TCDEF float tc_get_time();
 
-/*********************
- * Filesystem
- *********************/
-
-TCDEF tc_uint8 *tc_read_file(const tc_uint8 *filename, size_t *outSize);
-TCDEF void tc_write_file(const tc_uint8 *filename, const tc_uint8 *text, size_t size, TC_WRITE_MODE mode);
-TCDEF void tc_delete_file(const tc_uint8 *filename);
-TCDEF tc_bool tc_file_exists(const tc_uint8 *filename);
-TCDEF void tc_mkdir(const tc_uint8 *path);
-TCDEF void tc_rmdir(const tc_uint8 *path);
-
-/*********************
- * Scripting
- *********************/
-TCDEF void tc_scripting_wren_update();
-TCDEF void tc_scripting_wren_draw();
-
-TCDEF void tc_scripting_lua_update();
-TCDEF void tc_scripting_lua_draw();
-
-/*********************
+/*****************
  * Utils
- *********************/
+ *****************/
 TCDEF char *tc_replace_char(char *str, tc_uint8 find, tc_uint8 replace);
 TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, int* codepoint);
 TCDEF void tc_utf8_encode(tc_uint8* c, int codepoint);
 TCDEF int tc_utf8_decode(const tc_uint8 *p);
-TCDEF void tc_scissor(int x, int y, int w, int h);
+// TCDEF void tc_scissor(int x, int y, int w, int h);
+TCDEF void tc_write_buffer_header(const char *name, const char *text, size_t size);
 
-/*********************
- * Camera
- *********************/
-// TCDEF tc_camera tc_create_camera(int x, int y, int w, int h);
-// TCDEF void tc_destroy_camera(tc_camera *camera);
-
-// TCDEF void tc_camera_rotate(float angle);
-// TCDEF void tc_camera_zoom_in(float zoom);
-// TCDEF void tc_camera_zoom_out(float zoom);
-
-// TCDEF void tc_attach_camera(tc_camera *camera);
-// TCDEF void tc_detach_camera();
-#include "modules/camera.h"
-
-/*********************
- * Log
- *********************/
-
-TCDEF void tc_log(int type, const tc_uint8 *file, const tc_uint8 *function, int line, const tc_uint8 *fmt, ...);
-
-#endif /* TINY_COFFEE_H */
+#endif

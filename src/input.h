@@ -1,18 +1,7 @@
-#ifndef TC_INPUT_H
-#define TC_INPUT_H
+#ifndef TICO_INPUT_H
+#define TICO_INPUT_H
 
 #include "tinycoffee.h"
-
-#ifndef TCDEF
-  #define TCDEF extern
-#endif
-
-typedef enum {
-  TC_INPUT_INIT_ALL = 0,
-  TC_INIT_KEYBOARD = 1 << 0,
-  TC_INIT_MOUSE = 1 << 1,
-  TC_INIT_JOYSTICK = 1 << 2
-} TC_INPUT_FLAGS_;
 
 typedef enum {
   KEY_UNKNOWN =       -1,
@@ -140,145 +129,291 @@ typedef enum {
   KEY_MENU =          348,
 
   KEY_LAST = KEY_MENU
-} TC_KEYBOARD_KEY_;
+} TC_KEY;
 
 typedef enum {
-  MOUSE_BUTTON_LEFT =   0,
-  MOUSE_BUTTON_RIGHT =  1,
-  MOUSE_BUTTON_MIDDLE = 2,
+  MOUSE_LEFT =   0,
+  MOUSE_RIGHT =  1,
+  MOUSE_MIDDLE = 2,
   MOUSE_BUTTON_LAST =   3
-} TC_MOUSE_BUTTON_;
+} TC_MOUSEBUTTON;
+
+typedef enum {
+  JOY_DPAD_LEFT = 0
+} TC_JOYSTICK;
+
+typedef enum {
+  TC_INPUT_INIT_ALL = 0,
+  TC_INIT_KEYBOARD = 1,
+  TC_INIT_MOUSE = 1 << 2,
+  TC_INIT_JOYSTICK = 1 << 3
+} TC_INPUT_FLAGS;
 
 typedef struct {
   struct {
-    tc_bool buttonDown[MOUSE_BUTTON_LAST];
-    tc_bool prevButton[MOUSE_BUTTON_LAST];
     int x;
     int y;
-    double fixX;
-    double fixY;
+    int fixX;
+    int fixY;
     float scrollX;
     float scrollY;
+    tc_bool down[MOUSE_BUTTON_LAST];
+    tc_bool pressed[MOUSE_BUTTON_LAST];
     tc_bool fixed;
     tc_bool active;
   } mouseState;
   struct {
-    tc_bool keyDown[KEY_LAST];
-		tc_bool prevKey[KEY_LAST];
-		tc_bool active;
-  } keyboardState;
-} tc_input;
+    tc_bool down[KEY_LAST];
+    tc_bool pressed[KEY_LAST];
+    tc_bool active;
+    hashmap keyNames;
+  } keyState;
+  struct {
+    tc_bool down[4];
+    tc_bool pressed[4];
+    float axis[2];
+    tc_bool active;
+  } joystickState[4];
+} tc_Input;
 
-TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags);
-TCDEF void tc_input_poll(tc_input *input);
+TCDEF tc_bool tc_init_input(tc_Input *input, TC_INPUT_FLAGS flags);
+TCDEF void tc_destroy_input(tc_Input *input);
 
-TCDEF tc_bool tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key);
-TCDEF tc_bool tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key);
+TCDEF void tc_update_input(tc_Input *input);
+TCDEF int tc_get_keycode(const char *name);
 
-TCDEF tc_bool tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button);
-TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button);
+TCDEF tc_bool tc_is_key_down(TC_KEY key);
+TCDEF tc_bool tc_is_key_pressed(TC_KEY key);
+TCDEF tc_bool tc_is_key_up(TC_KEY key);
+TCDEF tc_bool tc_is_key_released(TC_KEY key);
 
-TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y);
-TCDEF void tc_input_get_mouse_posv(tc_input input, vec2 *mousePos);
+TCDEF tc_bool tc_is_mouse_down(TC_MOUSEBUTTON button);
+TCDEF tc_bool tc_is_mouse_pressed(TC_MOUSEBUTTON button);
+TCDEF tc_bool tc_is_mouse_up(TC_MOUSEBUTTON button);
+TCDEF tc_bool tc_is_mouse_released(TC_MOUSEBUTTON button);
+TCDEF void tc_get_mouse(int *x, int *y);
+TCDEF void tc_fix_mouse();
+TCDEF void tc_release_mouse();
+TCDEF void tc_get_mouse_delta(int *x, int *y);
 
-TCDEF void tc_input_fix_mouse_pos(tc_input *input);
-TCDEF void tc_input_unfix_mouse_pos(tc_input *input);
-TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y);
-TCDEF void tc_input_get_mouse_deltav(tc_input input, vec2 *deltaPos);
 
-#endif /* TC_INPU_H */
+#endif /* TICO_INPUT_H */
 
-#if defined(TC_INPUT_IMPLEMENTATION)
+#if defined(TICO_INPUT_IMPLEMENTATION)
 
-TCDEF tc_input tc_init_input(TC_INPUT_FLAGS_ flags) {
-  tc_input input = {0};
-  memset(input.keyboardState.keyDown, 0, KEY_LAST);
-	memset(input.mouseState.buttonDown, 0, MOUSE_BUTTON_LAST);
-	input.mouseState.x = 0;
-	input.mouseState.y = 0;
-	input.mouseState.fixX = 0;
-	input.mouseState.fixY = 0;
-	input.mouseState.fixed = 0;
-	if (flags == TC_INPUT_INIT_ALL) {
-	  input.keyboardState.active = tc_true;
-	  input.mouseState.active = tc_true;
-	}
+TCDEF tc_bool tc_init_input(tc_Input *input, TC_INPUT_FLAGS flags) {
+  memset(input->keyState.down, 0, sizeof(tc_bool) * KEY_LAST);
+  memset(input->keyState.pressed, 0, sizeof(tc_bool) * KEY_LAST);
 
-	if (flags & TC_INIT_KEYBOARD) input.keyboardState.active = tc_true;
-	if (flags & TC_INIT_MOUSE) input.mouseState.active = tc_true;
+  memset(input->mouseState.down, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
+  memset(input->mouseState.pressed, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
+  input->keyState.keyNames = hashmap_create(48);
 
-  return input;
-}
+  struct {
+    char *name;
+    int code;
+  } keyNames[] = {
+    {"space",         32},
+    {"apostrophe",    39},  /* ' */
+    {"comma",         44}, /* , */
+    {"minus",         45},  /* - */
+    {"period",        46},  /* . */
+    {"slash",         47},  /* / */
+    {"0",             48},
+    {"1",             49},
+    {"2",             50},
+    {"3",             51},
+    {"4",             52},
+    {"5",             53},
+    {"6",             54},
+    {"7",             55},
+    {"8",             56},
+    {"9",             57},
+    {"semicolon",     59},  /* ; */
+    {"equal",         61},  /* = */
+    {"a",             65},
+    {"b",             66},
+    {"c",             67},
+    {"d",             68},
+    {"e",             69},
+    {"f",             70},
+    {"g",             71},
+    {"h",             72},
+    {"i",             73},
+    {"j",             74},
+    {"k",             75},
+    {"l",             76},
+    {"m",             77},
+    {"n",             78},
+    {"o",             79},
+    {"p",             80},
+    {"q",             81},
+    {"r",             82},
+    {"s",             83},
+    {"t",             84},
+    {"u",             85},
+    {"v",             86},
+    {"w",             87},
+    {"x",             88},
+    {"y",             89},
+    {"z",             90},
+    {"left_bracket",  91},  /* [ */
+    {"backslash",     92},  /* \ */
+    {"right_bracket", 93},  /* ] */
+    {"grave_accent",  96},  /* ` */
+    {"world_1",       161}, /* non-us #1 */
+    {"world_2",       162}, /* non-us #2 */
+    {"escape",        256},
+    {"enter",         257},
+    {"tab",           258},
+    {"backspace",     259},
+    {"insert",        260},
+    {"delete",        261},
+    {"right",         262},
+    {"left",          263},
+    {"down",          264},
+    {"up",            265},
+    {"page_up",       266},
+    {"page_down",     267},
+    {"home",          268},
+    {"end",           269},
+    {"caps_lock",     280},
+    {"scroll_lock",   281},
+    {"num_lock",      282},
+    {"print_screen",  283},
+    {"pause",         284},
+    {"f1",            290},
+    {"f2",            291},
+    {"f3",            292},
+    {"f4",            293},
+    {"f5",            294},
+    {"f6",            295},
+    {"f7",            296},
+    {"f8",            297},
+    {"f9",            298},
+    {"f10",           299},
+    {"f11",           300},
+    {"f12",           301},
+    {"f13",           302},
+    {"f14",           303},
+    {"f15",           304},
+    {"f16",           305},
+    {"f17",           306},
+    {"f18",           307},
+    {"f19",           308},
+    {"f20",           309},
+    {"f21",           310},
+    {"f22",           311},
+    {"f23",           312},
+    {"f24",           313},
+    {"f25",           314},
+    {"kp_0",          320},
+    {"kp_1",          321},
+    {"kp_2",          322},
+    {"kp_3",          323},
+    {"kp_4",          324},
+    {"kp_5",          325},
+    {"kp_6",          326},
+    {"kp_7",          327},
+    {"kp_8",          328},
+    {"kp_9",          329},
+    {"kp_decimal",    330},
+    {"kp_divide",     331},
+    {"kp_multiply",   332},
+    {"kp_subtract",   333},
+    {"kp_add",        334},
+    {"kp_enter",      335},
+    {"kp_equal",      336},
+    {"left_shift",    340},
+    {"left_control",  341},
+    {"left_alt",      342},
+    {"left_super",    343},
+    {"right_shift",   344},
+    {"right_control", 345},
+    {"right_alt",     346},
+    {"right_super",   347},
+    {"menu",          348},
+    {NULL, 0}
+  };
 
-TCDEF void tc_input_poll(tc_input *input) {
-  for (int i = 0; i < KEY_LAST; i++)
-		input->keyboardState.prevKey[i] = input->keyboardState.keyDown[i];
-
-	for (int i = 0; i < MOUSE_BUTTON_LAST; i++)
-		input->mouseState.prevButton[i] = input->mouseState.buttonDown[i];
-}
-
-TCDEF tc_bool tc_input_key_down(tc_input input, TC_KEYBOARD_KEY_ key) {
-  if (!input.keyboardState.active)
-  return input.keyboardState.keyDown[key];
-}
-TCDEF tc_bool tc_input_key_pressed(tc_input input, TC_KEYBOARD_KEY_ key) {
-  return !input.keyboardState.prevKey[key] && input.keyboardState.keyDown[key];
-}
-TCDEF tc_bool tc_input_key_up(tc_input input, TC_KEYBOARD_KEY_ key) {
-  return !input.keyboardState.keyDown[key];
-}
-TCDEF tc_bool tc_input_key_released(tc_input input, TC_KEYBOARD_KEY_ key) {
-  return input.keyboardState.prevKey[key] && !input.keyboardState.keyDown[key];
-}
-
-TCDEF tc_bool tc_input_mouse_down(tc_input input, TC_MOUSE_BUTTON_ button) {
-  return input.mouseState.buttonDown[button];
-}
-TCDEF tc_bool tc_input_mouse_pressed(tc_input input, TC_MOUSE_BUTTON_ button) {
-  return !input.mouseState.prevButton[button] && input.mouseState.buttonDown[button];
-}
-TCDEF tc_bool tc_input_mouse_up(tc_input input, TC_MOUSE_BUTTON_ button) {
-  return !input.mouseState.buttonDown[button];
-}
-TCDEF tc_bool tc_input_mouse_released(tc_input input, TC_MOUSE_BUTTON_ button) {
-  return input.mouseState.prevButton[button] && !input.mouseState.buttonDown[button];
-}
-
-TCDEF void tc_input_get_mouse_pos(tc_input input, int *x, int *y) {
-  if (x) *x = input.mouseState.x;
-  if (y) *y = input.mouseState.y;
-}
-TCDEF void tc_input_get_mouse_posv(tc_input input, vec2 *mousePos) {
-  if (mousePos) {
-    mousePos->x = input.mouseState.x;
-    mousePos->y = input.mouseState.y;
+  for (int i = 0; keyNames[i].name != NULL; i++) {
+    hashmap_set(&input->keyState.keyNames, keyNames[i].name, keyNames[i].code);
   }
+
 }
 
-TCDEF void tc_input_fix_mouse_pos(tc_input *input) {
-  ASSERT(input != NULL);
-  input->mouseState.fixX = input->mouseState.x;
-  input->mouseState.fixY = input->mouseState.y;
-  input->mouseState.fixed = tc_true;
-}
-TCDEF void tc_input_unfix_mouse_pos(tc_input *input) {
-  ASSERT(input != NULL);
-  input->mouseState.fixed = tc_false;
-}
-TCDEF void tc_input_get_mouse_delta(tc_input input, int *x, int *y) {
-  if (x) *x = input.mouseState.fixX - input.mouseState.x;
-  if (y) *y = input.mouseState.fixY - input.mouseState.y;
-}
-TCDEF void tc_input_get_mouse_deltav(tc_input input, vec2 *deltaPos) {
-  if (deltaPos) {
-    deltaPos->x = input.mouseState.fixX - input.mouseState.x;
-    deltaPos->y = input.mouseState.fixY - input.mouseState.y;
-  }
+TCDEF void tc_update_input(tc_Input *input) {
+  memcpy(input->keyState.pressed, input->keyState.down, sizeof(tc_bool) * KEY_LAST);
+  memcpy(input->mouseState.pressed, input->mouseState.down, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
 }
 
-#endif /* TC_INPUT_IMPLEMENTATION */
+TCDEF int tc_get_keycode(const char *name) {
+  hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+  int code = -1;
+  if (item) code = item->value;
+
+  return code;
+}
+
+/* key functions */
+
+TCDEF tc_bool tc_is_key_down(TC_KEY key) {
+  return Core.input.keyState.down[key];
+}
+
+TCDEF tc_bool tc_is_key_pressed(TC_KEY key) {
+  return !Core.input.keyState.pressed[key] && Core.input.keyState.down[key];
+}
+
+TCDEF tc_bool tc_is_key_up(TC_KEY key) {
+  return !Core.input.keyState.down[key];
+}
+
+TCDEF tc_bool tc_is_key_released(TC_KEY key) {
+  return Core.input.keyState.pressed[key] && !Core.input.keyState.down[key];
+}
+
+/* Mouse functions */
+
+TCDEF void tc_get_mouse(int *x, int *y) {
+  if (x) *x = Core.input.mouseState.x;
+  if (y) *y = Core.input.mouseState.y;
+}
+
+TCDEF void tc_fix_mouse() {
+  Core.input.mouseState.fixX = Core.input.mouseState.x;
+  Core.input.mouseState.fixY = Core.input.mouseState.y;
+  Core.input.mouseState.fixed = tc_true;
+}
+
+TCDEF void tc_release_mouse() {
+  Core.input.mouseState.fixed = tc_false;
+}
+
+TCDEF void tc_get_mouse_delta(int *x, int *y) {
+  if (x) *x = Core.input.mouseState.fixX - Core.input.mouseState.x;
+  if (y) *y = Core.input.mouseState.fixY - Core.input.mouseState.y;
+}
+
+TCDEF void tc_get_mouse_scroll(float *x, float *y) {
+  if (x) *x = Core.input.mouseState.scrollX;
+  if (y) *y = Core.input.mouseState.scrollY;
+}
+
+TCDEF tc_bool tc_is_mouse_down(TC_MOUSEBUTTON button) {
+  return Core.input.mouseState.down[button];
+}
+
+TCDEF tc_bool tc_is_mouse_pressed(TC_MOUSEBUTTON button) {
+  return !Core.input.mouseState.pressed[button] && Core.input.mouseState.down[button];
+}
+
+TCDEF tc_bool tc_is_mouse_up(TC_MOUSEBUTTON button) {
+  return !tc_is_mouse_down(button);
+}
+
+TCDEF tc_bool tc_is_mouse_released(TC_MOUSEBUTTON button) {
+  return Core.input.mouseState.pressed[button] && !Core.input.mouseState.down[button];
+}
+
+#endif

@@ -17,19 +17,21 @@ I'm using in this project:
 - [wren](http://wren.io/)
 - [miniaudio](https://github.com/dr-soft/miniaudio/) (include dr_flac, dr_mp3 and dr_wav)
 - [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
+- [cJSON](https://github.com/DaveGamble/cJSON)
 - [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
 - ~[freetype](https://www.freetype.org/)~ (changed to `stb_truetype`, but maybe give the option to use it in the future (?))
 - ~[cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)~ (maybe in the future, as a C++ compiler is needed, and i want to maintain all in C)
-- [nuklear](https://github.com/Immediate-Mode-UI/Nuklear)
 - [microui](https://github.com/rxi/microui)
 
 ## TODO:
 
 - [x] draw outlined shapes
 - [x] draw triangles and circles
-- [ ] wrap for lua
-- [ ] wrap for wren (work in progress)
-- [ ] json parser
+- [x] user created spritebatch
+- [x] load config from json
+- [ ] wrap for lua (work in progress, focusing on this one)
+- [ ] wrap for wren (work in progress, stopped by now)
+- [x] json parser
 - [ ] autopack textures on the fly
 - [ ] joystick support
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
@@ -41,8 +43,6 @@ I'm using in this project:
 - [ ] support for more audio types
 - [x] struct with options to init engine (need to add more options)
 - [ ] load audio static (decode in memory)
-
-### working
 - [x] drawing textures
 - [x] drawing canvas
 - [x] custom glsl shaders (but the shaders need to implement some attribute variables and uniforms)
@@ -85,6 +85,26 @@ int main(int argc, char ** argv) {
 
 ```
 
+main.lua structure:
+
+```lua
+
+function tico.load()
+  canvas = tico.graphics.newCanvas(160, 95)
+end
+
+function tico.update(dt)
+end
+
+function tico.draw()
+  canvas:attach()
+  tico.graphics.fillRectangle(32, 32, 32, 32)
+  canvas:detach()
+  canvas:draw(0, 0)
+end
+
+```
+
 main.wren structure:
 
 ```dart
@@ -92,15 +112,8 @@ main.wren structure:
 // main.wren
 
 import "tico.graphics" for Texture, Color
-import "tico" for Config
 
 class Game {
-  static config {
-    Config.title = "my game"
-    Config.width = 1024
-    Config.height = 768
-  }
-
   tex {__tex}
 
   static load() {
@@ -124,8 +137,8 @@ run `./build.sh release 'platform'` for release optimizations (longer compilatio
 
 ## distribution
 
-pack all your game assets (images, sound, font, scripts) in a zip called data.pack, if you are using wren,
-maintain the `main.wren` in the root folder of the zip
+pack all your game assets (images, sound, font, scripts) in a zip called data.pack.
+If you are using Lua or Wren, maitain the `main.(lua|wren)` file in the zip root
 
 ## screenshots
 

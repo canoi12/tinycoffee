@@ -1,5 +1,5 @@
-#ifndef TC_AUDIO_H
-#define TC_AUDIO_H
+#ifndef TICO_AUDIO_H
+#define TICO_AUDIO_H
 
 #include "tinycoffee.h"
 
@@ -26,8 +26,8 @@
 #endif
 
 typedef enum {
-  AUDIO_STREAM = 0,
-  AUDIO_STATIC
+  TC_AUDIO_STREAM = 0,
+  TC_AUDIO_STATIC
 } TC_AUDIO_USAGE;
 
 typedef struct {
@@ -48,11 +48,11 @@ typedef struct {
   size_t dataSize;
 
   size_t currentReadPos;
-} tc_audiobuffer;
+} tc_AudioBuffer;
 
 typedef struct {
-  tc_audiobuffer *audioBuffer;
-} tc_sound;
+  tc_AudioBuffer *audioBuffer;
+} tc_Sound;
 
 typedef struct {
   struct
@@ -67,11 +67,11 @@ typedef struct {
 
   struct
   {
-    tc_audiobuffer buffer[MAX_AUDIO_BUFFER_CHANNELS];
+    tc_AudioBuffer buffer[MAX_AUDIO_BUFFER_CHANNELS];
   } multiChannel;
-} tc_audio;
+} tc_Audio;
 
-/* tc_audio audio; */
+/* tc_Audio audio; */
 
 /* Audio system */
 TCDEF int tc_init_audio();
@@ -81,36 +81,38 @@ TCDEF void tc_terminate_audio(void);
 
 TCDEF void tc_set_master_volume(float volume);
 
-TCDEF int tc_audio_get_id(tc_audiobuffer *buffer);
-TCDEF tc_audiobuffer *tc_get_audio_from_id(unsigned int id);
+TCDEF int tc_audio_get_id(tc_AudioBuffer *buffer);
+TCDEF tc_AudioBuffer *tc_get_audio_from_id(unsigned int id);
 
 /* Audio buffer */
-TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage);
-TCDEF void tc_play_buffer(tc_audiobuffer *audioBuffer);
-TCDEF void tc_stop_buffer(tc_audiobuffer *audioBuffer);
-TCDEF void tc_pause_buffer(tc_audiobuffer *audioBuffer);
-TCDEF void tc_unload_buffer(tc_audiobuffer *audioBuffer);
+TCDEF tc_AudioBuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage);
+TCDEF void tc_play_buffer(tc_AudioBuffer *audioBuffer);
+TCDEF void tc_stop_buffer(tc_AudioBuffer *audioBuffer);
+TCDEF void tc_pause_buffer(tc_AudioBuffer *audioBuffer);
+TCDEF void tc_unload_buffer(tc_AudioBuffer *audioBuffer);
 
-TCDEF int tc_buffer_is_playing(tc_audiobuffer *audioBuffer);
-TCDEF int tc_buffer_is_paused(tc_audiobuffer *audioBuffer);
+TCDEF int tc_buffer_is_playing(tc_AudioBuffer *audioBuffer);
+TCDEF int tc_buffer_is_paused(tc_AudioBuffer *audioBuffer);
 
-TCDEF void tc_set_buffer_volume(tc_audiobuffer *audioBuffer, float volume);
+TCDEF void tc_set_buffer_volume(tc_AudioBuffer *audioBuffer, float volume);
 
-/* Sound */
-TCDEF tc_sound tc_load_sound(const char *filename, TC_AUDIO_USAGE usage);
-TCDEF void tc_unload_sound(tc_sound sound);
+/************
+ * Sound
+ ************/
+TCDEF tc_Sound tc_load_sound(const char *filename, TC_AUDIO_USAGE usage);
+TCDEF void tc_unload_sound(tc_Sound sound);
 
-TCDEF void tc_play_sound(tc_sound sound);
-TCDEF void tc_stop_sound(tc_sound sound);
-TCDEF void tc_pause_sound(tc_sound sound);
+TCDEF void tc_play_sound(tc_Sound sound);
+TCDEF void tc_stop_sound(tc_Sound sound);
+TCDEF void tc_pause_sound(tc_Sound sound);
 
-TCDEF int tc_sound_is_playing(tc_sound sound);
-TCDEF int tc_sound_is_paused(tc_sound sound);
-TCDEF void tc_sound_set_volume(tc_sound sound, float volume);
+TCDEF int tc_sound_is_playing(tc_Sound sound);
+TCDEF int tc_sound_is_paused(tc_Sound sound);
+TCDEF void tc_sound_set_volume(tc_Sound sound, float volume);
 
 #endif
 
-#if defined(TC_AUDIO_IMPLEMENTATION)
+#if defined(TICO_AUDIO_IMPLEMENTATION)
 
 #define DR_WAV_IMPLEMENTATION
 #include "external/dr_wav.h"
@@ -126,9 +128,9 @@ TCDEF void tc_sound_set_volume(tc_sound sound, float volume);
 #define MA_IMPLEMENTATION
 #include "external/miniaudio.h"
 
-static tc_audio audio = {0};
+static tc_Audio audio = {0};
 
-static ma_uint32 tc_read_and_mix_pcm_frames(tc_audiobuffer *audioBuffer, float *pOutputF32, ma_uint32 frameCount)
+static ma_uint32 tc_read_and_mix_pcm_frames(tc_AudioBuffer *audioBuffer, float *pOutputF32, ma_uint32 frameCount)
 {
 
   float temp[4096];
@@ -137,26 +139,29 @@ static ma_uint32 tc_read_and_mix_pcm_frames(tc_audiobuffer *audioBuffer, float *
   ma_decoder *pDecoder = &audioBuffer->decoder;
   float volume = audioBuffer->volume;
 
-  while (totalFramesRead < frameCount)
-  {
+  while (totalFramesRead < frameCount) {
     ma_uint32 iSample;
     ma_uint32 framesReadThisIteration;
     ma_uint32 totalFramesRemaining = frameCount - totalFramesRead;
     ma_uint32 framesToReadThisIteration = tempCapInFrames;
-    if (framesToReadThisIteration > totalFramesRemaining)
-    {
+    if (framesToReadThisIteration > totalFramesRemaining) {
       framesToReadThisIteration = totalFramesRemaining;
     }
 
-    framesReadThisIteration = (ma_uint32)ma_decoder_read_pcm_frames(pDecoder, temp, framesToReadThisIteration);
+    if (audioBuffer->usage == TC_AUDIO_STREAM) {
+      framesReadThisIteration = (ma_uint32)ma_decoder_read_pcm_frames(pDecoder, temp, framesToReadThisIteration);
+    } else {
+      framesReadThisIteration = framesToReadThisIteration;
+      memcpy(temp, audioBuffer->data + audioBuffer->currentReadPos, framesToReadThisIteration);
+      audioBuffer->currentReadPos += framesReadThisIteration;
+    }
 
-    if (framesReadThisIteration == 0)
-    {
+
+    if (framesReadThisIteration == 0) {
       break;
     }
 
-    for (iSample = 0; iSample < framesReadThisIteration * AUDIO_DEVICE_CHANNELS; ++iSample)
-    {
+    for (iSample = 0; iSample < framesReadThisIteration * AUDIO_DEVICE_CHANNELS; ++iSample) {
       pOutputF32[totalFramesRead * AUDIO_DEVICE_CHANNELS + iSample] += temp[iSample] * volume;
     }
 
@@ -177,20 +182,15 @@ static void tc_data_callback(ma_device *pDevice, void *pOutput, const void *pInp
 
   ma_mutex_lock(&audio.system.lock);
   int i;
-  for (i = 0; i < MAX_AUDIO_BUFFER_CHANNELS; i++)
-  {
-    tc_audiobuffer *audioBuffer = &audio.multiChannel.buffer[i];
-    if (audioBuffer->playing && audioBuffer->loaded && !audioBuffer->paused)
-    {
+  for (i = 0; i < MAX_AUDIO_BUFFER_CHANNELS; i++) {
+    tc_AudioBuffer *audioBuffer = &audio.multiChannel.buffer[i];
+    if (audioBuffer->playing && audioBuffer->loaded && !audioBuffer->paused) {
       ma_uint32 framesRead = tc_read_and_mix_pcm_frames(audioBuffer, fOutput, frameCount);
-      if (framesRead < frameCount)
-      {
-        if (audioBuffer->loop)
-        {
+      if (framesRead < frameCount) {
+        if (audioBuffer->loop) {
           ma_decoder_seek_to_pcm_frame(&audioBuffer->decoder, 0);
-        }
-        else
-        {
+          audioBuffer->currentReadPos = 0;
+        } else {
           audioBuffer->playing = tc_false;
         }
       }
@@ -207,7 +207,7 @@ TCDEF int tc_init_audio()
   ma_result result = ma_context_init(NULL, 0, &ctxConfig, &audio.system.ctx);
   if (result != MA_SUCCESS)
   {
-    ERROR("Failed to init audio context");
+    TRACEERR("Failed to init audio context");
     return -1;
   }
 
@@ -222,7 +222,7 @@ TCDEF int tc_init_audio()
   result = ma_device_init(&audio.system.ctx, &devConfig, &audio.system.device);
   if (result != MA_SUCCESS)
   {
-    ERROR("Failed to init device");
+    TRACEERR("Failed to init device");
     ma_context_uninit(&audio.system.ctx);
     return -1;
   }
@@ -230,7 +230,7 @@ TCDEF int tc_init_audio()
   result = tc_start_device();
   if (result != MA_SUCCESS)
   {
-    ERROR("Failed to start device");
+    TRACEERR("Failed to start device");
     ma_context_uninit(&audio.system.ctx);
     ma_device_uninit(&audio.system.device);
     return -1;
@@ -238,7 +238,7 @@ TCDEF int tc_init_audio()
 
   if (ma_mutex_init(&audio.system.ctx, &audio.system.lock) != MA_SUCCESS)
   {
-    ERROR("Failed to start mutex");
+    TRACEERR("Failed to start mutex");
     ma_device_uninit(&audio.system.device);
     ma_context_uninit(&audio.system.ctx);
     return -1;
@@ -247,7 +247,7 @@ TCDEF int tc_init_audio()
   int i;
   for (i = 0; i < MAX_AUDIO_BUFFER_CHANNELS; i++)
   {
-    tc_audiobuffer *buffer = &audio.multiChannel.buffer[i];
+    tc_AudioBuffer *buffer = &audio.multiChannel.buffer[i];
     buffer->playing = tc_false;
     buffer->volume = 1.f;
     buffer->pitch = 1.f;
@@ -280,7 +280,7 @@ TCDEF void tc_terminate_audio(void)
   }
   else
   {
-    ERROR("Audio system could not be closed, not initialized");
+    TRACEERR("Audio system could not be closed, not initialized");
   }
 }
 
@@ -289,17 +289,17 @@ TCDEF void tc_set_master_volume(float volume)
   ma_device_set_master_volume(&audio.system.device, volume);
 }
 
-TCDEF int tc_sound_get_id(tc_audiobuffer *buffer)
+TCDEF int tc_sound_get_id(tc_AudioBuffer *buffer)
 {
   return buffer->id;
 }
 
-TCDEF tc_audiobuffer *tc_get_buffer_from_id(unsigned int id)
+TCDEF tc_AudioBuffer *tc_get_buffer_from_id(unsigned int id)
 {
   return &audio.multiChannel.buffer[id];
 }
 
-TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
+TCDEF tc_AudioBuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
 {
   int index = 0;
   int i;
@@ -311,37 +311,29 @@ TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
       break;
     }
   }
-  tc_audiobuffer *audioBuffer = &audio.multiChannel.buffer[index];
+  tc_AudioBuffer *audioBuffer = &audio.multiChannel.buffer[index];
   ma_decoder_config decoderConfig = ma_decoder_config_init(AUDIO_DEVICE_FORMAT, AUDIO_DEVICE_CHANNELS, AUDIO_DEVICE_SAMPLE_RATE);
   ma_result result = 0;
   audioBuffer->currentReadPos = 0;
 
-  size_t size;
-  char *data = tc_read_file(filename, &size);
-  audioBuffer->data = data;
-  result = ma_decoder_init_memory(audioBuffer->data, size, &decoderConfig, &audioBuffer->decoder);
-//   if (usage == AUDIO_STATIC)
-//   {
-//     FILE *file;
-//     ma_fopen(&file, filename, "rb");
-//     fseek(file, 0, SEEK_END);
-//     size_t size = ftell(file);
-//     fseek(file, 0, SEEK_SET);
-//     char *data = malloc(size);
-//     size_t r = fread(data, 1, size, (FILE *)file);
-//     audioBuffer->data = data;
-//     fclose((FILE *)file);
-
-//     result = ma_decoder_init_memory(audioBuffer->data, size, &decoderConfig, &audioBuffer->decoder);
-//   }
-//   else
-//   {
-//     result = ma_decoder_init_file(filename, &decoderConfig, &audioBuffer->decoder);
-//   }
+  if (usage == TC_AUDIO_STREAM) {
+    size_t size;
+    char *data = tc_read_file(filename, &size);
+    audioBuffer->data = data;
+    result = ma_decoder_init_memory(audioBuffer->data, size, &decoderConfig, &audioBuffer->decoder);
+  } else {
+    size_t size;
+    char *data = tc_read_file(filename, &size);
+    ma_uint64 pFrameCountOut;
+    void *ppData;
+    result = ma_decode_memory(data, size, &decoderConfig, &pFrameCountOut, &ppData);
+    audioBuffer->data = ppData;
+    free(data);
+  }
 
   if (result != MA_SUCCESS)
   {
-    ERROR("Failed to load sound '%s'", filename);
+    TRACEERR("Failed to load sound '%s'", filename);
     if (audioBuffer->data)
       free(audioBuffer->data);
     return NULL;
@@ -355,17 +347,17 @@ TCDEF tc_audiobuffer *tc_load_buffer(const char *filename, TC_AUDIO_USAGE usage)
   return audioBuffer;
 }
 
-TCDEF void tc_play_buffer(tc_audiobuffer *audioBuffer)
+TCDEF void tc_play_buffer(tc_AudioBuffer *audioBuffer)
 {
   if (audioBuffer)
   {
-    LOG("Playing sound %d\n", audioBuffer->id);
+    TRACELOG("Playing sound %d", audioBuffer->id);
     audioBuffer->playing = tc_true;
     audioBuffer->paused = tc_false;
   }
 }
 
-TCDEF void tc_stop_buffer(tc_audiobuffer *audioBuffer)
+TCDEF void tc_stop_buffer(tc_AudioBuffer *audioBuffer)
 {
   if (audioBuffer)
   {
@@ -374,7 +366,7 @@ TCDEF void tc_stop_buffer(tc_audiobuffer *audioBuffer)
   }
 }
 
-TCDEF void tc_pause_buffer(tc_audiobuffer *audioBuffer)
+TCDEF void tc_pause_buffer(tc_AudioBuffer *audioBuffer)
 {
   if (audioBuffer)
   {
@@ -383,23 +375,23 @@ TCDEF void tc_pause_buffer(tc_audiobuffer *audioBuffer)
   }
 }
 
-TCDEF void tc_set_buffer_volume(tc_audiobuffer *audioBuffer, float volume)
+TCDEF void tc_set_buffer_volume(tc_AudioBuffer *audioBuffer, float volume)
 {
   if (audioBuffer)
     audioBuffer->volume = volume;
 }
 
-TCDEF int tc_buffer_is_playing(tc_audiobuffer *audioBuffer)
+TCDEF int tc_buffer_is_playing(tc_AudioBuffer *audioBuffer)
 {
   return audioBuffer->playing;
 }
 
-TCDEF int tc_buffer_is_paused(tc_audiobuffer *audioBuffer)
+TCDEF int tc_buffer_is_paused(tc_AudioBuffer *audioBuffer)
 {
   return audioBuffer->paused;
 }
 
-TCDEF void tc_unload_buffer(tc_audiobuffer *audioBuffer)
+TCDEF void tc_unload_buffer(tc_AudioBuffer *audioBuffer)
 {
   if (!audioBuffer)
   {
@@ -408,35 +400,35 @@ TCDEF void tc_unload_buffer(tc_audiobuffer *audioBuffer)
   }
 }
 
-TCDEF tc_sound tc_load_sound(const char *filename, TC_AUDIO_USAGE usage) {
-  tc_sound sound = {0};
+TCDEF tc_Sound tc_load_sound(const char *filename, TC_AUDIO_USAGE usage) {
+  tc_Sound sound = {0};
   sound.audioBuffer = tc_load_buffer(filename, usage);
   return sound;
 }
-TCDEF void tc_unload_sound(tc_sound sound) {
+TCDEF void tc_unload_sound(tc_Sound sound) {
   tc_unload_buffer(sound.audioBuffer);
 }
 
-TCDEF void tc_play_sound(tc_sound sound) {
+TCDEF void tc_play_sound(tc_Sound sound) {
   tc_play_buffer(sound.audioBuffer);
 }
 
-TCDEF void tc_stop_sound(tc_sound sound) {
+TCDEF void tc_stop_sound(tc_Sound sound) {
   tc_stop_buffer(sound.audioBuffer);
 }
 
-TCDEF void tc_pause_sound(tc_sound sound) {
+TCDEF void tc_pause_sound(tc_Sound sound) {
   tc_pause_buffer(sound.audioBuffer);
 }
 
-TCDEF int tc_sound_is_playing(tc_sound sound) {
+TCDEF int tc_sound_is_playing(tc_Sound sound) {
   return tc_buffer_is_playing(sound.audioBuffer);
 }
-TCDEF int tc_sound_is_paused(tc_sound sound) {
+TCDEF int tc_sound_is_paused(tc_Sound sound) {
   return tc_buffer_is_paused(sound.audioBuffer);
 }
 
-TCDEF void tc_sound_set_volume(tc_sound sound, float volume) {
+TCDEF void tc_sound_set_volume(tc_Sound sound, float volume) {
   tc_set_buffer_volume(sound.audioBuffer, volume);
 }
 
