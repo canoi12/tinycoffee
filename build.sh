@@ -4,15 +4,18 @@ cc=gcc
 out=tico
 sources=main.c
 release="debug"
+root_folder=$(pwd)
 include=-Isrc\ -Isrc/external\ -Isrc/external/freetype/include
-cflags=-g\ --std=gnu99
+cflags=-g\ -std=gnu99
 lflags=-lX11\ -lm\ -ldl\ -lGL\ -lpthread
-wren_lang=true
-lua_lang=false
+wren_lang=false
+lua_lang=true
+luajit=false
 development=true
+editor=false
 error=false
 
-external=src/external
+external="$root_folder/src/external"
 glfw_folder="$external/glfw/src"
 
 define=-D_GLFW_X11
@@ -54,8 +57,8 @@ fi
 
 echo "compiling $platform $release.."
 
-folder="builds/$release/$platform"
-bin_folder="bin/$release/$platform"
+folder="$root_folder/builds/$release/$platform"
+bin_folder="$root_folder/bin/$release/$platform"
 libs_folder="$folder/libs"
 objs_folder="$folder/objs"
 out="$bin_folder/$out"
@@ -67,7 +70,7 @@ fi
 
 if [ ! -d "bin/$release/$platform"  ]; then
   echo "creating bin folder.."
-  mkdir -p "bin/$release/$platform"
+  mkdir -p "$root_folder/bin/$release/$platform"
 fi
 
 if [ -f $out ]; then
@@ -145,9 +148,38 @@ fi
 #   # $(rm -r $objs_folder/*.o)
 # fi
 
+# if [ ! -f "$libs_folder/libnuklear" ]; then
+#   echo "compiling nuklear static lib.."
+#   $cc -c src/nuklear.c -o $objs_folder/nuklear.o $include $cflags
+#   if [ $? -eq 0 ]; then
+#     touch $libs_folder/libnuklear
+#   else
+#     echo "failed to compile nuklear"
+#   fi
+# fi
+
+if [ ! -f "$libs_folder/libcjson" ]; then
+  echo "compiling cjson static lib.."
+  $cc -c src/external/cjson/cJSON.c -o $objs_folder/cjson.o $include $cflags
+  if [ $? -eq 0 ]; then
+    touch $libs_folder/libcjson
+  else
+    echo "failed to compile cjson"
+  fi
+fi
+
+# if [ ! -f "$libs_folder/libmicrou" ]; then
+#   echo "compiling microui static lib.."
+#   if [ $? -eq 0 ]; then
+#     touch $libs_folder/libmicroui
+#   else
+#     echo "failed to compile microui"
+#   fi
+# fi
+
 if $wren_lang; then
   if [ ! -f "$libs_folder/libwren" ]; then
-    echo "compiling wren.."
+    echo "compiling wren static lib.."
     include="$include -I$external/wren/src/include -I$external/wren/src/vm -I$external/wren/src/optional"
     wren_dir="$external/wren/src"
 
@@ -171,13 +203,48 @@ if $wren_lang; then
   # lflags="$lflags -lwren"
 fi
 
+if $lua_lang; then
+  if [ ! -f "$libs_folder/liblua" ]; then
+    echo "compiling lua static lib.."
+    if $luajit; then
+      lua_dir="$external/luajit/src"
+      include="$include -I$external/luajit/src"
+      cd $external/luajit
+      make
+      cp src/libluajit.a $libs_folder/libluajit.a
+      cd $root_folder
+      lflags="$lflags -lluajit"
+      define="$define -DLUAJIT"
+    else
+      lua_dir="$external/lua/src"
+      for luasrc in $(ls $lua_dir | grep '\.c'); do
+        luaobj=$(echo "$luasrc" | sed -e 's/\.c/.o/g')
+        $cc -c $lua_dir/$luasrc -o $objs_folder/$luaobj $include $cflags
+      done
+    fi
+
+
+    touch $libs_folder/liblua
+  fi
+
+  define="$define -DLUA_LANG"
+fi
+
 if [ ! -f "$libs_folder/libtico.a" ] || $development; then
   echo "compiling tico static lib.."
   $cc -c src/core.c -o $objs_folder/tccore.o $include $define $cflags
-  $cc -c src/texture.c -o $objs_folder/tctexture.o $include $define $cflags
-  $cc -c src/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
-  $cc -c src/modules/camera.c -o $objs_folder/tccamera.o $include $define $cflags
-  # $($CC -c src/tclua.c -o $FOLDER/tico/tclua.o)
+  $cc -c src/sources/graphics.c -o $objs_folder/tcgraphics.o $include $define $cflags
+  $cc -c src/sources/filesystem.c -o $objs_folder/tcfilesystem.o $include $define $cflags
+  $cc -c src/sources/font.c -o $objs_folder/tcfont.o $include $define $cflags
+  $cc -c src/sources/tclua.c -o $objs_folder/tclua.o $include $define $cflags
+  $cc -c src/sources/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
+  $cc -c src/ui/tcui.c -o $objs_folder/tcui.o $include $define $cflags
+  $cc -c src/ui/microui.c -o $objs_folder/microui.o $include $cflags
+  # $cc -c src/texture.c -o $objs_folder/tctexture.o $include $define $cflags
+  # $cc -c src/tcwren.c -o $objs_folder/tcwren.o $include $define $cflags
+  # $cc -c src/modules/camera.c -o $objs_folder/tccamera.o $include $define $cflags
+  # $cc -c src/ui/tcui.c -o $objs_folder/tcui.o $include $define $cflags
+  # $cc -c src/editors/editor.c -o $objs_folder/tceditor.o $include $define $cflags
 
   $(ar rcs $libs_folder/libtico.a $objs_folder/*.o)
   # $(rm -r $FOLDER/tico)
@@ -190,7 +257,7 @@ fi
 lflags="-L$libs_folder $lflags"
 
 echo "compiling executable.."
-cmd="$cc $sources -o $out $cflags $lflags $include $cflags"
+cmd="$cc $sources -o $out $define $lflags $include $cflags"
 echo "$cmd"
 
 $($cmd)

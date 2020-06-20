@@ -29,6 +29,11 @@ LINMATH_H_FUNC void vec##n##_scale(vec##n r, vec##n const v, float const s) \
 	for(i=0; i<n; ++i) \
 		r[i] = v[i] * s; \
 } \
+LINMATH_H_FUNC void vec##n##_div(vec##n r, vec##n const v, float const s) \
+{ \
+  for (int i=0; i<n; ++i) \
+    r[i] = v[i] / s; \
+} \
 LINMATH_H_FUNC float vec##n##_mul_inner(vec##n const a, vec##n const b) \
 { \
 	float p = 0.; \
@@ -227,7 +232,7 @@ LINMATH_H_FUNC void mat4x4_rotate(mat4x4 R, mat4x4 M, float x, float y, float z,
 		mat4x4_add(T, T, C);
 		mat4x4_add(T, T, S);
 
-		T[3][3] = 1.;		
+		T[3][3] = 1.;
 		mat4x4_mul(R, M, T);
 	} else {
 		mat4x4_dup(R, M);
@@ -286,10 +291,10 @@ LINMATH_H_FUNC void mat4x4_invert(mat4x4 T, mat4x4 M)
 	c[3] = M[2][1]*M[3][2] - M[3][1]*M[2][2];
 	c[4] = M[2][1]*M[3][3] - M[3][1]*M[2][3];
 	c[5] = M[2][2]*M[3][3] - M[3][2]*M[2][3];
-	
+
 	/* Assumes it is invertible */
 	float idet = 1.0f/( s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0] );
-	
+
 	T[0][0] = ( M[1][1] * c[5] - M[1][2] * c[4] + M[1][3] * c[3]) * idet;
 	T[0][1] = (-M[0][1] * c[5] + M[0][2] * c[4] - M[0][3] * c[3]) * idet;
 	T[0][2] = ( M[3][1] * s[5] - M[3][2] * s[4] + M[3][3] * s[3]) * idet;
@@ -317,7 +322,7 @@ LINMATH_H_FUNC void mat4x4_orthonormalize(mat4x4 R, mat4x4 M)
 	vec3 h;
 
 	vec3_norm(R[2], R[2]);
-	
+
 	s = vec3_mul_inner(R[1], R[2]);
 	vec3_scale(h, R[2], s);
 	vec3_sub(R[1], R[1], h);
@@ -337,7 +342,7 @@ LINMATH_H_FUNC void mat4x4_frustum(mat4x4 M, float l, float r, float b, float t,
 {
 	M[0][0] = 2.f*n/(r-l);
 	M[0][1] = M[0][2] = M[0][3] = 0.f;
-	
+
 	M[1][1] = 2.*n/(t-b);
 	M[1][0] = M[1][2] = M[1][3] = 0.f;
 
@@ -345,7 +350,7 @@ LINMATH_H_FUNC void mat4x4_frustum(mat4x4 M, float l, float r, float b, float t,
 	M[2][1] = (t+b)/(t-b);
 	M[2][2] = -(f+n)/(f-n);
 	M[2][3] = -1.f;
-	
+
 	M[3][2] = -2.f*(f*n)/(f-n);
 	M[3][0] = M[3][1] = M[3][3] = 0.f;
 }
@@ -359,7 +364,7 @@ LINMATH_H_FUNC void mat4x4_ortho(mat4x4 M, float l, float r, float b, float t, f
 
 	M[2][2] = -2.f/(f-n);
 	M[2][0] = M[2][1] = M[2][3] = 0.f;
-	
+
 	M[3][0] = -(r+l)/(r-l);
 	M[3][1] = -(t+b)/(t-b);
 	M[3][2] = -(f+n)/(f-n);
@@ -400,9 +405,9 @@ LINMATH_H_FUNC void mat4x4_look_at(mat4x4 m, vec3 eye, vec3 center, vec3 up)
 	/* TODO: The negation of of can be spared by swapping the order of
 	 *       operands in the following cross products in the right way. */
 	vec3 f;
-	vec3_sub(f, center, eye);	
-	vec3_norm(f, f);	
-	
+	vec3_sub(f, center, eye);
+	vec3_norm(f, f);
+
 	vec3 s;
 	vec3_mul_cross(s, f, up);
 	vec3_norm(s, s);
@@ -521,7 +526,7 @@ LINMATH_H_FUNC void mat4x4_from_quat(mat4x4 M, quat q)
 	float b2 = b*b;
 	float c2 = c*c;
 	float d2 = d*d;
-	
+
 	M[0][0] = a2 + b2 - c2 - d2;
 	M[0][1] = 2.f*(b*c + a*d);
 	M[0][2] = 2.f*(b*d - a*c);
@@ -586,7 +591,7 @@ LINMATH_H_FUNC void mat4x4_arcball(mat4x4 R, mat4x4 M, vec2 _a, vec2 _b, float s
 {
 	vec2 a; memcpy(a, _a, sizeof(a));
 	vec2 b; memcpy(b, _b, sizeof(b));
-	
+
 	float z_a = 0.;
 	float z_b = 0.;
 
@@ -601,7 +606,7 @@ LINMATH_H_FUNC void mat4x4_arcball(mat4x4 R, mat4x4 M, vec2 _a, vec2 _b, float s
 	} else {
 		vec2_norm(b, b);
 	}
-	
+
 	vec3 a_ = {a[0], a[1], z_a};
 	vec3 b_ = {b[0], b[1], z_b};
 
