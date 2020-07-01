@@ -91,6 +91,9 @@ main.lua structure:
 
 function tico.load()
   canvas = tico.graphics.newCanvas(160, 95)
+  image = tico.graphics.newImage("image.png")
+
+  rect = tico.graphics.newRectangle(0, 0, 32, 32)
 end
 
 function tico.update(dt)
@@ -99,46 +102,48 @@ end
 function tico.draw()
   canvas:attach()
   tico.graphics.fillRectangle(32, 32, 32, 32)
+  image:draw(rect, 64, 64)
   canvas:detach()
   canvas:draw(0, 0)
 end
 
 ```
 
-main.wren structure:
-
-```dart
-
-// main.wren
-
-import "tico.graphics" for Texture, Color
-
-class Game {
-  tex {__tex}
-
-  static load() {
-    __tex = Texture.load(filename)
-  }
-  static update(dt) {}
-  static draw() {
-    tex.draw(0, 0, Color.White)
-  }
-}
-
-```
-
 ## build
+
+### Dependencies
+  - **`Linux`**
+    - xorg-dev
+    - libgl1-mesa-dev
+    - gcc
+    - gcc-mingw-w64-x86-64 (to build for Windows)
+    - make
+  - **`Windows`**
+    - just download `mingw`
 
 for now i'm developing on linux, so is easier to compile on it
 
-just run `./build.sh 'platform'(linux or windows)` (to build for windows you will need to install gcc-mingw32 compiler)
+#### Linux
 
-run `./build.sh release 'platform'` for release optimizations (longer compilation time)
+`make tico`
+
+use
+
+`make tico MODE=Release` to compile with -O3
+
+to build for windows in Linux use
+
+`make tico PLATFORM=Windows`
+
+#### Windows
+
+`make tico PLATFORM=Windows`
+
 
 ## distribution
 
 pack all your game assets (images, sound, font, scripts) in a zip called data.pack.
-If you are using Lua or Wren, maitain the `main.(lua|wren)` file in the zip root
+If you are using Lua or Wren, maitain the `main.lua` file in the zip root
 
 ## screenshots
 

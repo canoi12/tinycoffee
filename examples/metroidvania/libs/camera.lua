@@ -218,8 +218,8 @@ function Camera:update(dt)
     end
     self.zoom = utils.lerp(self.zoom, self.smooth.zoom, self.lerp * dt)
     self.angle = utils.lerp(self.angle, self.smooth.angle, self.lerp * dt)
-    self.x = tico.math.lerp(self.x, self.smooth.x, self.lerp)
-    self.y = tico.math.lerp(self.y, self.smooth.y, self.lerp)
+    self.x = utils.lerp(self.x, self.smooth.x, self.lerp)
+    self.y = utils.lerp(self.y, self.smooth.y, self.lerp)
 
     -- self.x =
     -- 	utils.clamp(

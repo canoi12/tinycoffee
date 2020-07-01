@@ -1,12 +1,12 @@
-#include "src/tinycoffee.h"
+#include "src/tico.h"
 
 int main(int argc, char ** argv) {
+  tc_Config config = tic_config_init(NULL, 640, 380, argc, argv);
+  tic_init(&config);
 
-  tc_Config config = tc_init_config(NULL, 640, 380, argc, argv);
-  tc_init(&config);
+  tic_main_loop();
 
-  tc_main_loop();
+  tic_terminate();
 
-  tc_terminate();
   return 0;
 }

@@ -1,78 +1,69 @@
-#include "tinycoffee.h"
-
-#define TICO_AUDIO_IMPLEMENTATION
-#include "audio.h"
-
-#define TICO_WINDOW_IMPLEMENTATION
-#include "window.h"
-
-#define TICO_RENDER_IMPLEMENTATION
-#include "render.h"
-
-#define TICO_INPUT_IMPLEMENTATION
-#include "input.h"
-
-#define TICO_MATH_IMPLEMENTATION
-#include "tcmath.h"
+#include "tico.h"
 
 #define HASHMAP_IMPLEMENTATION
 #include "external/hashmap.h"
 
 tc_Core Core;
 
-static void tc_window_move_callback(GLFWwindow *window, int x, int y) {
+static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
   Core.window.x = x;
   Core.window.y = y;
+  tic_lua_callback("moved");
 }
 
-static void tc_window_resize_callback(GLFWwindow *window, int width, int height) {
+static void tic_window_resize_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   Core.window.width = width;
   Core.window.height = height;
+  tic_lua_callback("resized");
 }
 
-static void tc_window_character_callback(GLFWwindow *window, unsigned int codepoint) {
-  tc_ui_text_callback(codepoint);
+static void tic_window_character_callback(GLFWwindow *window, unsigned int codepoint) {
+  // tic_ui_text_callback(codepoint);
+  tic_lua_callback("textinput");
 }
 
-static void tc_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, 1);
 
-  Core.input.keyState.down[key] = tc_clamp(action, 0, 1);
-  tc_ui_key_callback(key, action);
+  Core.input.keyState.down[key] = tic_clamp(action, 0, 1);
+  // tic_ui_key_callback(key, action);
 }
 
-static void tc_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
+static void tic_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
-  int fbutton = tc_clamp(button, 0, MOUSE_BUTTON_LAST);
+  int fbutton = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
   Core.input.mouseState.down[fbutton] = action;
-  tc_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
+  // tic_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
 }
 
-static void tc_mouse_pos_callback(GLFWwindow *window, double posX, double posY)
+static void tic_mouse_pos_callback(GLFWwindow *window, double posX, double posY)
 {
   Core.input.mouseState.x = posX;
   Core.input.mouseState.y = posY;
+  tic_lua_callback("mousemoved");
 
-  tc_ui_mouse_pos_callback(posX, posY);
+  // tic_ui_mouse_pos_callback(posX, posY);
 }
 
-static void tc_window_focus_callback(GLFWwindow *window, int focused)
+static void tic_window_focus_callback(GLFWwindow *window, int focused)
 {
   if (focused == 1)
-    tc_start_device();
+    tic_audio_start_device();
   else
-    tc_stop_device();
+    tic_audio_stop_device();
 }
 
-static void tc_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-  tc_ui_mouse_scroll_callback(xoffset, yoffset);
+static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+  // tic_ui_mouse_scroll_callback(xoffset, yoffset);
   Core.input.mouseState.scrollX = xoffset * -10;
   Core.input.mouseState.scrollY = yoffset * -10;
+
+  tic_lua_callback("mousescroll");
 }
 
-TCDEF tc_bool tc_init(tc_Config *config) {
+tc_bool tic_init(tc_Config *config) {
   if (!glfwInit()) {
     TRACEERR("Failed to init GLFW");
     exit(-1);
@@ -81,12 +72,13 @@ TCDEF tc_bool tc_init(tc_Config *config) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 
   Core.config = *config;
-  Core.packed = tc_false;
-  if (tc_file_exists("data.pack")) Core.packed = tc_true;
+  Core.state.mode = config->mode;
+  if (tic_filesystem_file_exists("data.pack")) tic_filesystem_set_packed(tc_true);
 
-  TRACELOG("packed: %d", Core.packed);
+  TRACELOG("packed: %d", Core.fs.packed);
 
-  Core.window = tc_create_window(config->title, config->width, config->height, config->windowFlags);
+  tic_window_init(&Core.window, config->title, config->width, config->height, config->windowFlags);
+  tic_resources_init(&Core.resources);
   // Core.packed = tc_false;
 
   if (gl3wInit()) {
@@ -94,99 +86,166 @@ TCDEF tc_bool tc_init(tc_Config *config) {
     exit(-1);
   }
 
+  tic_lua_init(&Core.config);
 #ifdef LUA_LANG
-  tc_init_lua(&Core.config);
 #endif
 #ifdef WREN_LANG
-  Core.wren = tc_init_wren(&Core.config);
+  Core.wren = tic_init_wren(&Core.config);
 #endif
 
   // Window callbacks
-  glfwSetWindowPosCallback(Core.window.handle, tc_window_move_callback);
-  glfwSetWindowSizeCallback(Core.window.handle, tc_window_resize_callback);
-  glfwSetKeyCallback(Core.window.handle, tc_window_key_callback);
-  glfwSetMouseButtonCallback(Core.window.handle, tc_mouse_button_callback);
-  glfwSetCursorPosCallback(Core.window.handle, tc_mouse_pos_callback);
-  glfwSetWindowFocusCallback(Core.window.handle, tc_window_focus_callback);
-  glfwSetCharCallback(Core.window.handle, tc_window_character_callback);
-  glfwSetScrollCallback(Core.window.handle, tc_mouse_scroll_callback);
+  glfwSetWindowPosCallback(Core.window.handle, tic_window_move_callback);
+  glfwSetWindowSizeCallback(Core.window.handle, tic_window_resize_callback);
+  glfwSetKeyCallback(Core.window.handle, tic_window_key_callback);
+  glfwSetMouseButtonCallback(Core.window.handle, tic_mouse_button_callback);
+  glfwSetCursorPosCallback(Core.window.handle, tic_mouse_pos_callback);
+  glfwSetWindowFocusCallback(Core.window.handle, tic_window_focus_callback);
+  glfwSetCharCallback(Core.window.handle, tic_window_character_callback);
+  glfwSetScrollCallback(Core.window.handle, tic_mouse_scroll_callback);
   TRACELOG("Setup callbacks");
 
-  tc_init_input(&Core.input, 0);
-  TRACELOG("Input initiated");
+  tic_input_init(&Core.input, 0);
 
-  Core.render = tc_create_render();
+  tic_render_init(&Core.render);
   TRACELOG("Render created");
 
-  Core.defaultFont = tc_load_default_font();
+  Core.defaultFont = tic_font_load_default();
   TRACELOG("Default font loaded");
 
-  tc_init_audio();
+  tic_audio_init();
 
   glViewport(0, 0, Core.window.width, Core.window.height);
 #ifdef WREN_LANG
-  tc_wren_game_load(Core.wren);
+  tic_wren_game_load(Core.wren);
 #endif
 #ifdef LUA_LANG
-  tc_lua_load();
 #endif
+  tic_lua_load();
 
-  tc_ui_init(Core.defaultFont);
+  // tic_ui_init(Core.defaultFont);
 
   return tc_true;
 }
 
-TCDEF void tc_init_config_json(tc_Config *config) {
-  if (!tc_file_exists("config.json")) return;
-  cJSON *jsonConfig = tc_json_open("config.json");
+void tic_init_config_json(tc_Config *config) {
+  if (!tic_filesystem_file_exists("config.json")) return;
+  cJSON *jsonConfig = tic_json_open("config.json");
   cJSON *window = NULL;
-  const char *name = tc_json_get_opt_string(jsonConfig, "name", config->title);
+  const char *name = tic_json_get_opt_string(jsonConfig, "name", config->title);
   if (name) {
     strcpy(config->title, name);
   }
-  window = tc_json_get_object(jsonConfig, "window");
+  window = tic_json_get_object(jsonConfig, "window");
   if (window) {
-    config->width = tc_json_get_opt_number(window, "width", config->width);
-    config->height = tc_json_get_opt_number(window, "height", config->height);
-    if (!tc_json_get_opt_boolean(window, "resizable", tc_true)) config->windowFlags ^= TC_WINDOW_RESIZABLE;
-    if (tc_json_get_opt_boolean(window, "fullscreen", tc_false)) config->windowFlags |= TC_WINDOW_FULLSCREEN;
-    if (!tc_json_get_opt_boolean(window, "vsync", tc_true)) config->windowFlags ^= TC_WINDOW_VSYNC;
+    config->width = tic_json_get_opt_number(window, "width", config->width);
+    config->height = tic_json_get_opt_number(window, "height", config->height);
+    if (!tic_json_get_opt_boolean(window, "resizable", tc_true)) config->windowFlags ^= TIC_WINDOW_RESIZABLE;
+    if (tic_json_get_opt_boolean(window, "fullscreen", tc_false)) config->windowFlags |= TIC_WINDOW_FULLSCREEN;
+    if (!tic_json_get_opt_boolean(window, "vsync", tc_true)) config->windowFlags ^= TIC_WINDOW_VSYNC;
   }
 
-  tc_json_delete(jsonConfig);
+  tic_json_delete(jsonConfig);
 }
 
-TCDEF tc_Config tc_init_config(const tc_uint8 *title, int width, int height, int argc, char ** argv) {
+tc_Config tic_config_init(const char *title, int width, int height, int argc, char ** argv) {
+  tic_filesystem_init(&Core.fs);
   tc_Config config = {0};
   config.title[0] = '\0';
   if (title) sprintf(config.title, "%s", title);
   else if (!config.title[0]) strcpy((char*)config.title, "tico " TICO_VERSION);
-  config.width = tc_max(width, 10);
-  config.height = tc_max(height, 10);
+  config.width = tic_max(width, 10);
+  config.height = tic_max(height, 10);
   config.windowFlags = 0;
-  config.windowFlags |= TC_WINDOW_RESIZABLE;
-  config.windowFlags |= TC_WINDOW_VSYNC;
+  config.windowFlags |= TIC_WINDOW_RESIZABLE;
+  config.windowFlags |= TIC_WINDOW_VSYNC;
   config.flags = 0;
+  config.mode = TIC_MODE_GAME;
+  config.argc = argc;
+  config.argv = argv;
+
 
   if (argc < 2) strcpy(config.path, ".");
   else strcpy(config.path, argv[1]);
-  tc_filesystem_set_path(config.path);
+  tic_filesystem_set_path(config.path);
 
-  tc_init_config_json(&config);
+  tic_init_config_json(&config);
 
   return config;
 }
 
-TCDEF tc_bool tc_should_close() {
-  return glfwWindowShouldClose(Core.window.handle);
+void tic_update() {
+  tic_timer_update();
+  tic_poll_events();
 }
-
-TCDEF void tc_poll_events() {
-  tc_update_input(&Core.input);
+void tic_poll_events() {
+	tic_input_update(&Core.input);
   glfwPollEvents();
 }
 
-TCDEF void tc_update_timer() {
+void tic_clear(tc_Color color) {
+  glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
+  glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void tic_begin_draw() {
+	tic_batch_begin(&Core.render.batch);
+  glEnable(GL_BLEND);
+  glEnable(GL_SCISSOR_TEST);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glUseProgram(Core.render.state.currentShader.program);
+  tic_shader_send_world(Core.render.state.currentShader);
+  tic_batch_begin(&Core.render.batch);
+//   tc_attach_canvas(Core.render.state.defaultCanvas);
+  // tic_ui_begin();
+}
+
+void tic_end_draw() {
+  tic_canvas_disable();
+  // tic_ui_end();
+  tic_batch_flush(&Core.render.batch);
+  tic_batch_draw(&Core.render.batch);
+
+  tic_swap_buffers();
+}
+
+void tic_main_loop() {
+  while(!tic_window_should_close()) {
+    tic_update();
+
+    tic_clear(BLACK);
+    tic_begin_draw();
+
+    tic_lua_step();
+
+    tic_end_draw();
+  }
+}
+
+void tic_swap_buffers() {
+	glfwSwapBuffers(Core.window.handle);
+}
+
+void tic_close() {
+  glfwSetWindowShouldClose(Core.window.handle, 1);
+}
+
+void tic_terminate() {
+	tic_input_destroy(&Core.input);
+	tic_render_destroy(&Core.render);
+  tic_window_destroy(&Core.window);
+  tic_audio_terminate();
+  tic_resources_destroy(&Core.resources);
+  lua_close(Core.lua.L);
+  TRACELOG("Lua close");
+  glfwTerminate();
+  TRACELOG("Exiting tico");
+}
+
+/****************
+ * Timer
+ ****************/
+
+void tic_timer_update() {
   Core.timer.currentTime = glfwGetTime();
   Core.timer.delta = Core.timer.currentTime - Core.timer.lastTime;
   Core.timer.lastTime = Core.timer.currentTime;
@@ -197,94 +256,43 @@ TCDEF void tc_update_timer() {
     Core.timer.fps = Core.timer.frames;
     Core.timer.frames = 0;
     Core.timer.fpsLastTime = Core.timer.currentTime;
+    // tic_timer_wait(delta);
   }
 }
 
-TCDEF void tc_update() {
-  tc_update_timer();
-  tc_poll_events();
-}
-
-TCDEF void tc_close() {
-  glfwSetWindowShouldClose(Core.window.handle, 1);
-}
-
-TCDEF void tc_clear(tc_Color color) {
-  glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
-  glClear(GL_COLOR_BUFFER_BIT);
-}
-
-TCDEF void tc_swap_buffers() {
-  glfwSwapBuffers(Core.window.handle);
-}
-
-TCDEF void tc_begin_draw() {
-  tc_begin_batch(&Core.render.batch);
-  glEnable(GL_BLEND);
-  glEnable(GL_SCISSOR_TEST);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glUseProgram(Core.render.state.currentShader.id);
-  tc_shader_send_worldview(Core.render.state.currentShader);
-  tc_begin_batch(&Core.render.batch);
-  tc_ui_begin();
-}
-
-TCDEF void tc_end_draw() {
-  tc_ui_end();
-  tc_flush_batch(&Core.render.batch);
-  tc_draw_batch(&Core.render.batch);
-
-  tc_swap_buffers();
-}
-
-TCDEF void tc_main_loop() {
-  int count = 0;
-  while(!tc_should_close()) {
-    tc_update();
-// #ifdef WREN_LANG
-//     tc_wren_game_update(Core.wren);
-// #endif
-
-    tc_clear(BLACK);
-    tc_begin_draw();
-#ifdef LUA_LANG
-    tc_lua_step();
-#endif
-// #ifdef WREN_LANG
-//     tc_wren_game_draw(Core.wren);
-// #endif
-
-    tc_end_draw();
-#ifdef LUA_LANG
-//     count++;
-//     if (count > 60 * Core.timer.fps)  {tc_lua_gc(LUA_GCCOLLECT, 0); count = 0;}
-#endif
-  }
-}
-
-TCDEF float tc_get_time() {
+float tic_timer_get_time() {
   return Core.timer.currentTime;
 }
 
-TCDEF float tc_get_delta() {
+float tic_timer_get_delta() {
   return Core.timer.delta;
 }
 
-TCDEF int tc_get_fps() {
+int tic_timer_get_fps() {
   return Core.timer.fps;
 }
 
-TCDEF void tc_terminate() {
-  tc_destroy_render(&Core.render);
-  tc_destroy_window(&Core.window);
-  glfwTerminate();
+void tic_timer_wait(float ms) {
+	#if defined(_WIN32)
+		Sleep((unsigned int) ms);
+	#elif defined(__linux__)
+		struct timespec req = {0};
+		time_t sec = (int)(ms/1000.f);
+		ms -= (sec * 1000);
+		req.tv_sec = sec;
+		req.tv_nsec = ms * 1000000L;
+
+		while(nanosleep(&req, &req) == -1) continue;
+	#elif defined(__APPLE__)
+			usleep(ms * 1000.f);
+	#endif
 }
 
-/******************
+/*=======================
  * Utils
- ******************/
+ *=======================*/
 
-TCDEF char *tc_replace_char(char *str, tc_uint8 find, tc_uint8 replace) {
+char *tic_replace_char(char *str, tc_uint8 find, tc_uint8 replace) {
   char *currentPos = (char*)strchr((const char*)str, find);
   while(currentPos) {
     *currentPos = replace;
@@ -296,7 +304,7 @@ TCDEF char *tc_replace_char(char *str, tc_uint8 find, tc_uint8 replace) {
 
 #define MAXUNICODE 0x10FFFF
 
-TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, int* codepoint) {
+tc_uint8* tic_utf8_codepoint(tc_uint8 *p, int* codepoint) {
   tc_uint8 *n;
   tc_uint8 c = p[0];
   if (c < 0x80) {
@@ -333,7 +341,7 @@ TCDEF tc_uint8* tc_utf8_codepoint(tc_uint8 *p, int* codepoint) {
 
   return n;
 }
-TCDEF void tc_utf8_encode(tc_uint8* c, int codepoint) {
+void tic_utf8_encode(tc_uint8* c, int codepoint) {
   if (codepoint < 0x80) {
     c[0] = (tc_uint8)codepoint;
   } else if (codepoint < 0x800) {
@@ -351,7 +359,7 @@ TCDEF void tc_utf8_encode(tc_uint8* c, int codepoint) {
   }
 }
 
-TCDEF int tc_utf8_decode(const tc_uint8 *p) {
+int tic_utf8_decode(const tc_uint8 *p) {
   static const int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
   const tc_uint8 *s = (const tc_uint8 *)p;
   int c = s[0];
@@ -375,14 +383,14 @@ TCDEF int tc_utf8_decode(const tc_uint8 *p) {
   return res;
 }
 
-// TCDEF void tc_scissor(int x, int y, int w, int h) {
+// void tc_scissor(int x, int y, int w, int h) {
 // //   tc_reset_batch(&Core.render);
 // //   GLint view[4];
 // //   glGetIntegerv(GL_VIEWPORT, view);
 // //   glScissor(x, view[3] - (y+h), w, h);
 // }
 
-TCDEF void tc_write_buffer_header(const char *name, const char *text, size_t size) {
+void tic_write_buffer_header(const char *name, const char *text, size_t size) {
   size_t ssize = size * 20 + 512;
   char out[ssize];
   memset(out, 0, ssize);
@@ -395,12 +403,67 @@ TCDEF void tc_write_buffer_header(const char *name, const char *text, size_t siz
     if (i != 0 && i % 20 == 0) sprintf(out, "%s\n", out);
   }
   sprintf(out, "%s0\n};", out);
-  tc_write_file("out.txt", out, 0, 0);
+  tic_filesystem_write_file("out.txt", out, 0, 0);
 }
 
-/******************
- * Debug
- ******************/
+void tic_set_clipboard(const char *text) {
+  glfwSetClipboardString(Core.window.handle, text);
+}
 
-#define TICO_DEBUG_IMPLEMENTATION
-#include "debug.h"
+const char* tic_get_clipboard() {
+  return glfwGetClipboardString(Core.window.handle);
+}
+
+/*=======================
+ * Debug
+ *=======================*/
+
+#include <time.h>
+#include <stdarg.h>
+
+TIC_API void tic_log(int type, const char *fmt, ...) {
+  time_t t = time(NULL);
+  struct tm *tm_now;
+
+  va_list args;
+
+  tc_uint8 err[15] = "";
+  if (type == 1) sprintf((char*)err, "ERROR: ");
+  tc_uint8 buffer[1024];
+  tc_uint8 bufmsg[512];
+
+  tm_now = localtime(&t);
+  tc_uint8 buf[10];
+  strftime((char*)buf, sizeof(buf), "%H:%M:%S", tm_now);
+  fprintf(stderr, "%s %s", buf, err);
+  va_start(args, fmt);
+  vfprintf(stderr, (const char*)fmt, args);
+  va_end(args);
+  fprintf(stderr, "\n");
+}
+
+TIC_API void tic_tracelog(int type, const char *file, const char *function, int line, const char *fmt, ...) {
+  time_t t = time(NULL);
+  struct tm *tm_now;
+
+  va_list args;
+
+  tc_uint8 err[15] = "";
+  if (type == 1) sprintf((char*)err, "ERROR in ");
+  tc_uint8 buffer[1024];
+  tc_uint8 bufmsg[512];
+
+  tm_now = localtime(&t);
+  tc_uint8 buf[10];
+  strftime((char*)buf, sizeof(buf), "%H:%M:%S", tm_now);
+  fprintf(stderr, "%s %s:%d %s%s(): ", buf, file, line, err, function);
+  // sprintf(buffer, "%s %s:%d %s%s(): ", buf, file, line, err, function);
+  va_start(args, fmt);
+  // vsprintf(bufmsg, (const char*)fmt, args);
+  vfprintf(stderr, (const char*)fmt, args);
+  // fprintf(stderr, "%s", bufmsg);
+  va_end(args);
+  fprintf(stderr, "\n");
+  // strcat(buffer, bufmsg);
+  // tc_editor_write_log(buffer);
+}

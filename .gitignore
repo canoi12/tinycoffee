@@ -2,6 +2,8 @@ bin/
 builds/
 data/
 lite
+temp/
+embed
 SDL2.dll
 lite.exe
 lite.zip
@@ -11,5 +13,5 @@ lite.zip
 tico.zip
 build-release.sh.old
 build.sh.old
-.lite_*
+.lite_gitstatus*
 error.txt

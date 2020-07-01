@@ -33,8 +33,6 @@ end
 
 function Scene:draw()
   self.world:emit("predraw")
-  local x, y, w, h = bumpWorld:getRect("floor")
-  tico.graphics.drawRectangle(x, y, w, h)
   self.world:emit("draw")
   self.world:emit("postdraw")
 end

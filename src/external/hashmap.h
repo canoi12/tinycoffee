@@ -8,6 +8,8 @@ typedef struct hashmap_item hashmap_item;
 struct hashmap_item {
   char *key;
   int value;
+  int size;
+  void *data;
   hashmap_item *next;
 };
 
@@ -20,6 +22,7 @@ hashmap hashmap_create(int size);
 hashmap_item* hashmap_get(hashmap hash, const char *key);
 void hashmap_set(hashmap *hash, const char *key, int value);
 void hashmap_remove(hashmap *hash, const char *key);
+void hashmap_clear(hashmap *hash);
 
 #endif
 
@@ -42,6 +45,16 @@ static hashmap_item *create_hash_item(const char *key, int value) {
   item->key = malloc(strlen(key) + 1);
   strcpy(item->key, key);
   item->value = value;
+  item->next = NULL;
+  return item;
+}
+
+static hashmap_item *create_hash_item_data(const char *key, void *data, int dataSize) {
+  hashmap_item *item = malloc(sizeof(*item));
+  item->key = malloc(strlen(key) + 1);
+  strcpy(item->key, key);
+  item->data = data;
+  item->size = dataSize;
   item->next = NULL;
   return item;
 }
@@ -91,6 +104,26 @@ void hashmap_set(hashmap *hash, const char *key, int value) {
   temp->next = item;
 }
 
+void hashmap_set_data(hashmap *hash, const char *key, void *data, int dataSize) {
+  int hashIndex = hashCode(key) % hash->size;
+//   TRACELOG("%s %d %d", key, value, hashIndex);
+
+  hashmap_item *temp = hash->map[hashIndex];
+
+  if (temp == NULL) {
+    hashmap_item *new = create_hash_item_data(key, data, dataSize);
+    hash->map[hashIndex] = new;
+    return;
+  }
+  while(temp->next != NULL) {
+    temp = temp->next;
+  }
+
+  hashmap_item *item = create_hash_item_data(key, data, dataSize);
+
+  temp->next = item;
+}
+
 void hashmap_remove(hashmap *hash, const char *key) {
   int hashIndex = hashCode(key) % hash->size;
 
@@ -111,6 +144,19 @@ void hashmap_remove(hashmap *hash, const char *key) {
   hashmap_item *delItem = item->next;
   item->next = delItem->next;
   free(delItem);
+}
+
+void hashmap_clear(hashmap *map) {
+  for (int i = 0; i < map->size; i++) {
+    hashmap_item *item = map->map[i];
+    while(item) {
+      hashmap_item *prev = item;
+      // if (item->data) free(item->data);
+      TIC_FREE(prev->key);
+      TIC_FREE(prev);
+      item = item->next;
+    }
+  }
 }
 
 #endif

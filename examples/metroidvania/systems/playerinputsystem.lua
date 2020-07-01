@@ -13,11 +13,11 @@ function PlayerInputSystem:update(dt)
     local sprite = e[Sprite]
     local kinematic = e[Kinematic]
     local pressed = false
-    if tico.input.isKeyDown("left") then
+    if tico.input.isDown("left") then
       vel.x = -player.speed
       pressed = true
       sprite.sprite:flip(true)
-    elseif tico.input.isKeyDown("right") then
+    elseif tico.input.isDown("right") then
       vel.x = player.speed
       pressed = true
       sprite.sprite:flip(false)
@@ -36,11 +36,11 @@ function PlayerInputSystem:update(dt)
       else sprite.sprite:play("fall") end
     end
 
-    if tico.input.isKeyPressed("x")  and kinematic.isOnFloor then
+    if tico.input.isPressed("x")  and kinematic.isOnFloor then
       vel.y = -player.jumpForce
       kinematic.isOnFloor = false
     elseif not kinematic.isOnFloor then
-      if tico.input.isKeyReleased("x") and vel.y < -player.jumpForce/2 then
+      if tico.input.isReleased("x") and vel.y < -player.jumpForce/2 then
         vel.y = -player.jumpForce/2
       end
     end

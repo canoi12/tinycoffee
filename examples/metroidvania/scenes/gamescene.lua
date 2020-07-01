@@ -27,6 +27,8 @@ function GameScene:constructor()
   self:add(Player)
 
   self:add(Concord.entity():assemble(Goblin, 16))
+  self:add(Concord.entity():assemble(Goblin, 160))
+  self:add(Concord.entity():assemble(Goblin, 256))
   self:add(Concord.entity():assemble(Slime, 128))
 end
 

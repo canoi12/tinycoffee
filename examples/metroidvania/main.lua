@@ -1,6 +1,9 @@
 input = require "libs.input"
 local GameScene = require "scenes.gamescene"
--- ffi = require "ffi"
+local Tilemap = require "tilemap"
+
+-- tico = love
+-- tico.input = love.keyboard
 
 local logs = {}
 
@@ -17,6 +20,9 @@ local map = {
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 }
 
+local maxFps = 0
+local fps = 0
+
 local bump = require "libs.bump"
 bumpWorld = bump.newWorld(32)
 
@@ -24,13 +30,12 @@ function tico.load()
 --   initInput()
 --   print("error")
   gamescene = GameScene()
-  bumpWorld:add("floor", 0, 95, 640, 10)
-  bumpWorld:add("wall_1", -32, 0, 32, 390)
-  bumpWorld:add("wall_2", 640, 0, 32, 390)
   canvas = tico.graphics.newCanvas(160, 95)
+  -- canvas = require("libs.canvas")(160, 95)
   table.insert(logs, "press x to jump")
---   print(canvas)
---   canvas = tico.graphics.newCanvas(160, 95)
+  tilemap = Tilemap()
+  audio1 = tico.audio.newSound("assets/wind.ogg")
+  -- audio1 = love.audio.newSource("assets/wind.ogg", "stream")
 end
 
 local ox = 0
@@ -41,11 +46,12 @@ function tico.update(dt)
 --   if tico.ui.isWindowFocused("game") then
     gamescene:update(dt)
 --   end
+  if tico.input.isPressed("p") then audio1:play() end
 
-  if tico.input.isKeyDown("left") then ox = ox - 100 * dt end
-  if tico.input.isKeyDown("right") then ox = ox + 100 * dt end
-  if tico.input.isKeyDown("up") then oy = oy - 100 * dt end
-  if tico.input.isKeyDown("down") then oy = oy + 100 * dt end
+  if tico.input.isDown("left") then ox = ox - 100 * dt end
+  if tico.input.isDown("right") then ox = ox + 100 * dt end
+  if tico.input.isDown("up") then oy = oy - 100 * dt end
+  if tico.input.isDown("down") then oy = oy + 100 * dt end
 end
 
 local t = ""
@@ -56,12 +62,19 @@ local pos = Player[Position]
 
 function tico.draw()
   tico.graphics.clear({0, 0, 0})
+--   teste(1)
   canvas:attach()
 --   canvas:attach()
-  tico.graphics.clear({75, 90, 90})
+  tico.graphics.clear(75, 90, 90)
+  tilemap:draw()
   gamescene:draw()
   canvas:detach()
   canvas:auto()
+  -- canvas:draw()
+  fps = tico.timer.fps()
+  maxFps = math.max(fps, maxFps)
+  tico.graphics.print('fps: ' .. fps)
+  tico.graphics.print('maxFps: ' .. maxFps, 0, 16)
 --   drawEditor()
 end
 
@@ -113,12 +126,3 @@ function drawEditor()
     tico.ui.endWindow()
   end
 end
-
--- function tico.load()
--- end
-
--- function tico.update(dt)
--- end
-
--- function tico.draw()
--- end

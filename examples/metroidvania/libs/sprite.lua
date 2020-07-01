@@ -1,5 +1,6 @@
 local Class = require("libs.class")
 local utils = require("libs.utils")
+tico = love
 
 ---@param sprite LunaSprite
 local function create_quads(sprite)
@@ -10,8 +11,8 @@ local function create_quads(sprite)
 
 	for y = 0, imgh - fh, fh do
 		for x = 0, imgw - fw, fw do
--- 			table.insert(sprite.quads, love.graphics.newQuad(sprite.ox + x, sprite.oy + y, fw, fh, texw, texh))
-      table.insert(sprite.quads, tico.graphics.newRectangle(sprite.ox + x, sprite.oy + y, fw, fh))
+			table.insert(sprite.quads, love.graphics.newQuad(sprite.ox + x, sprite.oy + y, fw, fh, texw, texh))
+      -- table.insert(sprite.quads, tico.graphics.newRectangle(sprite.ox + x, sprite.oy + y, fw, fh))
 		end
 	end
 end

@@ -44,20 +44,22 @@ end
 
 ---Attach the canvas
 function Canvas:attach()
-	self.canvas:attach()
-	tico.graphics.clear({75, 90, 90})
--- 	love.graphics.clear(0.2, 0.25, 0.25, 1)
+	love.graphics.setCanvas(self.canvas)
+	-- self.canvas:attach()
+	-- tico.graphics.clear({75, 90, 90})
+	love.graphics.clear(0.2, 0.25, 0.25, 1)
 end
 
 ---Detach the canvas
 function Canvas:detach()
--- 	love.graphics.setCanvas()
-  self.canvas:detach()
+	love.graphics.setCanvas()
+  -- self.canvas:detach()
 end
 
 ---Draw the canvas
 function Canvas:draw()
-  self.canvas:draw(self.x, self.y-2, 0, self.ratio, self.ratio, self.width/2, self.height/2)
+  -- self.canvas:draw(self.x, self.y-2, 0, self.ratio, self.ratio, self.width/2, self.height/2)
+  love.graphics.draw(self.canvas, self.x, self.y-2, 0, self.ratio, self.ratio, self.width/2, self.height/2)
 end
 
 return Canvas

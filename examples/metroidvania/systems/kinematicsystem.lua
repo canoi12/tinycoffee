@@ -23,6 +23,8 @@ function KinematicSystem:update(dt)
       if col.normal.y == -1 then
         kine.isOnFloor = true
         vel.y = col.slide.y
+      elseif col.normal.y == 1 then
+        vel.y = 0
       end
     end
     pos.x = x - hit.x
