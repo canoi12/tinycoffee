@@ -16,4 +16,5 @@ addons:
 
 script:
   - make tico
+  - make clean
   - make tico PLATFORM=Windows
