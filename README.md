@@ -38,7 +38,7 @@ I'm using in this project:
 - [ ] make specific game modules like camera, tilemap, physics, etc.
 - [ ] fuse game executable with zip (like love2d)
 - [ ] make simple editors (animations, tilemap, scene..)
-- [ ] user custom shaders (like love2d and gms, with default variables for attributes and uniforms)
+- [x] user custom shaders (like love2d and gms, with default variables for attributes and uniforms)
 - [ ] default custom shaders (palette swap, limit palette colors, palette based shadows)
 - [ ] support for more audio types
 - [x] struct with options to init engine (need to add more options)
