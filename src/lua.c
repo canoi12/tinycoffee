@@ -19,16 +19,10 @@
 // "function color.rgb(r, g, b) return {r, g, b} end\n"
 // "return color";
 
-#define TICO_LUA_IMPLEMENTATION
-#include "scripting/lua/audio.h"
-#include "scripting/lua/filesystem.h"
-#include "scripting/lua/graphics.h"
-#include "scripting/lua/input.h"
-#include "scripting/lua/math.h"
-#include "scripting/lua/timer.h"
-#include "scripting/lua/window.h"
-
 #ifdef LUAJIT
+void lua_len(lua_State *L, int i) {
+  lua_pushnumber(L, lua_objlen(L, i));
+} 
 void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int glb) {
   luaL_checkstack(L, 3, "not enought space remaining");
   lua_getglobal(L, "package");
@@ -48,8 +42,63 @@ void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int g
   }
   lua_replace(L, -2);
 }
+#else
+
+static int lua_bit_rshift(lua_State *L) {
+  unsigned int n = luaL_checkinteger(L, 1);
+  int shift = luaL_optinteger(L, 2, 0);
+  
+
+  lua_pushinteger(L, (n >> shift));
+  return 1;
+}
+
+static int lua_bit_lshift(lua_State *L) {
+  int n = luaL_checkinteger(L, 1);
+  int shift = luaL_optinteger(L, 2, 0);
+  
+
+  lua_pushinteger(L, (n << shift));
+  return 1;
+}
+
+static int lua_bit_band(lua_State *L) {
+  int ret;
+  int count = lua_gettop(L);
+  int first = luaL_checkinteger(L, 1);
+  ret = first;
+  for (int i = 1; i < count; i++) {
+    ret &= lua_tointeger(L, i+1);
+  }
+
+  lua_pushinteger(L, ret);
+  return 1;
+}
+
+static int luaopen_bit(lua_State *L) {
+  luaL_Reg reg[] = {
+    {"rshift", lua_bit_rshift},
+    {"lshift", lua_bit_lshift},
+    {"band", lua_bit_band},
+    {NULL, NULL}
+  };
+
+  luaL_newlib(L, reg);
+
+  lua_setglobal(L, "bit");
+  return 0;
+}
 
 #endif
+
+#define TICO_LUA_IMPLEMENTATION
+#include "scripting/lua/audio.h"
+#include "scripting/lua/filesystem.h"
+#include "scripting/lua/graphics.h"
+#include "scripting/lua/input.h"
+#include "scripting/lua/math.h"
+#include "scripting/lua/timer.h"
+#include "scripting/lua/window.h"
 
 static tc_Rect lua_optrect_table(lua_State *l, int index, tc_Rect opt) {
   tc_Rect rect = opt;

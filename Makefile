@@ -94,10 +94,10 @@ embed:
 .SECONDEXPANSION:
 $(TMP)/static/%.o: $$(subst __,/,%.c)
 #	$(eval SRC = $(shell echo $< | sed -e 's/__/\//g;'))
-	$(CROSS)$(CC) -c $^ -o $@ $(DEFINE) $(INCLUDE) $(CFLAGS)
+	$(CROSS)$(CC) -c $< -o $@ $(DEFINE) $(INCLUDE) $(CFLAGS)
 
 $(TMP)/shared/%.o: $$(subst __,/,%.c)
-	$(CROSS)$(CC) -c $^ -o $@ -fPIC $(DEFINE) -D_GLFW_BUILD_DLL -DBUILD_SHARED $(INCLUDE) $(CFLAGS)
+	$(CROSS)$(CC) -c $< -o $@ -fPIC $(DEFINE) -D_GLFW_BUILD_DLL -DBUILD_SHARED $(INCLUDE) $(CFLAGS)
 
 %.lua.h: %.lua embed
 	./embed $<
@@ -117,10 +117,10 @@ luajit:
 	cp $(DJITOBJ) $(TMP)/shared
 	rm -f $(TMP)/shared/luajit.o
 
-$(SLIBNAME): setup $(LUAH_SCRIPTS) $(SOBJ) $(COMPILE_JIT) $(LUAH_FILES)
+$(SLIBNAME): setup $(LUAH_SCRIPTS) $(SOBJ) $(COMPILE_JIT)
 	ar rcs $(LIBNAME).a $(TMP)/static/*.o
 
-$(DLIBNAME): setup $(LUAH_SCRIPTS) $(DOBJ) $(COMPILE_JIT) $(LUAH_FILES)
+$(DLIBNAME): setup $(LUAH_SCRIPTS) $(DOBJ) $(COMPILE_JIT)
 	$(CROSS)$(CC) -shared -o $@ $(TMP)/shared/*.o -DBUILD_SHARED $(CFLAGS) $(DEFINE) $(LFLAGS) $(INCLUDE)
 
 tico: $(SLIBNAME)

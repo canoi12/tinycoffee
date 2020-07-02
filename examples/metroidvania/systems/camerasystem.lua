@@ -22,7 +22,7 @@ function CameraSystem:predraw()
   for _,e in ipairs(self.pool) do
     local camera = e[Camera].camera
     camera:attach()
-    tico.graphics.drawRectangle(32, 32, 32, 32, tico.color("#000"))
+    tico.graphics.drawRectangle(32, 32, 32, 32, tico.color("#000000"))
     -- tico.graphics.drawCircle(32, 32, 8, {0, 0, 0})
     tilemap:draw()
   end

@@ -494,8 +494,9 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
     tc_Shader shader = {0};
     shader.program = tic_shader_load_program(vertShader, fragShader);
 
-    // glDeleteShader(vertShader);
-    // glDeleteShader(fragShader);
+    glDeleteShader(vertShader);
+    glDeleteShader(fragShader);
+    return shader;
 }
 
 

@@ -31,12 +31,14 @@ function color.hex(str)
   if str:len() < 8 then
     str = str .. "ff"
   end
-  local nc = tonumber(str:sub(2,-1), 16)
-  local rr = bit.rshift(nc, 24)
-  local gg = bit.band(bit.rshift(nc, 16), 0xff)
-  local bb = bit.band(bit.rshift(nc, 8), 0xff)
-  local aa = bit.band(nc, 0xff)
-  return rr, gg, bb, aa
+  local r, g, b, a = str:match("#(%x%x)(%x%x)(%x%x)(%x%x)")
+  if r then
+    r = tonumber(r, 16)
+    g = tonumber(g, 16)
+    b = tonumber(b, 16)
+    a = tonumber(a, 16)
+  end
+  return r, g, b, a
 end
 
 local colors = {

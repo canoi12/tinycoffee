@@ -20,7 +20,9 @@ int luaopen_graphics(lua_State *L);
 static tc_Color lua_optcolor(lua_State *l, int index, tc_Color opt) {
   tc_Color color = opt;
   if (lua_istable(l, index)) {
-    int count = tic_min(lua_objlen(l, index), 4);
+    lua_len(l, index);
+    int count = tic_min(lua_tonumber(l, -1), 4);
+    lua_pop(l, 1);
     for (int i = 0; i < count; i++) {
       lua_rawgeti(l, index, i+1);
       color.data[i] = lua_tonumber(l, -1);
@@ -496,7 +498,6 @@ static int tic_lua_shader_new_effect(lua_State *L) {
   const char *vertShader = luaL_checkstring(L, 1);
   const char *fragShader = luaL_optstring(L, 2, defaultVert);
 
-
   tc_Shader *shader = lua_newuserdata(L, sizeof(*shader));
   luaL_setmetatable(L, SHADER_CLASS);
   if (lua_gettop(L) > 2) {
@@ -532,7 +533,9 @@ static int tic_lua_shader_send(lua_State *L) {
     }
     case LUA_TTABLE:
     {
-      int size = lua_objlen(L, 3);
+      lua_len(L, 3);
+      int size = lua_tonumber(L, -1);
+      lua_pop(L, 1);
       int utype = size == 2 ? TIC_UNIFORM_VEC2 : size == 3 ? TIC_UNIFORM_VEC3 : TIC_UNIFORM_VEC4;
       float data[count][size];
       for (int i = 0; i < count; i++) {
@@ -550,7 +553,11 @@ static int tic_lua_shader_send(lua_State *L) {
   return 0;
 }
 
-static int tic_lua_shader__gc(lua_State *L) {}
+static int tic_lua_shader__gc(lua_State *L) {
+  tc_Shader *shader = luaL_checkudata(L, 1, SHADER_CLASS);
+  tic_shader_destroy(shader);
+  return 0;
+}
 
 static int tic_lua_shader_detach(lua_State *L) {
   tic_shader_detach();

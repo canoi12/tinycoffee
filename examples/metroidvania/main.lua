@@ -5,6 +5,10 @@ local Tilemap = require "tilemap"
 -- tico = love
 -- tico.input = love.keyboard
 
+if _VERSION == "Lua 5.4" then
+  unpack = table.unpack
+end
+
 local logs = {}
 
 local map = {
@@ -63,8 +67,6 @@ local bump = require "libs.bump"
 bumpWorld = bump.newWorld(32)
 
 function tico.load()
---   initInput()
---   print("error")
   gamescene = GameScene()
   canvas = tico.graphics.newCanvas(160, 95)
   -- canvas = require("libs.canvas")(160, 95)
@@ -128,6 +130,13 @@ function tico.load()
         return color * col;*/
     }
     ]])
+
+  shader1 = tico.graphics.newEffect([[
+      vec4 effect(vec4 color, sampler2D texture, vec2 tex) {
+        vec4 col = texture2D(texture, tex);
+        return color;
+      }
+    ]])
 end
 
 local ox = 0
@@ -165,22 +174,22 @@ function tico.draw()
   tico.graphics.clear(75, 90, 90, 0)
   -- tico.graphics.drawRectangle(96, 32, 16, 32)
   gamescene:draw()
-  -- tico.graphics.drawCircle(32, 32, 8)
   -- tico.graphics.drawTriangle(32, 0, 0, 32, 64, 32)
   canvas:detach()
 
   time = time + (tico.timer.delta() * 0.2)
 
   shader:attach()
-  -- shader:send("u_time", {time, time})
+  -- canvas:auto()
   shader:send("uCol", unpack(color[currentColor]))
+  -- canvas:auto()
   canvas:auto()
   shader:detach()
   -- canvas:draw()
   fps = tico.timer.fps()
   maxFps = math.max(fps, maxFps)
-  -- tico.graphics.print('fps: ' .. fps)
-  -- tico.graphics.print('maxFps: ' .. maxFps, 0, 16)
+  tico.graphics.print('fps: ' .. fps)
+  tico.graphics.print('maxFps: ' .. maxFps, 0, 16)
 --   drawEditor()
 end
 
