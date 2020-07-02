@@ -57,25 +57,28 @@ I'm using in this project:
 #include "src/tinycoffee.h"
 
 int main(int argc, char ** argv) {
-  tc_bool success = tc_init("Tiny Coffee", 640, 480); // init wren
+  tc_Config config = tic_config_init("title", 640, 380, argc, argv);
+  tc_bool success = tic_init(&config);
 
-  tc_texture tex = tc_load_texture(filename);
+  tc_texture tex = tic_load_texture(filename);
 
-  while (!tc_should_close()) { // main loop
-    tc_poll_events(); // poll events
-    tc_scripting_wren_update(); // optional: update wren
+  while (!tic_window_should_close()) { // main loop
+    tic_poll_events(); // poll events
+    // tic_scripting_wren_update(); // optional: update wren
 
 
-    tc_clear(color3(75, 90, 90)); // clear screen with color
+    tic_clear(color3(75, 90, 90)); // clear screen with color
 
-    tc_begin_draw(); // begin batch render
+    tic_begin_draw(); // begin batch render
 
-    tc_draw_texture(tex, 0, 0, WHITE); // draw texture
-    tc_draw_texture_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
+    tic_draw_texture(tex, 0, 0, WHITE); // draw texture
+    tic_draw_texture_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
 
-    tc_scripting_wren_draw(); // optional: draw for wren
+    tic_lua_step();
 
-    tc_end_draw(); // finish batch render
+    // tc_scripting_wren_draw(); // optional: draw for wren
+
+    tic_end_draw(); // finish batch render
   }
 
   tc_terminate();
@@ -119,9 +122,12 @@ end
     - gcc-mingw-w64-x86-64 (to build for Windows)
     - make
   - **`Windows`**
-    - just download `mingw`
+    - use `mingw`
 
-for now i'm developing on linux, so is easier to compile on it
+for now i'm developing on linux, so is easier to compile on it. 
+
+By default tico will use LuaJIT as default, you can compile using Lua 5.4 by just adding
+`NOJIT=true` to the make command, eg: `make tico NOJIT=true`
 
 #### Linux
 
@@ -142,7 +148,7 @@ to build for windows in Linux use
 
 ## distribution
 
-pack all your game assets (images, sound, font, scripts) in a zip called data.pack.
+pack all your game assets (images, sound, font, scripts) in a zip called `data.pack`.
 If you are using Lua or Wren, maitain the `main.lua` file in the zip root
 
 ## screenshots

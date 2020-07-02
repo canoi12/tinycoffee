@@ -8,6 +8,7 @@
 #define IMAGE_CLASS "Image"
 #define RECTANGLE_CLASS "Rectangle"
 #define FONT_CLASS "Font"
+#define SHADER_CLASS "Shader"
 
 
 int luaopen_graphics(lua_State *L);
@@ -19,12 +20,11 @@ int luaopen_graphics(lua_State *L);
 static tc_Color lua_optcolor(lua_State *l, int index, tc_Color opt) {
   tc_Color color = opt;
   if (lua_istable(l, index)) {
-    int i = 0;
-    lua_pushnil(l);
-    while(lua_next(l, -2)) {
+    int count = tic_min(lua_objlen(l, index), 4);
+    for (int i = 0; i < count; i++) {
+      lua_rawgeti(l, index, i+1);
       color.data[i] = lua_tonumber(l, -1);
       lua_pop(l, 1);
-      ++i;
     }
   }
 
@@ -471,6 +471,110 @@ static int luaopen_rectangle(lua_State *L) {
 }
 
 /*********************
+ * Shader
+ *********************/
+static int tic_lua_shader_new(lua_State *L) {
+  const char *vertShader = luaL_checkstring(L, 1);
+  const char *fragShader = luaL_checkstring(L, 2);
+
+  tc_Shader *shader = lua_newuserdata(L, sizeof(*shader));
+  luaL_setmetatable(L, SHADER_CLASS);
+  if (lua_gettop(L) > 1) {
+    *shader = tic_shader_create_effect(vertShader, fragShader);
+  } else {
+    *shader = tic_shader_create_effect(fragShader, vertShader);
+  }
+
+
+
+  return 1;
+}
+
+static int tic_lua_shader_new_effect(lua_State *L) {
+  const char *defaultVert =
+    "vec4 position(vec4 pos, mat4 world, mat4 view) { return world * view * pos; }\n";
+  const char *vertShader = luaL_checkstring(L, 1);
+  const char *fragShader = luaL_optstring(L, 2, defaultVert);
+
+
+  tc_Shader *shader = lua_newuserdata(L, sizeof(*shader));
+  luaL_setmetatable(L, SHADER_CLASS);
+  if (lua_gettop(L) > 2) {
+    *shader = tic_shader_create_effect(vertShader, fragShader);
+  } else {
+    *shader = tic_shader_create_effect(fragShader, vertShader);
+  }
+
+  return 1;
+}
+
+static int tic_lua_shader_attach(lua_State *L) {
+  tc_Shader *shader = luaL_checkudata(L, 1, SHADER_CLASS);
+
+  tic_shader_attach(*shader);
+  return 0;
+}
+
+static int tic_lua_shader_send(lua_State *L) {
+  tc_Shader *shader = luaL_checkudata(L, 1, SHADER_CLASS);
+  const char *name = luaL_checkstring(L, 2);
+
+  int count = lua_gettop(L) - 2;
+
+  int type = lua_type(L, 3);
+  switch(type) {
+    case LUA_TNUMBER:
+    {
+      float n[count];
+      for (int i = 0; i < count; i++) n[i] = lua_tonumber(L, i+3);
+      tic_shader_send_count(*shader, name, count, n, TIC_UNIFORM_FLOAT);
+      break;
+    }
+    case LUA_TTABLE:
+    {
+      int size = lua_objlen(L, 3);
+      int utype = size == 2 ? TIC_UNIFORM_VEC2 : size == 3 ? TIC_UNIFORM_VEC3 : TIC_UNIFORM_VEC4;
+      float data[count][size];
+      for (int i = 0; i < count; i++) {
+        for (int j = 0; j < size; j++) {
+          lua_rawgeti(L, i+3, j+1);
+          data[i][j] = lua_tonumber(L, -1);
+          lua_pop(L, 1);
+        }
+      }
+
+      tic_shader_send_count(*shader, name, count, data, utype);
+      break;
+    }
+  }
+  return 0;
+}
+
+static int tic_lua_shader__gc(lua_State *L) {}
+
+static int tic_lua_shader_detach(lua_State *L) {
+  tic_shader_detach();
+  return 0;
+}
+
+static int luaopen_shader(lua_State *L) {
+  luaL_Reg reg[] = {
+    {"attach", tic_lua_shader_attach},
+    {"detach", tic_lua_shader_detach},
+    {"send", tic_lua_shader_send},
+    {"__gc", tic_lua_shader__gc},
+    {NULL, NULL}
+  };
+
+  luaL_newmetatable(L, SHADER_CLASS);
+  luaL_setfuncs(L, reg, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+
+  return 1;
+}
+
+/*********************
  * Graphics
  *********************/
 
@@ -586,6 +690,8 @@ int luaopen_graphics(lua_State *L) {
     {"newCanvas", tic_lua_new_canvas},
     {"newRectangle", tic_lua_new_rectangle},
     {"newFont", tic_lua_new_font},
+    {"newShader", tic_lua_shader_new},
+    {"newEffect", tic_lua_shader_new_effect},
     {"scissor", tic_lua_scissor},
     {"clear", tic_lua_graphics_clear},
     {"draw", tic_lua_graphics_draw},

@@ -9,14 +9,15 @@
 #include "scripting/lua/utils.lua.h"
 #include "scripting/lua/sprite.lua.h"
 #include "scripting/lua/vector.lua.h"
+#include "scripting/lua/color.lua.h"
 
-static const char *color_lua =
-"local color = {}\n"
-"color.White = {255, 255, 255}\n"
-"color.Black = {0, 0, 0}\n"
-"color.Red = {208, 70, 72}\n"
-"function color.rgb(r, g, b) return {r, g, b} end\n"
-"return color";
+// static const char *color_lua =
+// "local color = {}\n"
+// "color.White = {255, 255, 255}\n"
+// "color.Black = {0, 0, 0}\n"
+// "color.Red = {208, 70, 72}\n"
+// "function color.rgb(r, g, b) return {r, g, b} end\n"
+// "return color";
 
 #define TICO_LUA_IMPLEMENTATION
 #include "scripting/lua/audio.h"
@@ -65,10 +66,13 @@ static tc_Rect lua_optrect_table(lua_State *l, int index, tc_Rect opt) {
   return rect;
 }
 
-int tic_lua_preload(const char *modName, const char *modCode) {
-  size_t size = strlen(modCode) + 100;
+int tic_lua_preload(const char *modName, const char *modCode, int bufSize) {
+  size_t size = bufSize + 100;
+  char sz[bufSize + 1];
+  strcpy(sz, modCode);
+  sz[bufSize] = '\0';
   char mod[size];
-  sprintf(mod, "package.preload['%s'] = function() %s end", modName, modCode);
+  sprintf(mod, "package.preload['%s'] = function() %s end", modName, sz);
   return luaL_dostring(Core.lua.L, mod);
 }
 
@@ -80,8 +84,8 @@ tc_bool tic_lua_init(tc_Config *config) {
   luaL_openlibs(Core.lua.L);
 #ifdef LUAJIT
   luaopen_jit(Core.lua.L);
-  luaopen_bit(Core.lua.L);
 #endif
+  luaopen_bit(Core.lua.L);
 //   api_load_libs(Core.lua.L);
   luaL_requiref(Core.lua.L, "tico", luaopen_tico, 1);
 
@@ -122,8 +126,6 @@ int tic_lua_load() {
 //         tc_lua_traceback(L);
         const char *str = lua_tostring(L, -1);
         ERRLOG("Failed to run tico.load, error: %s", str);
-        lua_pop(L, 1);
-        return 0;
       }
       lua_pop(L, 1);
     }
@@ -142,11 +144,10 @@ int tic_lua_step() {
 //         tc_lua_traceback(L);
         const char *str = lua_tostring(L, -1);
         ERRLOG("error in tico: %s", str);
-        lua_pop(L, 1);
-        return 0;
       }
     }
     lua_pop(L, 1);
+    lua_settop(L, 1);
   }
   return 1;
 }
@@ -210,11 +211,11 @@ static int tic_lua_load_module(lua_State *L) {
 }
 
 int luaopen_tico(lua_State *L) {
-  tic_lua_preload("tico.class", class_lua);
-  tic_lua_preload("tico.utils", utils_lua);
-  tic_lua_preload("tico.color", color_lua);
-  tic_lua_preload("tico.sprite", sprite_lua);
-  tic_lua_preload("tico.vector", vector_lua);
+  tic_lua_preload("tico.class", class_lua, class_lua_size);
+  tic_lua_preload("tico.utils", utils_lua, utils_lua_size);
+  tic_lua_preload("tico.color", color_lua, color_lua_size);
+  tic_lua_preload("tico.sprite", sprite_lua, sprite_lua_size);
+  tic_lua_preload("tico.vector", vector_lua, vector_lua_size);
 
   lua_getglobal(L, "package");
 #ifdef LUAJIT
@@ -243,6 +244,7 @@ int luaopen_tico(lua_State *L) {
     {"Sound", luaopen_sound},
     {"Rectangle", luaopen_rectangle},
     {"Font", luaopen_font},
+    {"Shader", luaopen_shader},
     {"graphics", luaopen_graphics},
     {"filesystem", luaopen_filesystem},
     {"input", luaopen_input},

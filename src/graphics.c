@@ -8,6 +8,7 @@
  *********************/
 
 void tic_graphics_push() {
+  tic_batch_next_drawcall(&Core.render.batch, tc_false);
   Core.render.state.camera = tic_batch_get_transform(&Core.render.batch);
 }
 void tic_graphics_translate(int x, int y) {
@@ -129,8 +130,8 @@ tc_Texture tic_texture_create(void *data, int width, int height, int mode) {
   texData.height = height;
   texData.filter[0] = GL_NEAREST;
   texData.filter[1] = GL_NEAREST;
-  texData.wrap[0] = GL_REPEAT;
-  texData.wrap[1] = GL_REPEAT;
+  texData.wrap[0] = GL_CLAMP_TO_BORDER;
+  texData.wrap[1] = GL_CLAMP_TO_BORDER;
   // tex.refs = 0;
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, texData.filter[0]);
@@ -235,6 +236,40 @@ tc_Texture tic_texture_from_memory(void *data, int bufSize) {
   stbi_image_free(imgData);
 
   return tex;
+}
+
+void tic_texture_set_filter(tc_Texture *tex, int filter_min, int filter_mag) {
+  tex->filter[0] = filter_min;
+  tex->filter[1] = filter_mag;
+
+  glBindTexture(GL_TEXTURE_2D, tex->id);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, tex->filter[0]);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, tex->filter[1]);
+  
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void tic_texture_get_filter(tc_Texture tex, int *filter_min, int *filter_mag) {
+  if (filter_min) *filter_min = tex.filter[0];
+  if (filter_mag) *filter_mag = tex.filter[1];
+}
+
+void tic_texture_set_wrap(tc_Texture *tex, int wrap_min, int wrap_mag) {
+  tex->wrap[0] = wrap_min;
+  tex->wrap[1] = wrap_mag;
+
+  glBindTexture(GL_TEXTURE_2D, tex->id);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, tex->wrap[0]);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tex->wrap[1]);
+  
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void tic_texture_get_wrap(tc_Texture tex, int *wrap_min, int *wrap_mag) {
+  if (wrap_min) *wrap_min = tex.wrap[0];
+  if (wrap_mag) *wrap_mag = tex.wrap[1];
 }
 
 void tic_texture_destroy(tc_Texture *tex) {
@@ -410,8 +445,59 @@ tc_Shader tic_shader_create_from_string(const char *vertexSource, const char *fr
 
   shader.program = tic_shader_load_program(vertexShader, fragmentShader);
 
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
+
   return shader;
 }
+
+tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEffect) {
+    const tc_uint8 *vertexSource = (const tc_uint8*)"#version 330\n"
+                             "layout (location = 0) in vec2 in_Pos;\n"
+                             "layout (location = 1) in vec4 in_Color;\n"
+                             "layout (location = 2) in vec2 in_Texcoord;\n"
+                             "varying vec4 v_Color;\n"
+                             "varying vec2 v_Texcoord;\n"
+                             "uniform mat4 world;\n"
+                             "uniform mat4 modelview;\n"
+                             "%s\n"
+                             "void main()\n"
+                             "{\n"
+                             "  gl_Position = position(vec4(in_Pos, 0.0, 1.0), world, modelview);\n"
+                             "  //gl_Position = vec4(in_Pos, 0.0, 1.0);\n"
+                             "  //gl_Position = vec4(in_Pos, 0.0, 1.0);\n"
+                             "  v_Color = in_Color;\n"
+                             "  v_Texcoord = in_Texcoord;\n"
+                             "}\n";
+    const tc_uint8 *fragmentSource = (const tc_uint8*)"#version 330\n"
+                             "out vec4 FragColor;\n"
+                             "varying vec4 v_Color;\n"
+                             "varying vec2 v_Texcoord;\n"
+                             "uniform sampler2D gm_BaseTexture;\n"
+                             "%s\n"
+                             "void main()\n"
+                             "{\n"
+                             "  FragColor = effect(v_Color, gm_BaseTexture, v_Texcoord);\n"
+                             "  //FragColor = v_Color * texture2D(gm_BaseTexture, v_Texcoord);\n"
+                             "}\n";
+
+    size_t len = strlen(fragmentSource) + strlen(fragEffect);
+    char fragSource[len];
+    sprintf(fragSource, fragmentSource, fragEffect);
+    len = strlen(vertexSource) + strlen(vertEffect);
+    char vertSource[len];
+    sprintf(vertSource, vertexSource, vertEffect);
+
+    int vertShader = tic_shader_compile(vertSource, GL_VERTEX_SHADER);
+    int fragShader = tic_shader_compile(fragSource, GL_FRAGMENT_SHADER);
+
+    tc_Shader shader = {0};
+    shader.program = tic_shader_load_program(vertShader, fragShader);
+
+    // glDeleteShader(vertShader);
+    // glDeleteShader(fragShader);
+}
+
 
 int tic_shader_compile(const char *source, int type) {
   unsigned int shader = glCreateShader(type);
@@ -451,15 +537,15 @@ int tic_shader_load_program(int vertexShader, int fragmentShader) {
   return shaderProgram;
 }
 
-void tic_shader_set(tc_Shader shader) {
-  // tc_reset_batch(&Core.render);
+void tic_shader_attach(tc_Shader shader) {
+  tic_batch_draw_reset(&Core.render.batch);
   glUseProgram(shader.program);
   Core.render.state.currentShader = shader;
   tic_shader_send_world(shader);
 }
 
-void tic_shader_unset(void) {
-  // tc_reset_batch(&Core.render);
+void tic_shader_detach(void) {
+  tic_batch_draw_reset(&Core.render.batch);
   glUseProgram(Core.render.state.defaultShader.program);
   Core.render.state.currentShader = Core.render.state.defaultShader;
   tic_shader_send_world(Core.render.state.currentShader);
@@ -511,21 +597,28 @@ void tic_shader_send_world(tc_Shader shader) {
 }
 
 void tic_shader_send(tc_Shader shader, const char *name, void *value, TIC_SHADER_UNIFORM_ type) {
+  tic_shader_send_count(shader, name, 1, value, type);
+}
+
+void tic_shader_send_count(tc_Shader shader, const char *name, int count, void *value, TIC_SHADER_UNIFORM_ type) {
   GLuint uniform = glGetUniformLocation(shader.program, (const GLchar*)name);
   float *val = (float *)value;
   switch (type)
   {
   case TIC_UNIFORM_FLOAT:
-    glUniform1fv(uniform, 1, val);
+    glUniform1fv(uniform, count, val);
     break;
   case TIC_UNIFORM_VEC2:
-    glUniform2fv(uniform, 1, val);
+    glUniform2fv(uniform, count, val);
     break;
   case TIC_UNIFORM_VEC3:
-    glUniform3fv(uniform, 1, val);
+    glUniform3fv(uniform, count, val);
+    break;
+  case TIC_UNIFORM_VEC4:
+    glUniform4fv(uniform, count, val);
     break;
   case TIC_UNIFORM_MATRIX:
-    glUniformMatrix4fv(uniform, 1, GL_FALSE, val);
+    glUniformMatrix4fv(uniform, count, GL_FALSE, val);
     break;
   default:
     printf("ok\n");

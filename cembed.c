@@ -59,11 +59,16 @@ int main(int argc, char ** argv) {
     sprintf(out, "%s%s", out, c);
     if (i != 0 && i % 20 == 0) sprintf(out, "%s\n", out);
   }
-  sprintf(out, "%s10\n};\0", out);
+  char end[256];
+  sprintf(end, "10};\nint %s_size = %d;", path, size);
+  int s = strlen(out) + strlen(end);
+
+  char oout[s];
+  sprintf(oout, "%s%s", out, end);
   char outPath[512];
   sprintf(outPath, "%s.h", argv[1]);
   fp = fopen(outPath, "wb");
-  int swrite = fwrite(out, sizeof(out), 1, fp);
+  int swrite = fwrite(oout, s, 1, fp);
   fclose(fp);
 
 

@@ -235,8 +235,8 @@ void tic_terminate() {
   tic_window_destroy(&Core.window);
   tic_audio_terminate();
   tic_resources_destroy(&Core.resources);
-  lua_close(Core.lua.L);
-  TRACELOG("Lua close");
+//   lua_close(Core.lua.L);
+//   TRACELOG("Lua close");
   glfwTerminate();
   TRACELOG("Exiting tico");
 }

@@ -53,6 +53,7 @@ void tic_font_init(tc_Font *font, const void *data, size_t bufSize, int fontSize
   }
 
   font->texture = tic_texture_create(NULL, tw, th, GL_RGBA);
+  // tic_texture_set_wrap(&font->texture, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER);
 
   glBindTexture(GL_TEXTURE_2D, font->texture.id);
   int x = 0;

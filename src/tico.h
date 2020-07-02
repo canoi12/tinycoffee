@@ -44,7 +44,17 @@
 #define TICO_VERSION "0.1.4"
 
 #ifndef TIC_API
-  #define TIC_API
+  #if defined(_WIN32)
+    #if defined(BUILD_SHARED)
+      #define TIC_API __declspec(dllexport)
+    #elif defined(USE_SHARED)
+      #define TIC_API __declspec(dllimport)
+    #else
+      #define TIC_API
+    #endif
+  #else
+    #define TIC_API
+  #endif
 #endif
 
 #ifndef TIC_MALLOC
@@ -178,9 +188,11 @@ typedef enum {
   TIC_UNIFORM_INT,
   TIC_UNIFORM_VEC2I,
   TIC_UNIFORM_VEC3I,
+  TIC_UNIFORM_VEC4I,
   TIC_UNIFORM_FLOAT,
   TIC_UNIFORM_VEC2,
   TIC_UNIFORM_VEC3,
+  TIC_UNIFORM_VEC4,
   TIC_UNIFORM_MATRIX
 } TIC_SHADER_UNIFORM_;
 
@@ -933,6 +945,7 @@ TIC_API tc_Texture tic_texture_load(const char *filename);
 TIC_API tc_Texture tic_texture_from_memory(void *data, int bufSize);
 TIC_API void tic_texture_destroy(tc_Texture *texture);
 
+
 TIC_API int tic_texture_get_width(tc_Texture texture);
 TIC_API int tic_texture_get_height(tc_Texture texture);
 TIC_API void tic_texture_get_size(tc_Texture texture, int *width, int *height);
@@ -1005,6 +1018,7 @@ TIC_API tc_Shader tic_shader_create_from_string(const char *vertSource, const ch
 TIC_API tc_Shader tic_shader_create_from_ustring(const char *source);
 TIC_API tc_Shader tic_shader_create_from_file(const char *filename);
 TIC_API tc_Shader tic_shader_load_default(int *vertexShader, int *fragShader);
+TIC_API tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEffect);
 TIC_API void tic_shader_destroy(tc_Shader *shader);
 
 TIC_API int tic_shader_compile(const char *source, int shaderType);
@@ -1012,8 +1026,9 @@ TIC_API int tic_shader_load_program(int vertexShader, int fragShader);
 
 TIC_API void tic_shader_send_world(tc_Shader shader);
 TIC_API void tic_shader_send(tc_Shader shader, const char *name, void *data, TIC_SHADER_UNIFORM_ type);
+TIC_API void tic_shader_send_count(tc_Shader shader, const char *name, int count, void *data, TIC_SHADER_UNIFORM_ type);
 
-TIC_API void tic_shader_attach(tc_Shader *shader);
+TIC_API void tic_shader_attach(tc_Shader shader);
 TIC_API void tic_shader_detach(void);
 
 /*======================
@@ -1051,6 +1066,8 @@ TIC_API tc_Batch tic_batch_create(tc_Texture texture, int maxQuads);
 TIC_API void tic_batch_destroy(tc_Batch *batch);
 
 TIC_API tc_Matrix* tic_batch_get_transform(tc_Batch *batch);
+
+TIC_API tc_DrawCall* tic_batch_next_drawcall(tc_Batch *batch, tc_bool inv);
 
 TIC_API void tic_batch_set_texture(tc_Batch *batch, tc_Texture texture);
 TIC_API void tic_batch_set_clip(tc_Batch *batch, tc_Rect rect);
@@ -1236,7 +1253,7 @@ TIC_API int tic_lua_step();
 
 TIC_API void tic_lua_callback(const char *name);
 
-TIC_API int tic_lua_preload(const char *modName, const char *modCode);
+TIC_API int tic_lua_preload(const char *modName, const char *modCode, int bufSize);
 
 /**********************
  * Debug

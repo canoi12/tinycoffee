@@ -12,7 +12,12 @@ local function _error(msg)
   tico.error(msg, trace)
 end
 
-tico.class = require "tico.class"
+function requireModules()
+  tico.class = require "tico.class"
+  tico.color = require "tico.color"
+end
+
+xpcall(requireModules, _error)
 
 local function _step()
   local dt = tico.timer.delta()

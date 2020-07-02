@@ -15,6 +15,7 @@ static void tic_render_mode_canvas_stretch() {
 
 tc_bool tic_render_init(tc_Render *render) {
 	render->state.shapeTexture = tic_texture_create_named("default", WHITE.data, 1, 1, GL_RGBA);
+  tic_texture_set_wrap(&render->state.shapeTexture, GL_REPEAT, GL_REPEAT);
   render->state.defaultTextureId = render->state.shapeTexture.id;
   render->state.currentTextureId = render->state.defaultTextureId;
   render->state.backToDefaultCanvas = &tic_render_mode_canvas_2D;
@@ -125,6 +126,22 @@ tc_DrawCall tic_drawcall_create(int start, int texture, TIC_DRAW_MODE mode, tc_R
   return drawCall;
 }
 
+tc_DrawCall *tic_batch_next_drawcall(tc_Batch *batch, tc_bool inv) {
+  int index = batch->drawCallIndex;
+  tc_DrawCall *curr = &batch->drawCalls[index];
+  if (curr->indexCount == 0) return curr;
+  int next = ++batch->drawCallIndex;
+  if (next >= MAX_DRAW_CALLS) return NULL;
+
+  tic_batch_align(batch);
+  int start;
+  if (batch->drawCalls[index].mode == TIC_LINES) start = inv ? batch->totalIndexCount : batch->totalVertexCount;
+  else start = inv ? batch->totalVertexCount : batch->totalIndexCount;
+
+  batch->drawCalls[next] = tic_drawcall_create(start, curr->textureId, curr->mode, &curr->clip, curr->modelview);
+  return &batch->drawCalls[next];
+}
+
 /* Drawing functions */
 void tic_batch_set_texture(tc_Batch *batch, tc_Texture tex) {
   if (tex.id != batch->drawCalls[batch->drawCallIndex].textureId) {
@@ -133,6 +150,7 @@ void tic_batch_set_texture(tc_Batch *batch, tc_Texture tex) {
 //     batch->totalIndexCount += prev->indexCount;
 //     batch->totalVertexCount += prev->vertexCount;
 
+    tic_batch_align(batch);
     int start;
     if (prev->mode == TIC_LINES) start = batch->totalVertexCount;
     else start = batch->totalIndexCount;
@@ -153,6 +171,7 @@ void tic_batch_set_draw_mode(tc_Batch *batch, TIC_DRAW_MODE mode) {
     tc_DrawCall *prev = &batch->drawCalls[batch->drawCallIndex];
     int start = 0;
 
+    tic_batch_align(batch);
     if (prev->mode == TIC_LINES) start = batch->totalIndexCount;
     else start = batch->totalVertexCount;
 
@@ -171,6 +190,7 @@ void tic_batch_set_clip(tc_Batch *batch, tc_Rect clip) {
   int diff = clip.x != prev->clip.x || clip.y != prev->clip.y || clip.w != prev->clip.w || clip.h != prev->clip.h;
   if (diff) {
 //     tc_DrawCall *prev = &batch->drawCalls[batch->drawCallIndex];
+    tic_batch_align(batch);
     int start = 0;
 
     if (prev->mode == TIC_LINES) start = batch->totalVertexCount;
@@ -190,6 +210,7 @@ void tic_batch_set_transform(tc_Batch *batch, tc_Matrix transform) {
   tc_DrawCall *prev = &batch->drawCalls[batch->drawCallIndex];
   int diff = !tic_matrix_equals(transform, prev->modelview);
   if (diff) {
+    tic_batch_align(batch);
     int start = 0;
 
     if (prev->mode == TIC_LINES) start = batch->totalVertexCount;
@@ -210,7 +231,7 @@ void tic_batch_align(tc_Batch *batch) {
 	int indexDif = batch->totalIndexCount % 6;
 	int vertexDif = batch->totalVertexCount % 4;
 	batch->totalIndexCount += indexDif;
-	batch->totalVertexCount += indexDif;
+	batch->totalVertexCount += vertexDif;
 	curr->indexCount += indexDif;
 	curr->vertexCount += vertexDif;
 	batch->verticesPtr += vertexDif;
@@ -333,7 +354,7 @@ void tic_batch_add_rect(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, tc_Color co
 	  tc_Matrix *camera = Core.render.state.camera;
 	  if (camera) offset = 1.f-(1.f/camera->data[0][0]);
 	  batch->verticesPtr[0] = tic_vertexc(pos.x+offset, pos.y, color, uv.x, uv.y);
-	  batch->verticesPtr[1] = tic_vertexc(pos.z, pos.y, color, uv.z, uv.y);
+	  batch->verticesPtr[1] = tic_vertexc(pos.z-0.5, pos.y, color, uv.z, uv.y);
 
 	  batch->verticesPtr[2] = tic_vertexc(pos.z, pos.y, color, uv.z, uv.y);
 	  batch->verticesPtr[3] = tic_vertexc(pos.z, pos.w, color, uv.z, uv.w);
@@ -627,6 +648,8 @@ void tic_batch_draw(tc_Batch *batch) {
     else glDrawElements(GL_TRIANGLES, curr.indexCount, GL_UNSIGNED_INT, (GLvoid*) (curr.indexStart*sizeof(GLuint)));
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // TRACELOG("%d: %d %d %d %d", i, curr.mode, curr.indexStart, curr.indexCount, curr.vertexCount);
   }
 }
 
@@ -655,7 +678,7 @@ void tic_batch_draw_reset(tc_Batch *batch) {
   batch->drawCalls[0].textureId = last.textureId;
   batch->drawCalls[0].clip = last.clip;
   batch->drawCalls[0].mode = last.mode;
-  batch->drawCalls[0].modelview = last.modelview;
+  tic_matrix_clone(&batch->drawCalls[0].modelview, last.modelview);
 }
 
 void tic_batch_reset_if_full(tc_Batch *batch, int vertex) {

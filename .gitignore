@@ -3,6 +3,9 @@ builds/
 data/
 lite
 temp/
+
+release/
+
 embed
 SDL2.dll
 lite.exe

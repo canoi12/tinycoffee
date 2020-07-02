@@ -79,6 +79,7 @@ tc_bool tic_resources_destroy(tc_ResourceManager *resources) {
   tic_resource_destroy(&resources->textures);
   tic_resource_destroy(&resources->fonts);
   tic_resource_destroy(&resources->sounds);
+  TRACELOG("Resources destroyed");
 }
 
 tc_bool tic_resources_add_texture(const char *name, tc_Texture *image) {
