@@ -428,6 +428,14 @@ void tic_graphics_draw_text_font_scale_width(tc_Font font, const char *text, int
  * Shader
  *********************/
 
+#include "shaders/gba.frag.h"
+#include "shaders/outline.frag.h"
+
+void tic_shader_init_shaders() {
+  Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER] = tic_shader_compile(gba_frag, GL_FRAGMENT_SHADER);
+  Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER] = tic_shader_compile(outline_frag, GL_FRAGMENT_SHADER);
+}
+
 tc_Shader tic_shader_create(int vertexShader, int fragmentShader) {
   tc_Shader shader = {0};
   // unsigned int vertexShader = tic_shader_compile(vertexSource, GL_VERTEX_SHADER);
@@ -452,8 +460,7 @@ tc_Shader tic_shader_create_from_string(const char *vertexSource, const char *fr
 }
 
 tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEffect) {
-    const tc_uint8 *vertexSource = (const tc_uint8*)"#version 330\n"
-                             "layout (location = 0) in vec2 in_Pos;\n"
+    const tc_uint8 *vertexSource = (const tc_uint8*)"layout (location = 0) in vec2 in_Pos;\n"
                              "layout (location = 1) in vec4 in_Color;\n"
                              "layout (location = 2) in vec2 in_Texcoord;\n"
                              "varying vec4 v_Color;\n"
@@ -469,8 +476,7 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
                              "  v_Color = in_Color;\n"
                              "  v_Texcoord = in_Texcoord;\n"
                              "}\n";
-    const tc_uint8 *fragmentSource = (const tc_uint8*)"#version 330\n"
-                             "out vec4 FragColor;\n"
+    const tc_uint8 *fragmentSource = (const tc_uint8*)"out vec4 FragColor;\n"
                              "varying vec4 v_Color;\n"
                              "varying vec2 v_Texcoord;\n"
                              "uniform sampler2D gm_BaseTexture;\n"
@@ -499,13 +505,35 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
     return shader;
 }
 
+void tic_shader_new_gba(tc_Shader *shader) {
+
+  int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+  int fragmentShader = Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER];
+
+  shader->program = tic_shader_load_program(vertexShader, fragmentShader);
+}
+
+void tic_shader_new_outline(tc_Shader *shader) {
+  int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+  int fragmentShader = Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER];
+
+  shader->program = tic_shader_load_program(vertexShader, fragmentShader);
+}
+
 
 int tic_shader_compile(const char *source, int type) {
   unsigned int shader = glCreateShader(type);
 
   const tc_uint8 *shaderType = (tc_uint8*)(type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT");
+  char shaderDefine[128];
+  sprintf(shaderDefine, "#version 330\n#define %s_SHADER\n", shaderType);
 
-  glShaderSource(shader, 1, (const GLchar* const*)&source, NULL);
+  GLchar const* files[] =  {shaderDefine, source};
+  GLint lengths[] =  {strlen(shaderDefine), strlen(source)};
+
+
+  glShaderSource(shader, 2, files, lengths);
+  
   glCompileShader(shader);
   int success;
   char infoLog[512];
@@ -553,8 +581,7 @@ void tic_shader_detach(void) {
 }
 
 tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
-  const tc_uint8 *vertexSource = (const tc_uint8*)"#version 330\n"
-                             "layout (location = 0) in vec2 in_Pos;\n"
+  const tc_uint8 *vertexSource = (const tc_uint8*)"layout (location = 0) in vec2 in_Pos;\n"
                              "layout (location = 1) in vec4 in_Color;\n"
                              "layout (location = 2) in vec2 in_Texcoord;\n"
                              "varying vec4 v_Color;\n"
@@ -569,8 +596,7 @@ tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
                              "  v_Texcoord = in_Texcoord;\n"
                              "}\n";
 
-  const tc_uint8 *fragmentSource = (const tc_uint8*)"#version 330\n"
-                               "out vec4 FragColor;\n"
+  const tc_uint8 *fragmentSource = (const tc_uint8*)"out vec4 FragColor;\n"
                                "varying vec4 v_Color;\n"
                                "varying vec2 v_Texcoord;\n"
                                "uniform sampler2D gm_BaseTexture;\n"

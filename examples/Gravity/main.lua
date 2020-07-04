@@ -119,6 +119,13 @@ function player:update(dt)
   end
 end]]
 
+local color = {
+  tico.color("#332c50"),
+  tico.color("#46878f"),
+  tico.color("#94e344"),
+  tico.color("#e2f3e4"),
+}
+
 function distance(x0,y0,x1,y1)
     local dx = x1 - x0
     local dy = y1 - y0
@@ -151,6 +158,71 @@ function tico.load()
     --player.image = love.graphics.newImage("rabbit.png")
     --player.image:setFilter("nearest", "nearest")
     canvas = tico.graphics.newCanvas(320, 240)
+    shader1 = tico.graphics.newEffect([[
+    const float offset = 1.0 / 320.0;
+
+    uniform vec2 u_time;
+    const int count = 8;
+    uniform vec4 uCol[count];
+
+    vec4 effect(vec4 color, sampler2D image, vec2 tex) {
+      vec2 uv = tex;
+      // uv.x += sin(tex.y * 2 + u_time[0] * 10) * 0.05;
+      // uv.y += sin(tex.x * 5 + u_time.y * 10) * 0.15;
+      vec4 col = texture2D(image, uv);
+
+      float a = texture2D(image, vec2(uv.x + offset, uv.y)).a +
+                texture2D(image, vec2(uv.x - offset, uv.y)).a +
+                texture2D(image, vec2(uv.x, uv.y + (1.0/240.0))).a +
+                texture2D(image, vec2(uv.x, uv.y - (1.0/240.0))).a;
+
+      if (col.a < 1.0 && a > 0.0) col = vec4(0, 0, 0, 1);
+
+      a = texture2D(image, vec2(uv.x + offset*2, uv.y)).a +
+          texture2D(image, vec2(uv.x - offset*2, uv.y)).a +
+          texture2D(image, vec2(uv.x, uv.y + (1.0/240.0)*2)).a +
+          texture2D(image, vec2(uv.x, uv.y - (1.0/240.0)*2)).a;
+
+      if (col.a < 1.0 && a > 0.0) col = vec4(1, 1, 1, 1);
+
+      vec4 colors[count];
+      float dist[count];
+      for (int i = 0; i < count; i++) {
+        colors[i] = uCol[i]/255.0;
+
+        float dist_r =  (colors[i].r - col.r) * (colors[i].r - col.r);
+        float dist_g =  (colors[i].g - col.g) * (colors[i].g - col.g);
+        float dist_b =  (colors[i].b - col.b) * (colors[i].b - col.b);
+
+        dist[i] = dist_r + dist_g + dist_b;
+      }
+
+      float d_min = min(dist[0], dist[1]);
+      for (int i = 2; i < count; i++) {
+        d_min = min(d_min, dist[i]);
+      }
+
+      for (int i = 0; i < count; i++) {
+        colors[i].a = col.a;
+      }
+
+      for (int i = 0; i < count; i++) {
+        if (d_min == dist[i]) return colors[i];
+      }
+
+      /*float a = texture2D(image, vec2(uv.x + offset, uv.y)).a +
+                texture2D(image, vec2(uv.x - offset, uv.y)).a +
+                texture2D(image, vec2(uv.x, uv.y + (1.0/240.0))).a +
+                texture2D(image, vec2(uv.x, uv.y - (1.0/240.0))).a;
+       vec4 col = texture2D(image, SineWave(tex));
+
+      if (col.a < 1.0 && a > 0.0)
+        return color * vec4(0,0, 0, 0.8);
+      else
+        return color * col;*/
+    }
+    ]])
+    shader = tico.graphics.newGBAShader()
     -- canvas:setFilter("nearest", "nearest")
     player.x = 260
     player.y = 340
@@ -255,7 +327,7 @@ function tico.update(dt)
 end
 
 function tico.draw()
-    tico.graphics.clear(34,32,52)
+    tico.graphics.clear(color[2])
     --tico.graphics.clear(0.1, 0, 0)
     -- tico.graphics.setCanvas(canvas)
     canvas:attach()
@@ -284,7 +356,10 @@ function tico.draw()
     canvas:detach()
 
     -- love.graphics.draw(canvas, 0, 0, 0, 2, 2)
+    shader:attach()
+    shader:send("uCol", unpack(color))
     canvas:auto()
+    shader:detach()
     -- love.graphics.points(love.mouse.getX(), love.mouse.getY())
     --love.graphics.print(angle, 0, 0)
 

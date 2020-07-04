@@ -85,9 +85,13 @@
 #define MAX_DRAW_CALLS 128
 #define MATRIX_STACK_SIZE 32
 
+#define SHADER_STACK_SIZE 32
+#define CANVAS_STACK_SIZE 32
+
 #define DEFAULT_MAX_TEXTURES 32
 #define DEFAULT_MAX_SOUNDS 32
 #define DEFAULT_MAX_FONTS 32
+
 
 #define MAXFONTCHAR 256
 
@@ -358,13 +362,61 @@ typedef enum {
   MOUSE_LEFT =   0,
   MOUSE_RIGHT =  1,
   MOUSE_MIDDLE = 2,
-  MOUSE_BUTTON_LAST = MOUSE_MIDDLE,
+  MOUSE_BUTTON_LAST = 3,
   MOUSE_BUTTON_COUNT
 } TIC_MOUSEBUTTON;
 
 typedef enum {
-  JOY_DPAD_LEFT = 0
-} TIC_JOYSTICK;
+  TIC_JOY_1  = 0,
+  TIC_JOY_2  = 1,
+  TIC_JOY_3  = 2,
+  TIC_JOY_4  = 3,
+  TIC_JOY_5  = 4,
+  TIC_JOY_6  = 5,
+  TIC_JOY_7  = 6,
+  TIC_JOY_8  = 7,
+  TIC_JOY_9  = 8,
+  TIC_JOY_10 = 9,
+  TIC_JOY_11 = 10,
+  TIC_JOY_12 = 11,
+  TIC_JOY_13 = 12,
+  TIC_JOY_14 = 13,
+  TIC_JOY_15 = 14,
+  TIC_JOY_16 = 15,
+  TIC_JOY_COUNT,
+  TIC_JOY_LAST = TIC_JOY_16,
+} TIC_JOYSTICKS;
+
+typedef enum {
+  JOY_BUTTON_A =             0,
+  JOY_BUTTON_B =             1,
+  JOY_BUTTON_X =             2,
+  JOY_BUTTON_Y =             3,
+  JOY_BUTTON_LEFT_BUMPER =   4,
+  JOY_BUTTON_RIGHT_BUMPER =  5,
+  JOY_BUTTON_BACK =          6,
+  JOY_BUTTON_START =         7,
+  JOY_BUTTON_GUIDE =         8,
+  JOY_BUTTON_LEFT_THUMB =    9,
+  JOY_BUTTON_RIGHT_THUMB =   10,
+  JOY_BUTTON_DPAD_UP =       11,
+  JOY_BUTTON_DPAD_RIGHT =    12,
+  JOY_BUTTON_DPAD_DOWN =     13,
+  JOY_BUTTON_DPAD_LEFT =     14,
+  JOY_BUTTON_COUNT,
+  JOY_BUTTON_LAST =          JOY_BUTTON_DPAD_LEFT,
+} TIC_JOYSTICK_BUTTON;
+
+typedef enum {
+  JOY_AXIS_LEFT_X  =         0,
+  JOY_AXIS_LEFT_Y =          1,
+  JOY_AXIS_RIGHT_X =         2,
+  JOY_AXIS_RIGHT_Y =         3,
+  JOY_AXIS_LEFT_TRIGGER =    4,
+  JOY_AXIS_RIGHT_TRIGGER =   5,
+  JOY_AXIS_COUNT,
+  JOY_AXIS_LAST =            JOY_AXIS_RIGHT_TRIGGER,
+} TIC_JOYSTICK_AXES;
 
 typedef enum {
   TIC_INPUT_INIT_ALL = 0,
@@ -379,6 +431,18 @@ typedef enum {
   TIC_WINDOW_RESIZABLE = 1 << 2,
   TIC_WINDOW_VSYNC = 1 << 3,
 } TIC_WINDOW_FLAGS;
+
+typedef enum {
+  TIC_DEFAULT_FRAGMENT = 0,
+  TIC_GBA_FRAG_SHADER,
+  TIC_COLOR8_FRAG_SHADER,
+  TIC_COLOR16_FRAG_SHADER,
+  TIC_OUTLINE_FRAG_SHADER
+} TIC_FRAGMENT_SHADERS;
+
+typedef enum {
+  TIC_DEFAULT_VERTEX = 0
+} TIC_VERTEX_SHADERS;
 
 vec_struct(2);
 vec_struct(3);
@@ -536,6 +600,13 @@ typedef struct tc_Shader {
 
 typedef struct {
   struct {
+    hashmap mouseButtonNames;
+    hashmap keyNames;
+    hashmap joyButtonNames;
+    hashmap joyAxisNames;
+  } names;
+
+  struct {
     int x;
     int y;
     int fixX;
@@ -555,11 +626,11 @@ typedef struct {
     hashmap keyNames;
   } keyState;
   struct {
-    tc_bool down[4];
-    tc_bool pressed[4];
-    float axis[2];
+    tc_bool down[JOY_BUTTON_COUNT];
+    tc_bool pressed[JOY_BUTTON_COUNT];
+    float axis[JOY_AXIS_COUNT];
     tc_bool active;
-  } joystickState[4];
+  } joystickState[TIC_JOY_COUNT];
 } tc_Input;
 
 typedef struct {
@@ -651,6 +722,12 @@ typedef struct tc_Render {
   struct {
     tc_Shader defaultShader;
     tc_Shader currentShader;
+
+    tc_Shader shaderStack[SHADER_STACK_SIZE];
+    tc_Canvas canvasStack[CANVAS_STACK_SIZE];
+
+    int vertexShaders[32];
+    int fragmentShaders[32];
 
     int defaultVertexShader;
     int defaultFragmentShader;
@@ -1013,6 +1090,8 @@ TIC_API void tic_canvas_draw_auto(tc_Canvas canvas);
  * Shader
  *******************/
 
+TIC_API void tic_shader_init_shaders();
+
 TIC_API tc_Shader tic_shader_create(int vertShader, int fragShader);
 TIC_API tc_Shader tic_shader_create_from_string(const char *vertSource, const char *fragSource);
 TIC_API tc_Shader tic_shader_create_from_ustring(const char *source);
@@ -1020,6 +1099,9 @@ TIC_API tc_Shader tic_shader_create_from_file(const char *filename);
 TIC_API tc_Shader tic_shader_load_default(int *vertexShader, int *fragShader);
 TIC_API tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEffect);
 TIC_API void tic_shader_destroy(tc_Shader *shader);
+
+TIC_API void tic_shader_new_gba(tc_Shader *shader);
+TIC_API void tic_shader_new_outline(tc_Shader *shader);
 
 TIC_API int tic_shader_compile(const char *source, int shaderType);
 TIC_API int tic_shader_load_program(int vertexShader, int fragShader);
@@ -1104,6 +1186,7 @@ TIC_API void tic_input_destroy(tc_Input *input);
 
 TIC_API void tic_input_update(tc_Input *input);
 TIC_API int tic_input_get_keycode(const char *name);
+TIC_API int tic_input_get_joybtncode(const char *name);
 
 TIC_API tc_bool tic_input_is_key_down(TIC_KEY key);
 TIC_API tc_bool tic_input_is_key_pressed(TIC_KEY key);
@@ -1114,6 +1197,11 @@ TIC_API tc_bool tic_input_is_mouse_down(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_is_mouse_pressed(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_is_mouse_up(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_is_mouse_released(TIC_MOUSEBUTTON button);
+
+TIC_API tc_bool tic_input_is_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_is_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_is_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_is_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
 
 TIC_API void tic_input_get_mouse(int *x, int *y);
 TIC_API void tic_input_fix_mouse();
@@ -1159,24 +1247,30 @@ TIC_API void tic_json_save(const char *filename, cJSON* const json);
 TIC_API char* tic_json_print(cJSON* const json);
 
 TIC_API cJSON* tic_json_create();
+TIC_API cJSON* tic_json_create_array();
 TIC_API void tic_json_delete(cJSON* const json);
 
+TIC_API tc_bool tic_json_is_string(cJSON* const json, char *name);
 TIC_API char* tic_json_get_string(cJSON* const json, char *name);
 TIC_API char* tic_json_get_opt_string(cJSON* const json, char *name, char *optVal);
 TIC_API cJSON* tic_json_set_string(cJSON* const json, char *name, char *value);
 
+TIC_API tc_bool tic_json_is_number(cJSON* const json, char *name);
 TIC_API float tic_json_get_number(cJSON* const json, char *name);
 TIC_API float tic_json_get_opt_number(cJSON* const json, char *name, float optVal);
 TIC_API cJSON* tic_json_set_number(cJSON* const json, char *name, float value);
 
+TIC_API tc_bool tic_json_is_boolean(cJSON* const json, char *name);
 TIC_API int tic_json_get_boolean(cJSON* const json, char *name);
 TIC_API int tic_json_get_opt_boolean(cJSON* const json, char *name, tc_bool optVal);
 TIC_API cJSON* tic_json_set_boolean(cJSON* const json, char *name, tc_bool value);
 
+TIC_API tc_bool tic_json_is_array(cJSON* const json, char *name);
 TIC_API cJSON* tic_json_get_array(cJSON* const json, char *name);
 TIC_API cJSON* tic_json_set_array(cJSON* const json, char *name, cJSON* const jsonArray);
 TIC_API int tic_json_get_array_size(const cJSON* json);
 
+TIC_API tc_bool tic_json_is_object(cJSON* const json, char *name);
 TIC_API cJSON* tic_json_get_object(cJSON* const json, char *name);
 TIC_API cJSON* tic_json_set_object(cJSON* const json, char *name, cJSON* const jsonObj);
 

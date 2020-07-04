@@ -7,10 +7,12 @@ local GoblinAI = require "components.goblinai"
 local Patrol = require "components.patrol"
 local Player = require "entities.knight"
 local Position = require "components.position"
+local Target = require "components.target"
 
-local Goblin = Concord.assemblage(function(e, x, y)
+
+local Goblin = Concord.assemblage(function(e, x, y, targetId)
   e
-  :assemble(Enemy, x, y)
+  :assemble(Enemy, x, y, targetId)
   :give(Sprite, "assets/images/goblin_spritesheet.png", 16, 16,
     {
       ["run"] = "1-6",
@@ -21,7 +23,8 @@ local Goblin = Concord.assemblage(function(e, x, y)
   )
   :give(Gravity)
   :give(GoblinAI)
-  :give(Patrol, Player[Position], 30)
+  :give(Patrol, 30)
+  :give(Target, targetId)
 end)
 
 return Goblin

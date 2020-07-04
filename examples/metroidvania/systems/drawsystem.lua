@@ -10,12 +10,12 @@ function DrawSystem:draw()
     local spr = e[Sprite]
     spr.sprite:draw(pos.x, pos.y)
   end
---   for _,e in ipairs(self.secondPool) do
---     local pos = e[Position]
---     local hitbox = e[Hitbox]
---     local x, y, w, h = bumpWorld:getRect(hitbox)
---     love.graphics.rectangle("line", x, y, w, h)
---   end
+  -- for _,e in ipairs(self.secondPool) do
+  --   local pos = e[Position]
+  --   local hitbox = e[Hitbox]
+  --   local x, y, w, h = bumpWorld:getRect(hitbox)
+  --   tico.graphics.drawRectangle(x, y, w, h)
+  -- end
 end
 
 return DrawSystem

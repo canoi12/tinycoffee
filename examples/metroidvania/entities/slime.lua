@@ -8,8 +8,9 @@ local Position = require "components.position"
 local Patrol = require "components.patrol"
 local SlimeAI = require "components.slimeai"
 local Hitbox = require "components.hitbox"
+local Target = require "components.target"
 
-local Slime = Concord.assemblage(function(e, x, y)
+local Slime = Concord.assemblage(function(e, x, y, targetId)
   e
   :assemble(Enemy, x, y)
   :give(Hitbox, -8, -4, 16, 12)
@@ -23,8 +24,9 @@ local Slime = Concord.assemblage(function(e, x, y)
     }
   )
   :give(Gravity)
-  :give(Patrol, Player[Position], 20)
+  :give(Patrol, 20)
   :give(SlimeAI)
+  :give(Target, targetId)
 end)
 
 return Slime

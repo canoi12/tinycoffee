@@ -55,6 +55,18 @@ static void tic_window_focus_callback(GLFWwindow *window, int focused)
     tic_audio_stop_device();
 }
 
+static void tic_joystick_callback(int jid, int event) {
+  if (event == GLFW_CONNECTED) {
+    Core.input.joystickState[jid].active = tc_true;
+    const char *name = glfwGetGamepadName(jid);
+    TRACELOG("joystick '%s' connected", name);
+  } else if (event == GLFW_DISCONNECTED) {
+    Core.input.joystickState[jid].active = tc_true;
+    const char *name = glfwGetGamepadName(jid);
+    TRACELOG("joystick '%s' disconnected", name);
+  }
+}
+
 static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   // tic_ui_mouse_scroll_callback(xoffset, yoffset);
   Core.input.mouseState.scrollX = xoffset * -10;
@@ -102,6 +114,7 @@ tc_bool tic_init(tc_Config *config) {
   glfwSetWindowFocusCallback(Core.window.handle, tic_window_focus_callback);
   glfwSetCharCallback(Core.window.handle, tic_window_character_callback);
   glfwSetScrollCallback(Core.window.handle, tic_mouse_scroll_callback);
+  glfwSetJoystickCallback(tic_joystick_callback);
   TRACELOG("Setup callbacks");
 
   tic_input_init(&Core.input, 0);
@@ -192,6 +205,7 @@ void tic_begin_draw() {
   glEnable(GL_BLEND);
   glEnable(GL_SCISSOR_TEST);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBlendEquation(GL_FUNC_ADD);
   glUseProgram(Core.render.state.currentShader.program);
   tic_shader_send_world(Core.render.state.currentShader);
   tic_batch_begin(&Core.render.batch);
@@ -235,7 +249,7 @@ void tic_terminate() {
   tic_window_destroy(&Core.window);
   tic_audio_terminate();
   tic_resources_destroy(&Core.resources);
-//   lua_close(Core.lua.L);
+  // lua_close(Core.lua.L);
 //   TRACELOG("Lua close");
   glfwTerminate();
   TRACELOG("Exiting tico");

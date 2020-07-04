@@ -3,13 +3,6 @@
 
 #include "../../tico.h"
 
-#define TEXTURE_CLASS "Texture"
-#define CANVAS_CLASS "Canvas"
-#define IMAGE_CLASS "Image"
-#define RECTANGLE_CLASS "Rectangle"
-#define FONT_CLASS "Font"
-#define SHADER_CLASS "Shader"
-
 
 int luaopen_graphics(lua_State *L);
 
@@ -553,6 +546,24 @@ static int tic_lua_shader_send(lua_State *L) {
   return 0;
 }
 
+static int tic_lua_shader_new_gba(lua_State *L) {
+  tc_Shader *shader = lua_newuserdata(L, sizeof(*shader));
+  luaL_setmetatable(L, SHADER_CLASS);
+
+  tic_shader_new_gba(shader);
+
+  return 1;
+}
+
+static int tic_lua_shader_new_outline(lua_State *L) {
+  tc_Shader *shader = lua_newuserdata(L, sizeof(*shader));
+  luaL_setmetatable(L, SHADER_CLASS);
+
+  tic_shader_new_outline(shader);
+
+  return 1;
+}
+
 static int tic_lua_shader__gc(lua_State *L) {
   tc_Shader *shader = luaL_checkudata(L, 1, SHADER_CLASS);
   tic_shader_destroy(shader);
@@ -683,6 +694,26 @@ static int tic_lua_graphics_scale(lua_State *L) {
   return 0;
 }
 
+static int tic_lua_blend_mode(lua_State *L) {
+  const char *name = luaL_checkstring(L, 1);
+  tic_batch_draw_reset(&Core.render.batch);
+  if (!strcmp(name, "alpha")) {
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  } else if (!strcmp(name, "subtract")) {
+    glBlendEquation(GL_FUNC_SUBTRACT);
+    glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+  } else if (!strcmp(name, "multiply")) {
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+  } else if (!strcmp(name, "add")) {
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
+  } else if (!strcmp(name, "replace")) {
+    glBlendFunc(GL_SRC_ALPHA, GL_ZERO);
+  }
+}
+
 int luaopen_graphics(lua_State *L) {
 
   luaL_Reg reg[] = {
@@ -699,6 +730,9 @@ int luaopen_graphics(lua_State *L) {
     {"newFont", tic_lua_new_font},
     {"newShader", tic_lua_shader_new},
     {"newEffect", tic_lua_shader_new_effect},
+    {"newGBAShader", tic_lua_shader_new_gba},
+    {"newOutlineShader", tic_lua_shader_new_outline},
+    {"blendMode", tic_lua_blend_mode},
     {"scissor", tic_lua_scissor},
     {"clear", tic_lua_graphics_clear},
     {"draw", tic_lua_graphics_draw},

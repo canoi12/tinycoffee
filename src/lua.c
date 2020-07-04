@@ -4,13 +4,6 @@
 //   #define lua_newuserdata lua_newuserdata
 // #endif
 
-#include "scripting/lua/init.lua.h"
-#include "scripting/lua/class.lua.h"
-#include "scripting/lua/utils.lua.h"
-#include "scripting/lua/sprite.lua.h"
-#include "scripting/lua/vector.lua.h"
-#include "scripting/lua/color.lua.h"
-
 // static const char *color_lua =
 // "local color = {}\n"
 // "color.White = {255, 255, 255}\n"
@@ -19,10 +12,29 @@
 // "function color.rgb(r, g, b) return {r, g, b} end\n"
 // "return color";
 
+#define SOUND_CLASS "Sound"
+#define TEXTURE_CLASS "Texture"
+#define CANVAS_CLASS "Canvas"
+#define IMAGE_CLASS "Image"
+#define RECTANGLE_CLASS "Rectangle"
+#define FONT_CLASS "Font"
+#define SHADER_CLASS "Shader"
+
 #ifdef LUAJIT
 void lua_len(lua_State *L, int i) {
   lua_pushnumber(L, lua_objlen(L, i));
-} 
+}
+
+int lua_isarray(lua_State *L, int index) {
+  lua_len(L, index);
+  int len = lua_tonumber(L, -1);
+  lua_pop(L, 1);
+  if (len > 0) {
+    return 1;
+  }
+  return 0;
+}
+
 void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int glb) {
   luaL_checkstack(L, 3, "not enought space remaining");
   lua_getglobal(L, "package");
@@ -88,8 +100,14 @@ static int luaopen_bit(lua_State *L) {
   lua_setglobal(L, "bit");
   return 0;
 }
-
 #endif
+
+#include "scripting/lua/init.lua.h"
+#include "scripting/lua/class.lua.h"
+#include "scripting/lua/utils.lua.h"
+#include "scripting/lua/sprite.lua.h"
+#include "scripting/lua/vector.lua.h"
+#include "scripting/lua/color.lua.h"
 
 #define TICO_LUA_IMPLEMENTATION
 #include "scripting/lua/audio.h"
@@ -133,8 +151,8 @@ tc_bool tic_lua_init(tc_Config *config) {
   luaL_openlibs(Core.lua.L);
 #ifdef LUAJIT
   luaopen_jit(Core.lua.L);
-#endif
   luaopen_bit(Core.lua.L);
+#endif
 //   api_load_libs(Core.lua.L);
   luaL_requiref(Core.lua.L, "tico", luaopen_tico, 1);
 
@@ -145,12 +163,13 @@ tc_bool tic_lua_init(tc_Config *config) {
     lua_rawseti(Core.lua.L, -2, i + 1);
   }
   lua_setfield(Core.lua.L, -2, "args");
+
 //   tc_luaopen_tico(Core.lua.L);
 
   // size_t size;
   // const char *lua_init = tic_filesystem_read_file("/home/canoi/Documentos/Projects/engine-tests/tico/src/wrap/lua/scripts/init.lua", &size);
   // int lerr = luaL_loadbuffer(Core.lua.L, lua_init, size, "init.lua");
-  int lerr = luaL_loadbuffer(Core.lua.L, init_lua, sizeof(init_lua), "init.lua");
+  int lerr = luaL_loadbuffer(Core.lua.L, init_lua, init_lua_size, "init.lua");
   // free((void*)lua_init);
   int err = lua_pcall(Core.lua.L, 0, 0, 0);
   if (lerr || err) {
@@ -301,6 +320,7 @@ int luaopen_tico(lua_State *L) {
     {"math", luaopen_tcmath},
     {"timer", luaopen_timer},
     {"window", luaopen_window},
+    {"json", luaopen_json},
     // {"ui", luaopen_ui},
     {NULL, NULL}
   };

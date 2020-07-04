@@ -6,6 +6,8 @@ enum {
   TIC_TEXCOORD_INDEX = 6
 };
 
+
+
 static void tic_render_mode_canvas_2D() {
   glBindFramebuffer(GL_FRAMEBUFFER, Core.render.state.defaultCanvas.id);
 }
@@ -30,11 +32,13 @@ tc_bool tic_render_init(tc_Render *render) {
   render->batch = tic_batch_create(render->state.shapeTexture, DEFAULT_MAX_QUADS);
 
   render->state.drawCount = 0;
-  render->state.defaultShader = tic_shader_load_default(&render->state.defaultVertexShader, &render->state.defaultFragmentShader);
+  render->state.defaultShader = tic_shader_load_default(&render->state.vertexShaders[TIC_DEFAULT_VERTEX], &render->state.fragmentShaders[TIC_DEFAULT_FRAGMENT]);
   render->state.currentShader = render->state.defaultShader;
 
   render->state.currentCanvas.id = 0;
   render->state.currentMatrix = 0;
+
+  tic_shader_init_shaders();
 
   return tc_true;
 }

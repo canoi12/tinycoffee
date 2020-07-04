@@ -6,8 +6,51 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
 
   memset(input->mouseState.down, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
   memset(input->mouseState.pressed, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
-  input->keyState.keyNames = hashmap_create(48);
-  input->mouseState.buttonNames = hashmap_create(3);
+  input->names.keyNames = hashmap_create(48);
+  input->names.mouseButtonNames = hashmap_create(3);
+  input->names.joyButtonNames = hashmap_create(JOY_BUTTON_COUNT);
+
+  for (int i = 0; i < TIC_JOY_COUNT; i++) {
+    if (!glfwJoystickIsGamepad(i)) continue;
+
+    input->joystickState[i].active = tc_true;
+  }
+
+  struct {
+    char *name;
+    int code;
+  } joyButtonNames[] = {
+    {"gp_a", JOY_BUTTON_A},
+    {"a", JOY_BUTTON_A},
+    {"gp_b", JOY_BUTTON_B},
+    {"b", JOY_BUTTON_B},
+    {"gp_x", JOY_BUTTON_X},
+    {"x", JOY_BUTTON_X},
+    {"gp_y", JOY_BUTTON_Y},
+    {"y", JOY_BUTTON_Y},
+    {"gp_lb", JOY_BUTTON_LEFT_BUMPER},
+    {"lb", JOY_BUTTON_LEFT_BUMPER},
+    {"gp_rb", JOY_BUTTON_RIGHT_BUMPER},
+    {"rb", JOY_BUTTON_RIGHT_BUMPER},
+    {"gp_lt", JOY_BUTTON_LEFT_THUMB},
+    {"lt", JOY_BUTTON_LEFT_THUMB},
+    {"gp_rt", JOY_BUTTON_RIGHT_THUMB},
+    {"rt", JOY_BUTTON_RIGHT_THUMB},
+    {"gp_start", JOY_BUTTON_START},
+    {"start", JOY_BUTTON_START},
+    {"gp_back", JOY_BUTTON_BACK},
+    {"back", JOY_BUTTON_BACK},
+    {"gp_guide", JOY_BUTTON_GUIDE},
+    {"guide", JOY_BUTTON_GUIDE},
+    {"gp_dup", JOY_BUTTON_DPAD_UP},
+    {"dup", JOY_BUTTON_DPAD_UP},
+    {"gp_ddown", JOY_BUTTON_DPAD_DOWN},
+    {"ddown", JOY_BUTTON_DPAD_DOWN},
+    {"gp_dleft", JOY_BUTTON_DPAD_LEFT},
+    {"dleft", JOY_BUTTON_DPAD_LEFT},
+    {"gp_dright", JOY_BUTTON_DPAD_RIGHT},
+    {"dright", JOY_BUTTON_DPAD_RIGHT},
+  };
 
   struct {
     char *name;
@@ -124,16 +167,16 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
     {"kp_add",        334},
     {"kp_enter",      335},
     {"kp_equal",      336},
-    {"left_shift",    340},
-    {"left_control",  341},
-    {"left_alt",      342},
-    {"left_super",    343},
-    {"right_shift",   344},
-    {"right_control", 345},
-    {"right_alt",     346},
-    {"right_super",   347},
+    {"shift",         340},
+    {"ctrl",          341},
+    {"alt",           342},
+    {"super",         343},
+    {"rshift",        344},
+    {"rctrl",         345},
+    {"ralt",          346},
+    {"lsuper",        347},
     {"menu",          348},
-    {NULL, 0}
+    {NULL,              0}
   };
 
   struct {
@@ -147,12 +190,17 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
   };
 
   for (int i = 0; keyNames[i].name != NULL; i++) {
-    hashmap_set(&input->keyState.keyNames, keyNames[i].name, keyNames[i].code);
+    hashmap_set(&input->names.keyNames, keyNames[i].name, keyNames[i].code);
   }
 
   for (int i = 0; mouseButtonNames[i].name != NULL; i++) {
-    hashmap_set(&input->mouseState.buttonNames, mouseButtonNames[i].name, mouseButtonNames[i].code);
+    hashmap_set(&input->names.mouseButtonNames, mouseButtonNames[i].name, mouseButtonNames[i].code);
   }
+
+  for (int i = 0; i < joyButtonNames[i].name != NULL; i++) {
+    hashmap_set(&input->names.joyButtonNames, joyButtonNames[i].name, joyButtonNames[i].code);
+  }
+
   TRACELOG("Input initiated");
 }
 
@@ -165,15 +213,38 @@ void tic_input_destroy(tc_Input *input) {
 void tic_input_update(tc_Input *input) {
   memcpy(input->keyState.pressed, input->keyState.down, sizeof(tc_bool) * KEY_LAST);
   memcpy(input->mouseState.pressed, input->mouseState.down, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
+  GLFWgamepadstate state;
+  for (int i = 0; i < TIC_JOY_COUNT; i++) {
+    if (!glfwJoystickIsGamepad(i)) continue;
+
+    if (glfwGetGamepadState(i, &state)) {
+      memcpy(input->joystickState[i].pressed, input->joystickState[i].down, sizeof(tc_bool) * JOY_BUTTON_COUNT);
+      for (int btn = 0; btn < JOY_BUTTON_COUNT; btn++) input->joystickState[i].down[btn] = state.buttons[btn];
+      // memcpy(input->joystickState[i].down, state.buttons, sizeof(tc_bool) * JOY_BUTTON_COUNT);
+      memcpy(input->joystickState[i].axis, state.axes, sizeof(tc_bool) * JOY_AXIS_COUNT);
+    }
+  }
+  // if (glfwGetGamepadState(TIC_JOY_1, &state)) {
+  //   for (int i = 0; i < JOY_BUTTON_COUNT; i++) input->joystickState[TIC_JOY_1].down[i] = state.buttons[i];
+  // }
 }
 
 int tic_input_get_keycode(const char *name) {
-  hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+  hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
   int code = -1;
   if (item) code = item->value;
 
   return code;
 }
+
+int tic_input_get_joybtncode(const char *name) {
+  hashmap_item *item = hashmap_get(Core.input.names.joyButtonNames, name);
+  int code = -1;
+  if (item) code = item->value;
+
+  return code;
+}
+
 
 /* key functions */
 
@@ -244,3 +315,32 @@ tc_bool tic_input_is_mouse_released(TIC_MOUSEBUTTON button) {
   return Core.input.mouseState.pressed[button] && !Core.input.mouseState.down[button];
 }
 
+tc_bool tic_input_is_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+  if (Core.input.joystickState[jid].active) {
+    return Core.input.joystickState[jid].down[button];
+  }
+}
+
+tc_bool tic_input_is_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+  if (jid > TIC_JOY_COUNT) return tc_false;
+
+  if (Core.input.joystickState[jid].active) {
+    return !Core.input.joystickState[jid].down[button];
+  }
+}
+
+tc_bool tic_input_is_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+  if (jid > TIC_JOY_COUNT) return tc_false;
+
+  if (Core.input.joystickState[jid].active) {
+    return !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
+  }
+}
+
+tc_bool tic_input_is_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+  if (jid > TIC_JOY_COUNT) return tc_false;
+
+  if (Core.input.joystickState[jid].active) {
+    return Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
+  }
+}

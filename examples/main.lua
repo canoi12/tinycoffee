@@ -28,6 +28,7 @@ elseif tico then
 
 	function tico.draw()
 		tico.graphics.clear(0, 0, 0)
+		print("q")
 		for i=1,draw_count do
 			tico.graphics.drawRectangle(x+i, y+i, 32, 32)
 		end

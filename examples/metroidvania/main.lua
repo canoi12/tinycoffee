@@ -2,6 +2,8 @@ input = require "libs.input"
 local GameScene = require "scenes.gamescene"
 local Tilemap = require "tilemap"
 
+local Map = require "scenes.map"
+
 -- tico = love
 -- tico.input = love.keyboard
 
@@ -25,7 +27,7 @@ local map = {
 }
 
 local color = {}
-local currentColor = 3
+local currentColor = 2
 
 color[1] = {
   tico.color("#08141e"),
@@ -60,6 +62,39 @@ color[3] = {
   tico.color("#e6ceac")
 }
 
+local gbacolors = {
+  {
+    tico.color("#332c50"),
+    tico.color("#46878f"),
+    tico.color("#94e344"),
+    tico.color("#e2f3e4"),
+  },
+  {
+    tico.color("#0b0630"),
+    tico.color("#6b1fb1"),
+    tico.color("#cc3495"),
+    tico.color("#f8e3c4"),
+  },
+  {
+    tico.color("#00303b"),
+    tico.color("#ff7777"),
+    tico.color("#ffce96"),
+    tico.color("#f1f2da"),
+  },
+  {
+    tico.color("#2c2137"),
+    tico.color("#446176"),
+    tico.color("#3fac95"),
+    tico.color("#a1ef8c"),
+  },
+  {
+    tico.color("#000000"),
+    tico.color("#676767"),
+    tico.color("#b6b6b6"),
+    tico.color("#ffffff"),
+  }
+}
+
 local maxFps = 0
 local fps = 0
 
@@ -67,14 +102,16 @@ local bump = require "libs.bump"
 bumpWorld = bump.newWorld(32)
 
 function tico.load()
-  gamescene = GameScene()
+  -- gamescene = GameScene()
+  gamescene = Map("assets/map.json")
   canvas = tico.graphics.newCanvas(160, 95)
-  -- canvas = require("libs.canvas")(160, 95)
+  canvas1 = tico.graphics.newCanvas(160, 95)
   table.insert(logs, "press x to jump")
-  tilemap = Tilemap()
-  -- audio1 = love.audio.newSource("assets/wind.ogg", "stream")
-  shader = tico.graphics.newEffect([[
-    const float offset = 1.0 / 180.0;
+  -- tilemap = Tilemap("assets/map.json")
+  shader = tico.graphics.newOutlineShader()
+  gbaShader = tico.graphics.newGBAShader()
+  shader2 = tico.graphics.newEffect([[
+    const float offset = 1.0 / 160.0;
 
     uniform vec2 u_time;
     const int count = 8;
@@ -86,12 +123,12 @@ function tico.load()
       // uv.y += sin(tex.x * 5 + u_time.y * 10) * 0.15;
       vec4 col = texture2D(image, uv);
 
-      float a = texture2D(image, vec2(uv.x + offset, uv.y)).a +
+      /*float a = texture2D(image, vec2(uv.x + offset, uv.y)).a +
                 texture2D(image, vec2(uv.x - offset, uv.y)).a +
                 texture2D(image, vec2(uv.x, uv.y + (1.0/95.0))).a +
-                texture2D(image, vec2(uv.x, uv.y - (1.0/95.0))).a;
+                texture2D(image, vec2(uv.x, uv.y - (1.0/95.0))).a;*/
 
-      if (col.a < 1.0 && a > 0.0) col = vec4(1, 1, 1, 1);
+      //if (col.a < 1.0 && a > 0.0) col = vec4(1, 1, 1, 1);
 
       vec4 colors[count];
       float dist[count];
@@ -154,9 +191,8 @@ function tico.update(dt)
   if tico.input.isDown("up") then oy = oy - 100 * dt end
   if tico.input.isDown("down") then oy = oy + 100 * dt end
 
-  if tico.input.isPressed("1") then currentColor = 1 end
-  if tico.input.isPressed("2") then currentColor = 2 end
-  if tico.input.isPressed("3") then currentColor = 3 end
+  if (tico.input.isDown("ctrl") and tico.input.isPressed("down")) or tico.input.isJoyPressed(0, "lb") then if currentColor > 1 then currentColor = currentColor - 1 end end
+  if (tico.input.isDown("ctrl") and tico.input.isPressed("up")) or tico.input.isJoyPressed(0, "y")  then if currentColor < #gbacolors then currentColor = currentColor + 1 end end
 end
 
 local t = ""
@@ -165,32 +201,39 @@ local Position = require "components.position"
 local pos = Player[Position]
 
 local time = 0
+local canvas2 = tico.graphics.newCanvas(160, 95)
 
 function tico.draw()
-  tico.graphics.clear(color[currentColor][1])
---   teste(1)
+  tico.graphics.clear()
   canvas:attach()
---   canvas:attach()
-  tico.graphics.clear(75, 90, 90, 0)
-  -- tico.graphics.drawRectangle(96, 32, 16, 32)
+  tico.graphics.clear()
   gamescene:draw()
-  -- tico.graphics.drawTriangle(32, 0, 0, 32, 64, 32)
   canvas:detach()
 
-  time = time + (tico.timer.delta() * 0.2)
+  local mx,my = tico.input.mousePos()
 
-  shader:attach()
-  -- canvas:auto()
-  shader:send("uCol", unpack(color[currentColor]))
-  -- canvas:auto()
-  canvas:auto()
-  shader:detach()
+  canvas1:attach()
+  tico.graphics.clear(0, 0, 0, 0)
+  for i=1,10 do
+    tico.graphics.fillCircle(mx/4, my/4, i+(i*4), {255, 255, 255, 255 - (i*20)})
+  end
+  canvas1:detach()
+
+  time = time + (tico.timer.delta() * 0.2)
+  -- canvas2:attach()
+
+  -- tico.graphics.clear(0, 0, 0, 0)
   -- canvas:draw()
-  fps = tico.timer.fps()
-  maxFps = math.max(fps, maxFps)
-  tico.graphics.print('fps: ' .. fps)
-  tico.graphics.print('maxFps: ' .. maxFps, 0, 16)
---   drawEditor()
+  -- tico.graphics.blendMode("multiply")
+  -- canvas1:draw()
+  -- tico.graphics.blendMode("alpha")
+  -- canvas2:detach()
+
+  gbaShader:attach()
+  gbaShader:send("u_col", unpack(gbacolors[currentColor]))
+  canvas:auto()
+  gbaShader:detach()
+  tico.graphics.print("joystick: " .. tico.input.joystickName(0))
 end
 
 function initInput()

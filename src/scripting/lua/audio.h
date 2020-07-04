@@ -1,8 +1,6 @@
 #ifndef TICO_LUA_AUDIO_H
 #define TICO_LUA_AUDIO_H
 
-#define SOUND_CLASS "Sound"
-
 #include "../../tico.h"
 
 TIC_API int luaopen_audio(lua_State *L);

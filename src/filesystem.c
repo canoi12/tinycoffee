@@ -268,7 +268,14 @@ cJSON *tic_json_open(const char *filename) {
   return parsed;
 }
 cJSON *tic_json_parse(const char *jsonStr) {
-  return cJSON_Parse(jsonStr);
+  cJSON *parsed = cJSON_Parse(jsonStr);
+  if (!parsed) {
+    const char *err = cJSON_GetErrorPtr();
+    if (err != NULL) {
+      TRACEERR("Failed to parse json: error before %s", err);
+    }
+  }
+  return parsed;
 }
 void tic_json_save(const char *filename, cJSON* const json) {
   char *string = cJSON_Print(json);
@@ -287,8 +294,25 @@ char *tic_json_print(cJSON* const json) {
 cJSON* tic_json_create() {
   return cJSON_CreateObject();
 }
-void tic_json_delete(cJSON* const json) {
+
+cJSON* tic_json_create_array() {
+  return cJSON_CreateArray();
+}
+
+void tic_json_delete(cJSON* json) {
   cJSON_Delete(json);
+}
+
+/***********
+ * String
+ ***********/
+
+tc_bool tic_json_is_string(cJSON* const json, char *name) {
+  cJSON *jsonName = cJSON_GetObjectItem(json, name);
+  if (jsonName) {
+    return cJSON_IsString(jsonName);
+  }
+  return tc_false;
 }
 
 char *tic_json_get_string(cJSON* const json, char *name) {
@@ -308,6 +332,16 @@ cJSON *tic_json_set_string(cJSON* const json, char *name, char *value) {
   return strVal;
 }
 
+/**********
+ * Number
+ **********/
+
+tc_bool tic_json_is_number(cJSON* const json, char *name) {
+  cJSON *value = cJSON_GetObjectItem(json, name);
+  if (value) return cJSON_IsNumber(value);
+  return tc_false;
+}
+
 float tic_json_get_number(cJSON* const json, char *name) {
   return tic_json_get_opt_number(json, name, -1);
 }
@@ -322,6 +356,16 @@ cJSON *tic_json_set_number(cJSON* const json, char *name, float value) {
   cJSON *nVal = cJSON_AddNumberToObject(json, name, value);
   if (nVal == NULL) TRACEERR("Failed to add number '%f' to json ['%s']", value, name);
   return nVal;
+}
+
+/***********
+ * Boolean
+ ***********/
+
+tc_bool tic_json_is_boolean(cJSON* const json, char *name) {
+  cJSON *val = cJSON_GetObjectItem(json, name);
+  if (val) return cJSON_IsBool(val);
+  return tc_false;
 }
 
 int tic_json_get_boolean(cJSON* const json, char *name) {
@@ -340,6 +384,16 @@ cJSON* tic_json_set_boolean(cJSON* const json, char *name, tc_bool value) {
   return boolVal;
 }
 
+/***********
+ * Array
+ ***********/
+
+tc_bool tic_json_is_array(cJSON* const json, char *name) {
+  cJSON *array = cJSON_GetObjectItem(json, name);
+  if (array) return cJSON_IsArray(array);
+  return tc_false;
+}
+
 cJSON* tic_json_get_array(cJSON* const json, char *name) {
   cJSON *array = cJSON_GetObjectItem(json, name);
   if (cJSON_IsArray(array)) {
@@ -347,6 +401,7 @@ cJSON* tic_json_get_array(cJSON* const json, char *name) {
   }
   return NULL;
 }
+
 cJSON* tic_json_set_array(cJSON* const json, char *name, cJSON* const jsonArray) {
   if (jsonArray) {
     cJSON_AddItemToObject(json, name, jsonArray);
@@ -354,8 +409,19 @@ cJSON* tic_json_set_array(cJSON* const json, char *name, cJSON* const jsonArray)
     return cJSON_AddArrayToObject(json, name);
   }
 }
+
 int tic_json_get_array_size(const cJSON *json) {
   return cJSON_GetArraySize(json);
+}
+
+/*************
+ * Object
+ *************/
+
+tc_bool tic_json_is_object(cJSON* const json, char *name) {
+  cJSON *obj = cJSON_GetObjectItem(json, name);
+  if (obj) return cJSON_IsObject(obj);
+  return tc_false;
 }
 
 cJSON* tic_json_get_object(cJSON* const json, char *name) {

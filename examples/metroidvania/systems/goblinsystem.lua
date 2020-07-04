@@ -24,11 +24,11 @@ function GoblinSystem:update(dt)
 --     if ai.idle then
 --       sprite.sprite:play("idle")
 --     end
-    if Player[Position].x > pos.x then
-      sprite.sprite:flip(false)
-    else
-      sprite.sprite:flip(true)
-    end
+    -- if Player[Position].x > pos.x then
+    --   sprite.sprite:flip(false)
+    -- else
+    --   sprite.sprite:flip(true)
+    -- end
   end
 end
 

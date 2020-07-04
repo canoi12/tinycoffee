@@ -245,10 +245,10 @@ static int tic_lua_is_down(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.mouseState.buttonNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
     if (item) down = tic_input_is_mouse_down(item->value);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
     if (item) down = tic_input_is_key_down(item->value);
   }
 
@@ -267,10 +267,10 @@ static int tic_lua_is_pressed(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.mouseState.buttonNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
     if (item) down = tic_input_is_mouse_pressed(item->value);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
     if (item) down = tic_input_is_key_pressed(item->value);
   }
 
@@ -289,10 +289,10 @@ static int tic_lua_is_up(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.mouseState.buttonNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
     if (item) down = tic_input_is_mouse_up(item->value);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
     if (item) down = tic_input_is_key_up(item->value);
   }
 
@@ -311,10 +311,10 @@ static int tic_lua_is_released(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.mouseState.buttonNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
     if (item) down = tic_input_is_mouse_released(item->value);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.keyState.keyNames, name);
+    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
     if (item) down = tic_input_is_key_released(item->value);
   }
 
@@ -335,6 +335,55 @@ static int tic_lua_get_mouse_scroll(lua_State *L) {
   lua_pushnumber(L, x);
   lua_pushnumber(L, y);
   return 2;
+}
+
+static int tic_lua_is_joy_down(lua_State *L) {
+  int jid = luaL_checkinteger(L, 1);
+  const char *key = luaL_checkstring(L, 2);
+  int btn = tic_input_get_joybtncode(key);
+
+  int down = tic_input_is_joy_down(jid, btn);
+  lua_pushboolean(L, down);
+  return 1;
+}
+
+static int tic_lua_is_joy_pressed(lua_State *L) {
+  int jid = luaL_checkinteger(L, 1);
+  const char *key = luaL_checkstring(L, 2);
+  int btn = tic_input_get_joybtncode(key);
+
+  int down = tic_input_is_joy_pressed(jid, btn);
+  lua_pushboolean(L, down);
+  return 1;
+}
+
+static int tic_lua_is_joy_up(lua_State *L) {
+  int jid = luaL_checkinteger(L, 1);
+  const char *key = luaL_checkstring(L, 2);
+  int btn = tic_input_get_joybtncode(key);
+
+  int down = tic_input_is_joy_up(jid, btn);
+  lua_pushboolean(L, down);
+  return 1;
+}
+
+static int tic_lua_is_joy_released(lua_State *L) {
+  int jid = luaL_checkinteger(L, 1);
+  const char *key = luaL_checkstring(L, 2);
+  int btn = tic_input_get_joybtncode(key);
+
+  int down = tic_input_is_joy_released(jid, btn);
+  lua_pushboolean(L, down);
+  return 1;
+}
+
+static int tic_lua_get_joy_name(lua_State *L) {
+  int jid = luaL_checkinteger(L, 1);
+  const char *name = glfwGetGamepadName(jid);
+  if (name) lua_pushstring(L, name);
+  else lua_pushstring(L, "none");
+
+  return 1;
 }
 
 int luaopen_input(lua_State *L) {
@@ -359,6 +408,11 @@ int luaopen_input(lua_State *L) {
     {"mouseDelta", tic_lua_get_mouse_delta},
     {"fixMouse", tic_lua_fix_mouse},
     {"mouseScroll", tic_lua_get_mouse_scroll},
+    {"isJoyDown", tic_lua_is_joy_down},
+    {"isJoyPressed", tic_lua_is_joy_pressed},
+    {"isJoyUp", tic_lua_is_joy_up},
+    {"isJoyReleased", tic_lua_is_joy_released},
+    {"joystickName", tic_lua_get_joy_name},
     {NULL, NULL}
   };
 

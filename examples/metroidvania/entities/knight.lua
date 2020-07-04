@@ -1,5 +1,4 @@
 local Concord = require "libs.concord"
-local Knight = Concord.entity()
 local Position = require "components.position"
 local Velocity = require "components.velocity"
 local Sprite = require "components.sprite"
@@ -11,8 +10,9 @@ local Kinematic = require "components.kinematic"
 
 local Camera = require "components.camera"
 
-Knight
-  :give(Position, 32, 24)
+local Knight = Concord.assemblage(function(e, x, y)
+  e
+  :give(Position, x, y)
   :give(Velocity)
   :give(Sprite, "assets/images/herochar_spritesheet.png", 16, 16,
     {
@@ -27,6 +27,7 @@ Knight
   :give(Hitbox, -6, -8, 12, 16)
   :give(Gravity)
   :give(Kinematic)
-  :give(Camera, 0, 0, 160, 95)
+end)
+
 
 return Knight

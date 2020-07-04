@@ -83,6 +83,8 @@ DOBJ = $(OBJ:%.o=$(TMP)/shared/%.o)
 LUA_SCRIPTS = $(wildcard src/scripting/lua/*.lua)
 LUAH_SCRIPTS = $(LUA_SCRIPTS:%.lua=%.lua.h)
 LUAH_FILES = $(wildcard src/scripting/lua/*.h)
+GLSL_FILES = $(wildcard src/shaders/*.glsl src/shaders/*.frag src/shaders/*.vert)
+GLSLH_FILES = $(GLSL_FILES:%=%.h)
 
 
 hello: 
@@ -102,6 +104,16 @@ $(TMP)/shared/%.o: $$(subst __,/,%.c)
 %.lua.h: %.lua embed
 	./embed $<
 
+%.glsl.h: %.glsl embed
+	./embed $<
+
+%.frag.h: %.frag embed
+	./embed $<
+
+%.vert.h: %.vert embed
+	./embed $<
+
+
 setup:
 	if [ ! -d $(TMP) ]; then \
 		mkdir -p $(TMP)/static; \
@@ -117,10 +129,10 @@ luajit:
 	cp $(DJITOBJ) $(TMP)/shared
 	rm -f $(TMP)/shared/luajit.o
 
-$(SLIBNAME): setup $(LUAH_SCRIPTS) $(SOBJ) $(COMPILE_JIT)
+$(SLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(SOBJ) $(COMPILE_JIT) $(LUAH_FILES)
 	ar rcs $(LIBNAME).a $(TMP)/static/*.o
 
-$(DLIBNAME): setup $(LUAH_SCRIPTS) $(DOBJ) $(COMPILE_JIT)
+$(DLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(DOBJ) $(COMPILE_JIT) $(LUAH_FILES)
 	$(CROSS)$(CC) -shared -o $@ $(TMP)/shared/*.o -DBUILD_SHARED $(CFLAGS) $(DEFINE) $(LFLAGS) $(INCLUDE)
 
 tico: $(SLIBNAME)
