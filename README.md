@@ -50,11 +50,13 @@ I'm using in this project:
 
 ## usage
 
+if you want to write your own game loop, use:
+
 ```c
 
 // main.c
 
-#include "src/tinycoffee.h"
+#include "tico.h"
 
 int main(int argc, char ** argv) {
   tc_Config config = tic_config_init("title", 640, 380, argc, argv);
@@ -64,8 +66,6 @@ int main(int argc, char ** argv) {
 
   while (!tic_window_should_close()) { // main loop
     tic_poll_events(); // poll events
-    // tic_scripting_wren_update(); // optional: update wren
-
 
     tic_clear(color3(75, 90, 90)); // clear screen with color
 
@@ -75,8 +75,6 @@ int main(int argc, char ** argv) {
     tic_draw_texture_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
 
     tic_lua_step();
-
-    // tc_scripting_wren_draw(); // optional: draw for wren
 
     tic_end_draw(); // finish batch render
   }
@@ -153,4 +151,6 @@ If you are using Lua or Wren, maitain the `main.lua` file in the zip root
 
 ## screenshots
 
-![screenshot1](https://user-images.githubusercontent.com/15099243/82740604-ba664400-9d20-11ea-9e89-45dc15a7282f.png)
+![tico-0 1 5](https://user-images.githubusercontent.com/15099243/86610476-c716c280-bf83-11ea-9a56-8234d77ac150.gif)
+![tico-shader-palette](https://user-images.githubusercontent.com/15099243/86610557-e6155480-bf83-11ea-9c46-d4244f686afa.gif)
+
