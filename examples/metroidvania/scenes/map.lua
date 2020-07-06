@@ -164,7 +164,8 @@ local lightShader = tico.graphics.newEffect([[
 
 	vec4 position(vec4 pos, mat4 world, mat4 view) {
 		vec4 p = pos;
-		p.x += fract(sin(p.y + u_time * 0.2)) * 20;
+		p.x += sin(pos.y * 0.02 + u_time * 8) * 5;
+    p.y += cos(pos.x * 0.02 + u_time * 5) * 5;
 		return world * view * p;
 	}
 
@@ -197,13 +198,19 @@ function Map:draw()
   self.lightCanvas:attach()
   tico.graphics.clear()
   lightShader:attach()
-  time = time + tico.timer.delta()
+  time = time + tico.timer.delta() * 0.2
   lightShader:send("u_time", time)
-  for i=1,10 do
-    tico.graphics.fillCircle(pos.x-10, pos.y, i+(i*4), {255, 255, 255, 255 - (i*20)})
+  for i=1,20 do
+    tico.graphics.fillCircle(pos.x, pos.y, i*2, {255, 255, 255, 255 - (i*10)})
+  end
+  for i=1,20 do
+    tico.graphics.fillCircle(210, 160, i*2, {255, 255, 255, 255 - (i*10)})
   end
   lightShader:detach()
   self.lightCanvas:detach()
+
+  local p = self:getEntity(18)[Position]
+  image1:draw(p.x, p.y)
 
   canvas:attach()
 
@@ -215,7 +222,7 @@ function Map:draw()
   end
   if e then
   	local cam = e[Camera]
-	  self.lightCanvas:draw(cam.camera.x - 80, cam.camera.y - 48)
+	  self.lightCanvas:draw(cam.camera.x-80, cam.camera.y-48)
 	end
   tico.graphics.blendMode("alpha")
 

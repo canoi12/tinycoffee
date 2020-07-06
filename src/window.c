@@ -49,9 +49,11 @@ void tic_window_set_pos(int x, int y) {
   Core.window.x = x;
   Core.window.y = y;
 }
+
 void tic_window_get_size(int *width, int *height) {
   glfwGetWindowSize(Core.window.handle, width, height);
 }
+
 void tic_window_set_size(int width, int height) {
   glfwSetWindowSize(Core.window.handle, width, height);
   Core.window.width = width;
@@ -62,13 +64,25 @@ int tic_window_get_width() {
   return Core.window.width;
 }
 
+void tic_window_set_width(int width) {
+  glfwSetWindowSize(Core.window.handle, width, Core.window.height);
+  Core.window.width = width;
+}
+
 int tic_window_get_height() {
   return Core.window.height;
+}
+
+void tic_window_set_height(int height) {
+  glfwSetWindowSize(Core.window.handle, Core.window.width, height);
+  Core.window.height = height;
 }
 
 tc_uint8* tic_window_get_title() {
   return Core.window.title;
 }
+
+
 void tic_window_set_title(const tc_uint8 *title) {
   strcpy(Core.window.title, title);
   glfwSetWindowTitle(Core.window.handle, title);

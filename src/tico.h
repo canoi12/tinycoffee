@@ -974,7 +974,7 @@ TIC_API float tic_angle(float x0, float y0, float x1, float y1);
 
 TIC_API void tic_graphics_push();
 TIC_API void tic_graphics_pop();
-TIC_API void tic_graphics_translate(int x, int y);
+TIC_API void tic_graphics_translate(float x, float y);
 TIC_API void tic_graphics_scale(float x, float y);
 TIC_API void tic_graphics_rotate(float angle);
 TIC_API void tic_graphics_scissor(int x, int y, int width, int height);
@@ -1033,7 +1033,7 @@ TIC_API void tic_texture_get_filter(tc_Texture texture, int *min, int *mag);
 TIC_API void tic_texture_get_wrap(tc_Texture texture, int *min, int *mag);
 
 TIC_API void tic_texture_draw(tc_Texture texture, tc_Rectf dest, tc_Rectf source, tc_Color color);
-TIC_API void tic_texture_draw_ex(tc_Texture texture, tc_Rectf dest, tc_Rectf source, float angle, float sx, float sy, int cx, int cy, tc_Color color);
+TIC_API void tic_texture_draw_ex(tc_Texture texture, tc_Rectf dest, tc_Rectf source, float angle, float sx, float sy, float cx, float cy, tc_Color color);
 
 
 /*******************
@@ -1054,13 +1054,13 @@ TIC_API void tic_image_get_filter(tc_Image image, int *min, int *mag);
 TIC_API void tic_image_set_wrap(tc_Image *image, int min, int mag);
 TIC_API void tic_image_get_wrap(tc_Image image, int *min, int *mag);
 
-TIC_API void tic_image_draw(tc_Image image, int x, int y, tc_Color color);
-TIC_API void tic_image_draw_scale(tc_Image image, int x, int y, float sx, float sy, tc_Color color);
-TIC_API void tic_image_draw_ex(tc_Image image, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color);
+TIC_API void tic_image_draw(tc_Image image, float x, float y, tc_Color color);
+TIC_API void tic_image_draw_scale(tc_Image image, float x, float y, float sx, float sy, tc_Color color);
+TIC_API void tic_image_draw_ex(tc_Image image, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color);
 
-TIC_API void tic_image_draw_part(tc_Image image, tc_Rectf part, int x, int y, tc_Color color);
-TIC_API void tic_image_draw_part_scale(tc_Image image, tc_Rectf part, int x, int y, float sx, float sy, tc_Color color);
-TIC_API void tic_image_draw_part_ex(tc_Image image, tc_Rectf part, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color);
+TIC_API void tic_image_draw_part(tc_Image image, tc_Rectf part, float x, float y, tc_Color color);
+TIC_API void tic_image_draw_part_scale(tc_Image image, tc_Rectf part, float x, float y, float sx, float sy, tc_Color color);
+TIC_API void tic_image_draw_part_ex(tc_Image image, tc_Rectf part, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color);
 
 /*******************
  * Canvas
@@ -1077,12 +1077,13 @@ TIC_API void tic_canvas_attach(tc_Canvas canvas);
 TIC_API void tic_canvas_detach(void);
 TIC_API void tic_canvas_disable(void);
 
-TIC_API void tic_canvas_draw(tc_Canvas canvas, int x, int y, tc_Color color);
-TIC_API void tic_canvas_draw_scale(tc_Canvas canvas, int x, int y, float sx, float sy, tc_Color color);
-TIC_API void tic_canvas_draw_ex(tc_Canvas canvas, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color);
+TIC_API void tic_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color);
+TIC_API void tic_canvas_draw_scale(tc_Canvas canvas, float x, float y, float sx, float sy, tc_Color color);
+TIC_API void tic_canvas_draw_ex(tc_Canvas canvas, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color);
 
-TIC_API void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, int x, int y, tc_Color color);
-TIC_API void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, int x, int y, float sx, float sy, tc_Color color);
+TIC_API void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_Color color);
+TIC_API void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color);
+TIC_API void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color);
 
 TIC_API void tic_canvas_draw_auto(tc_Canvas canvas);
 
@@ -1161,7 +1162,7 @@ TIC_API void tic_batch_update_count(tc_Batch *batch, int indexCount, int vertexC
 
 TIC_API void tic_batch_add_rect(tc_Batch *batch, tc_Rectf dest, tc_Rectf source, tc_Color color);
 TIC_API void tic_batch_add_line_rect(tc_Batch *batch, tc_Rectf dest, tc_Rectf src, tc_Color color);
-TIC_API void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dest, tc_Rectf source, float angle, int cx, int cy, tc_Color color);
+TIC_API void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dest, tc_Rectf source, float angle, float cx, float cy, tc_Color color);
 
 TIC_API void tic_batch_add_triangle(tc_Batch *batch, int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color);
 TIC_API void tic_batch_add_circle(tc_Batch *batch, int x, int y, float radius, int sides, tc_Color color);

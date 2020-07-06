@@ -330,7 +330,7 @@ void tic_batch_add_rect(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, tc_Color co
 
 //   TRACELOG("%f %f", dst.h, i.x);
 
-  tc_Vec4 pos = tic_vec4_new((int)dst.x, (int)dst.y, (int)(dst.x + dst.w), (int)(dst.y + dst.h));
+  tc_Vec4 pos = tic_vec4_new(dst.x, dst.y, (dst.x + dst.w), (dst.y + dst.h));
   tc_Vec4 uv = tic_vec4_new(s0, t0, s1, t1);
   tc_DrawCall *curr = &batch->drawCalls[batch->drawCallIndex];
   int indexCount = 0;
@@ -354,20 +354,25 @@ void tic_batch_add_rect(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, tc_Color co
 	  else {
 	    pos.w -= 1;
   	}
-	  float offset = 0;
+	  float offset = 1;
 	  tc_Matrix *camera = Core.render.state.camera;
 	  if (camera) offset = 1.f-(1.f/camera->data[0][0]);
 	  batch->verticesPtr[0] = tic_vertexc(pos.x+offset, pos.y, color, uv.x, uv.y);
-	  batch->verticesPtr[1] = tic_vertexc(pos.z-0.5, pos.y, color, uv.z, uv.y);
+	  // batch->verticesPtr[1] = tic_vertexc(pos.z-0.5, pos.y, color, uv.z, uv.y);
+    batch->verticesPtr[0] = tic_vertexc(pos.x+1, pos.y, color, uv.x, uv.y);
+    batch->verticesPtr[1] = tic_vertexc(pos.z, pos.y, color, uv.z, uv.y);
 
 	  batch->verticesPtr[2] = tic_vertexc(pos.z, pos.y, color, uv.z, uv.y);
 	  batch->verticesPtr[3] = tic_vertexc(pos.z, pos.w, color, uv.z, uv.w);
 
 	  batch->verticesPtr[4] = tic_vertexc(pos.z, pos.w, color, uv.z, uv.w);
-	  batch->verticesPtr[5] = tic_vertexc(pos.x+offset, pos.w, color, uv.x, uv.w);
+	  // batch->verticesPtr[5] = tic_vertexc(pos.x+offset, pos.w, color, uv.x, uv.w);
+    batch->verticesPtr[5] = tic_vertexc(pos.x+1, pos.w, color, uv.x, uv.w);
 
-	  batch->verticesPtr[6] = tic_vertexc(pos.x+1, pos.w, color, uv.x, uv.w);
-	  batch->verticesPtr[7] = tic_vertexc(pos.x+1, pos.y, color, uv.x, uv.y);
+	  // batch->verticesPtr[6] = tic_vertexc(pos.x+1, pos.w, color, uv.x, uv.w);
+	  // batch->verticesPtr[7] = tic_vertexc(pos.x+1, pos.y, color, uv.x, uv.y);
+    batch->verticesPtr[6] = tic_vertexc(pos.x+1, pos.w, color, uv.x, uv.w);
+    batch->verticesPtr[7] = tic_vertexc(pos.x+1, pos.y, color, uv.x, uv.y);
 
 	  batch->verticesPtr += 8;
 
@@ -389,7 +394,7 @@ void tic_batch_add_line_rect(tc_Batch *batch, tc_Rectf dest, tc_Rectf src, tc_Co
   float t1 = t0 + (src.h / (float)height);
   tc_Vec2 i = tic_vec2_new(0, 0);
 
-  tc_Vec4 pos = tic_vec4_new((int)dest.x, (int)dest.y, (int)(dest.x + dest.w), (int)(dest.y + dest.h));
+  tc_Vec4 pos = tic_vec4_new(dest.x, dest.y, (dest.x + dest.w), (dest.y + dest.h));
   tc_Vec4 uv = tic_vec4_new(s0, t0, s1, t1);
   tc_DrawCall *curr = &batch->drawCalls[batch->drawCallIndex];
 
@@ -429,13 +434,13 @@ void tic_batch_add_line_rect(tc_Batch *batch, tc_Rectf dest, tc_Rectf src, tc_Co
   tic_batch_update_count(batch, indexCount, vertexCount);
 }
 
-void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, float angle, int cx, int cy, tc_Color color) {
+void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, float angle, float cx, float cy, tc_Color color) {
   tc_bool inv = tc_false;
 
-	int x = dst.x;
-	int y = dst.y;
-  int width = batch->currentTexture.width;
-  int height = batch->currentTexture.height;
+	float x = dst.x;
+	float y = dst.y;
+  float width = batch->currentTexture.width;
+  float height = batch->currentTexture.height;
 
   tc_Matrix model;
 	tic_matrix_translate(&model, dst.x, dst.y, 0);

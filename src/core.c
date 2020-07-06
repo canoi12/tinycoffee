@@ -12,6 +12,10 @@ static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
 }
 
 static void tic_window_resize_callback(GLFWwindow *window, int width, int height) {
+  // glViewport(0, 0, width, height);
+}
+
+static void tic_framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
   Core.window.width = width;
   Core.window.height = height;
@@ -115,6 +119,7 @@ tc_bool tic_init(tc_Config *config) {
   glfwSetCharCallback(Core.window.handle, tic_window_character_callback);
   glfwSetScrollCallback(Core.window.handle, tic_mouse_scroll_callback);
   glfwSetJoystickCallback(tic_joystick_callback);
+  glfwSetFramebufferSizeCallback(Core.window.handle, tic_framebuffer_size_callback);
   TRACELOG("Setup callbacks");
 
   tic_input_init(&Core.input, 0);
@@ -127,7 +132,7 @@ tc_bool tic_init(tc_Config *config) {
 
   tic_audio_init();
 
-  glViewport(0, 0, Core.window.width, Core.window.height);
+  // glViewport(0, 0, Core.window.width, Core.window.height);
 #ifdef WREN_LANG
   tic_wren_game_load(Core.wren);
 #endif

@@ -240,8 +240,8 @@ static int tic_lua_draw_image(lua_State *L) {
   }
 
   // exit(-1);
-  int x = luaL_optnumber(L, ++index, 0);
-  int y = luaL_optnumber(L, ++index, 0);
+  float x = luaL_optnumber(L, ++index, 0);
+  float y = luaL_optnumber(L, ++index, 0);
   if (lua_type(L, index+1) != LUA_TNUMBER) {
     color = lua_optcolor(L, ++index, WHITE);
     tic_image_draw_part(*image, rect, x, y, color);
@@ -250,8 +250,8 @@ static int tic_lua_draw_image(lua_State *L) {
   float angle = luaL_optnumber(L, ++index, 0);
   float sx = luaL_optnumber(L, ++index, 1);
   float sy = luaL_optnumber(L, ++index, 1);
-  int cx = luaL_optnumber(L, ++index, 0);
-  int cy = luaL_optnumber(L, ++index, 0);
+  float cx = luaL_optnumber(L, ++index, 0);
+  float cy = luaL_optnumber(L, ++index, 0);
   color = lua_optcolor(L, ++index, WHITE);
   tic_image_draw_part_ex(*image, rect, x, y, angle, sx, sy, cx, cy, color);
   return 0;
@@ -330,8 +330,8 @@ static int tic_lua_draw_canvas(lua_State *L) {
     rect = lua_optrectf(L, ++index, rect);
   }
 
-  int x = luaL_optnumber(L, ++index, 0);
-  int y = luaL_optnumber(L, ++index, 0);
+  float x = luaL_optnumber(L, ++index, 0);
+  float y = luaL_optnumber(L, ++index, 0);
   if (lua_type(L, index+1) != LUA_TNUMBER) {
     color = lua_optcolor(L, ++index, WHITE);
     tic_canvas_draw_part(*canvas, rect, x, y, color);

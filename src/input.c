@@ -9,6 +9,7 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
   input->names.keyNames = hashmap_create(48);
   input->names.mouseButtonNames = hashmap_create(3);
   input->names.joyButtonNames = hashmap_create(JOY_BUTTON_COUNT);
+  input->names.joyAxisNames = hashmap_create(JOY_AXIS_COUNT);
 
   for (int i = 0; i < TIC_JOY_COUNT; i++) {
     if (!glfwJoystickIsGamepad(i)) continue;
@@ -20,36 +21,59 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
     char *name;
     int code;
   } joyButtonNames[] = {
-    {"gp_a", JOY_BUTTON_A},
+    {"jp_a", JOY_BUTTON_A},
+    {"jp_b", JOY_BUTTON_B},
+    {"jp_x", JOY_BUTTON_X},
+    {"jp_y", JOY_BUTTON_Y},
+    {"jp_lb", JOY_BUTTON_LEFT_BUMPER},
+    {"jp_rb", JOY_BUTTON_RIGHT_BUMPER},
+    {"jp_lt", JOY_BUTTON_LEFT_THUMB},
+    {"jp_rt", JOY_BUTTON_RIGHT_THUMB},
+    {"jp_start", JOY_BUTTON_START},
+    {"jp_back", JOY_BUTTON_BACK},
+    {"jp_guide", JOY_BUTTON_GUIDE},
+    {"jp_dup", JOY_BUTTON_DPAD_UP},
+    {"jp_ddown", JOY_BUTTON_DPAD_DOWN},
+    {"jp_dleft", JOY_BUTTON_DPAD_LEFT},
+    {"jp_dright", JOY_BUTTON_DPAD_RIGHT},
     {"a", JOY_BUTTON_A},
-    {"gp_b", JOY_BUTTON_B},
+    {"cross", JOY_BUTTON_A},
     {"b", JOY_BUTTON_B},
-    {"gp_x", JOY_BUTTON_X},
+    {"circle", JOY_BUTTON_B},
     {"x", JOY_BUTTON_X},
-    {"gp_y", JOY_BUTTON_Y},
+    {"square", JOY_BUTTON_X},
     {"y", JOY_BUTTON_Y},
-    {"gp_lb", JOY_BUTTON_LEFT_BUMPER},
+    {"triangle", JOY_BUTTON_Y},
     {"lb", JOY_BUTTON_LEFT_BUMPER},
-    {"gp_rb", JOY_BUTTON_RIGHT_BUMPER},
     {"rb", JOY_BUTTON_RIGHT_BUMPER},
-    {"gp_lt", JOY_BUTTON_LEFT_THUMB},
     {"lt", JOY_BUTTON_LEFT_THUMB},
-    {"gp_rt", JOY_BUTTON_RIGHT_THUMB},
     {"rt", JOY_BUTTON_RIGHT_THUMB},
-    {"gp_start", JOY_BUTTON_START},
     {"start", JOY_BUTTON_START},
-    {"gp_back", JOY_BUTTON_BACK},
     {"back", JOY_BUTTON_BACK},
-    {"gp_guide", JOY_BUTTON_GUIDE},
     {"guide", JOY_BUTTON_GUIDE},
-    {"gp_dup", JOY_BUTTON_DPAD_UP},
     {"dup", JOY_BUTTON_DPAD_UP},
-    {"gp_ddown", JOY_BUTTON_DPAD_DOWN},
     {"ddown", JOY_BUTTON_DPAD_DOWN},
-    {"gp_dleft", JOY_BUTTON_DPAD_LEFT},
     {"dleft", JOY_BUTTON_DPAD_LEFT},
-    {"gp_dright", JOY_BUTTON_DPAD_RIGHT},
     {"dright", JOY_BUTTON_DPAD_RIGHT},
+  };
+
+  struct
+  {
+    char *name;
+    int count; 
+  } joyAxisNames[] = {
+    {"jp_leftx", JOY_AXIS_LEFT_X},
+    {"jp_lefty", JOY_AXIS_LEFT_Y},
+    {"jp_rightx", JOY_AXIS_RIGHT_X},
+    {"jp_righty", JOY_AXIS_RIGHT_X},
+    {"jp_lefttrigger", JOY_AXIS_LEFT_TRIGGER},
+    {"jp_righttrigger", JOY_AXIS_RIGHT_TRIGGER},
+    {"leftx", JOY_AXIS_LEFT_X},
+    {"lefty", JOY_AXIS_LEFT_Y},
+    {"rightx", JOY_AXIS_RIGHT_X},
+    {"righty", JOY_AXIS_RIGHT_Y},
+    {"lefttrigger", JOY_AXIS_LEFT_TRIGGER},
+    {"righttrigger", JOY_AXIS_RIGHT_TRIGGER},
   };
 
   struct {
@@ -205,8 +229,10 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
 }
 
 void tic_input_destroy(tc_Input *input) {
-	hashmap_clear(&input->keyState.keyNames);
-	hashmap_clear(&input->mouseState.buttonNames);
+	hashmap_clear(&input->names.keyNames);
+	hashmap_clear(&input->names.mouseButtonNames);
+  hashmap_clear(&input->names.joyButtonNames);
+  hashmap_clear(&input->names.joyAxisNames);
 	TRACELOG("Input clear");
 }
 

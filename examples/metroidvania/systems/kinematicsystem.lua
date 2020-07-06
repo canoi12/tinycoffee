@@ -17,6 +17,7 @@ function KinematicSystem:update(dt)
     pos.y = pos.y + vel.y * dt
 
     local x, y, cols, len = bumpWorld:move(hit, pos.x+hit.x, pos.y+hit.y)
+    local wasOnFloor = kine.isOnFloor
     kine.isOnFloor = false
     if len > 0 then kine.isColliding = true end
     kine.cols = cols
@@ -24,6 +25,7 @@ function KinematicSystem:update(dt)
       if col.normal.y == -1 then
         kine.isOnFloor = true
         vel.y = col.slide.y
+        if not wasOnFloor then vel.y = 0 end
         -- if e:has(Sprite) then
         --   local spr = e[Sprite].sprite
         --   spr.scale_x = 1.8

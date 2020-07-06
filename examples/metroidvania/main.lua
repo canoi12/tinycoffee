@@ -2,6 +2,8 @@ input = require "libs.input"
 local GameScene = require "scenes.gamescene"
 local Tilemap = require "tilemap"
 
+local sprite = require "tico.sprite"
+
 local Map = require "scenes.map"
 
 -- tico = love
@@ -107,6 +109,9 @@ function tico.load()
   canvas = tico.graphics.newCanvas(160, 95)
   canvas1 = tico.graphics.newCanvas(160, 95)
   table.insert(logs, "press x to jump")
+  image = sprite("assets/images/goblin_run_anim_strip_6.png", 16, 16)
+  image:addAnimation("idle", "1-6")
+  image1 = tico.graphics.newImage("assets/icons.png")
   -- tilemap = Tilemap("assets/map.json")
   shader = tico.graphics.newOutlineShader()
   gbaShader = tico.graphics.newGBAShader()
@@ -179,12 +184,16 @@ end
 local ox = 0
 local oy = 0
 
+local x = 0
+local y = 32
+
+-- local rect = tico.graphics.newRectangle(0, 0, 32, 32)
+
 function tico.update(dt)
---   input.update(dt)
---   if tico.ui.isWindowFocused("game") then
+  -- input.update(dt)
+  -- if tico.ui.isWindowFocused("game") then
     gamescene:update(dt)
 --   end
-  if tico.input.isPressed("p") then audio1:play() end
 
   if tico.input.isDown("left") then ox = ox - 100 * dt end
   if tico.input.isDown("right") then ox = ox + 100 * dt end
@@ -193,6 +202,12 @@ function tico.update(dt)
 
   if (tico.input.isDown("ctrl") and tico.input.isPressed("down")) or tico.input.isJoyPressed(0, "lb") then if currentColor > 1 then currentColor = currentColor - 1 end end
   if (tico.input.isDown("ctrl") and tico.input.isPressed("up")) or tico.input.isJoyPressed(0, "y")  then if currentColor < #gbacolors then currentColor = currentColor + 1 end end
+
+  -- if tico.input.isJoyDown(0, "dleft") then
+  --   x = x - 100 * dt
+  -- elseif tico.input.isJoyDown(0, "dright") then
+  --   x = x + 100 * dt
+  -- end
 end
 
 local t = ""
@@ -204,36 +219,45 @@ local time = 0
 local canvas2 = tico.graphics.newCanvas(160, 95)
 
 function tico.draw()
-  tico.graphics.clear()
+  -- canvas:attach()
+  -- tico.graphics.clear()
+  -- tico.graphics.push()
+  -- tico.graphics.translate(-x, -y)
+  -- -- tico.graphics.drawRectangle(x, y, 32, 32)
+  -- image:draw(x, y)
+  -- tico.graphics.drawRectangle(160, 90, 32, 32)
+  -- tico.graphics.drawRectangle(320, 128, 32, 32)
+  -- tico.graphics.pop()
+  -- canvas:detach()
+  -- canvas:auto()
   canvas:attach()
-  tico.graphics.clear()
+  -- tico.graphics.clear()
+  tico.graphics.clear(gbacolors[currentColor][2])
   gamescene:draw()
   canvas:detach()
 
-  local mx,my = tico.input.mousePos()
+  -- canvas:auto()
 
-  canvas1:attach()
-  tico.graphics.clear(0, 0, 0, 0)
-  for i=1,10 do
-    tico.graphics.fillCircle(mx/4, my/4, i+(i*4), {255, 255, 255, 255 - (i*20)})
-  end
-  canvas1:detach()
+  -- local mx,my = tico.input.mousePos()
 
-  time = time + (tico.timer.delta() * 0.2)
-  -- canvas2:attach()
-
+  -- canvas1:attach()
   -- tico.graphics.clear(0, 0, 0, 0)
-  -- canvas:draw()
-  -- tico.graphics.blendMode("multiply")
-  -- canvas1:draw()
-  -- tico.graphics.blendMode("alpha")
-  -- canvas2:detach()
+  -- for i=1,10 do
+  --   tico.graphics.fillCircle(mx/4, my/4, i+(i*4), {255, 255, 255, 255 - (i*20)})
+  -- end
+  -- canvas1:detach()
+
+  -- time = time + (tico.timer.delta() * 0.2)
+
+
 
   gbaShader:attach()
   gbaShader:send("u_col", unpack(gbacolors[currentColor]))
   canvas:auto()
+  -- canvas:draw(0, 0, 0, 4, 4)
   gbaShader:detach()
   tico.graphics.print("joystick: " .. tico.input.joystickName(0))
+
 end
 
 function initInput()

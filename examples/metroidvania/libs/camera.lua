@@ -245,6 +245,7 @@ function Camera:update(dt)
         self.limits.top + (self.offset_y / self.zoom),
         self.limits.bottom - ((self.offset_y - self.height) / -self.zoom)
     )
+    -- print(self.x, self.y, self.limits.top + (self.offset_y / self.zoom), self.limits.bottom - ((self.offset_y - self.height) / -self.zoom))
 --     print(self.limits.bottom, self.offset_y, self.height, self.limits.bottom - ((self.offset_y - self.height) / -self.zoom), self.y)
 --     print(self.limits.top, self.limits.top + (self.offset_y / self.zoom))
 --     print(self.y)
@@ -279,8 +280,8 @@ end
 function Camera:attach()
     tico.graphics.push()
     tico.graphics.translate(self.offset_x / self.zoom, self.offset_y / self.zoom)
-    tico.graphics.rotate(self.angle)
     tico.graphics.scale(self.zoom, self.zoom)
+    tico.graphics.rotate(self.angle)
     tico.graphics.translate(-self.x, -self.y)
     tico.graphics.scissor(0, 0, self.width, self.height)
 end

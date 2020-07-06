@@ -18,3 +18,5 @@ build-release.sh.old
 build.sh.old
 .lite_gitstatus*
 error.txt
+
+docs.json

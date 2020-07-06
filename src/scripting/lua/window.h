@@ -36,6 +36,22 @@ static int tic_lua_window_size(lua_State *L) {
 	return 2;
 }
 
+static int tic_lua_window_width(lua_State *L) {
+	int w = luaL_optinteger(L, 1, tic_window_get_width());
+	tic_window_set_width(w);
+
+	lua_pushinteger(L, w);
+	return 1;
+}
+
+static int tic_lua_window_height(lua_State *L) {
+	int h = luaL_optinteger(L, 1, tic_window_get_height());
+	tic_window_set_height(h);
+
+	lua_pushinteger(L, h);
+	return 1;
+}
+
 int luaopen_window(lua_State *L) {
 	luaL_Reg reg[] = {
 		{"getPos", tic_lua_window_pos},
@@ -43,6 +59,10 @@ int luaopen_window(lua_State *L) {
 		{"setTitle", tic_lua_window_title},
 		{"getSize", tic_lua_window_size},
 		{"setSize", tic_lua_window_size},
+		{"getWidth", tic_lua_window_width},
+		{"setWidth", tic_lua_window_width},
+		{"getHeight", tic_lua_window_height},
+		{"setHeight", tic_lua_window_height},
 		{NULL, NULL}
 	};
 	luaL_newlib(L, reg);

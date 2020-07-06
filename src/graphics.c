@@ -11,8 +11,9 @@ void tic_graphics_push() {
   tic_batch_next_drawcall(&Core.render.batch, tc_false);
   Core.render.state.camera = tic_batch_get_transform(&Core.render.batch);
 }
-void tic_graphics_translate(int x, int y) {
-  tic_matrix_translate_in_place(Core.render.state.camera, x, y, 0);
+void tic_graphics_translate(float x, float y) {
+  float yy = y + 0.1f;
+  tic_matrix_translate_in_place(Core.render.state.camera, x, yy, 0);
 }
 
 void tic_graphics_scale(float x, float y) {
@@ -220,8 +221,8 @@ tc_Texture tic_texture_from_memory(void *data, int bufSize) {
   tex.height = height;
   tex.filter[0] = GL_NEAREST;
   tex.filter[1] = GL_NEAREST;
-  tex.wrap[0] = GL_REPEAT;
-  tex.wrap[1] = GL_REPEAT;
+  tex.wrap[0] = GL_CLAMP_TO_BORDER;
+  tex.wrap[1] = GL_CLAMP_TO_BORDER;
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, tex.filter[0]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, tex.filter[1]);
@@ -283,7 +284,7 @@ void tic_texture_draw(tc_Texture tex, tc_Rectf dest, tc_Rectf src, tc_Color colo
   tic_batch_add_rect(&Core.render.batch, dest, src, color);
 }
 
-void tic_texture_draw_ex(tc_Texture tex, tc_Rectf dest, tc_Rectf src, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+void tic_texture_draw_ex(tc_Texture tex, tc_Rectf dest, tc_Rectf src, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   tic_batch_set_texture(&Core.render.batch, tex);
   tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
   tic_batch_reset_if_full(&Core.render.batch, 4);
@@ -338,28 +339,28 @@ void tic_image_destroy(tc_Image *image) {
   tic_texture_destroy(&image->texture);
 }
 
-void tic_image_draw(tc_Image image, int x, int y, tc_Color color) {
+void tic_image_draw(tc_Image image, float x, float y, tc_Color color) {
   tic_image_draw_scale(image, x, y, 1, 1, color);
 }
-void tic_image_draw_scale(tc_Image image, int x, int y, float sx, float sy, tc_Color color) {
+void tic_image_draw_scale(tc_Image image, float x, float y, float sx, float sy, tc_Color color) {
   tc_Rectf dest = tic_rectf(x, y, image.width*sx, image.height*sy);
   tc_Rectf src = tic_rectf(0, 0, image.width, image.height);
   tic_texture_draw(image.texture, dest, src, color);
 }
-void tic_image_draw_ex(tc_Image image, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+void tic_image_draw_ex(tc_Image image, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   tc_Rectf dest = tic_rectf(x, y, image.width*sx, image.height*sy);
   tc_Rectf src = tic_rectf(0, 0, image.width, image.height);
   tic_texture_draw_ex(image.texture, dest, src, angle, sx, sy, cx, cy, color);
 }
-void tic_image_draw_part(tc_Image image, tc_Rectf rect, int x, int y, tc_Color color) {
+void tic_image_draw_part(tc_Image image, tc_Rectf rect, float x, float y, tc_Color color) {
   tic_image_draw_part_scale(image, rect, x, y, 1, 1, color);
 }
-void tic_image_draw_part_scale(tc_Image image, tc_Rectf rect, int x, int y, float sx, float sy, tc_Color color) {
+void tic_image_draw_part_scale(tc_Image image, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
 //   tc_Rectf src = tc_rectf(0, 0, image.width, image.height);
   tic_texture_draw(image.texture, dest, rect, color);
 }
-void tic_image_draw_part_ex(tc_Image image, tc_Rectf rect, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+void tic_image_draw_part_ex(tc_Image image, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
   tic_texture_draw_ex(image.texture, dest, rect, angle, sx, sy, cx, cy, color);
 }
@@ -590,7 +591,7 @@ tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
                              "uniform mat4 modelview;\n"
                              "void main()\n"
                              "{\n"
-                             "  gl_Position = world * modelview *  vec4(in_Pos, 0.0, 1.0);\n"
+                             "  gl_Position = world * modelview *  vec4(in_Pos.x,in_Pos.y , 0.0, 1.0);\n"
                              "  //gl_Position = vec4(in_Pos, 0.0, 1.0);\n"
                              "  v_Color = in_Color;\n"
                              "  v_Texcoord = in_Texcoord;\n"
@@ -620,7 +621,7 @@ void tic_shader_send_world(tc_Shader shader) {
   glGetIntegerv(GL_VIEWPORT, view);
   tic_matrix_ortho(&world, 0, view[2], view[3], 0, 0, 1);
 
-  tic_shader_send(shader, (tc_uint8*)"world", world.data, TIC_UNIFORM_MATRIX);
+  tic_shader_send(shader, "world", world.data, TIC_UNIFORM_MATRIX);
 }
 
 void tic_shader_send(tc_Shader shader, const char *name, void *value, TIC_SHADER_UNIFORM_ type) {
@@ -708,11 +709,11 @@ void tic_canvas_disable(void) {
   Core.render.state.currentCanvas.id = 0;
 }
 
-void tic_canvas_draw(tc_Canvas canvas, int x, int y, tc_Color color) {
+void tic_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color) {
   tic_canvas_draw_scale(canvas, x, y, 1, 1, color);
 }
 
-void tic_canvas_draw_scale(tc_Canvas canvas, int x, int y, float sx, float sy, tc_Color color) {
+void tic_canvas_draw_scale(tc_Canvas canvas, float x, float y, float sx, float sy, tc_Color color) {
 //   tc_batch_set_texture(&Core.render.batch, canvas.texture);
 //   tc_batch_set_draw_mode(&Core.render.batch, TC_TRIANGLES);
 //   tc_batch_reset_if_full(&Core.render.batch, 8);
@@ -722,7 +723,7 @@ void tic_canvas_draw_scale(tc_Canvas canvas, int x, int y, float sx, float sy, t
   tic_texture_draw(canvas.texture, d, s, color);
 }
 
-void tic_canvas_draw_ex(tc_Canvas canvas, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+void tic_canvas_draw_ex(tc_Canvas canvas, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
 //   tc_batch_set_texture(&Core.render.batch, canvas.texture);
 //   tc_batch_set_draw_mode(&Core.render.batch, TC_TRIANGLES);
 //   tc_batch_reset_if_full(&Core.render.batch, 8);
@@ -732,14 +733,14 @@ void tic_canvas_draw_ex(tc_Canvas canvas, int x, int y, float angle, float sx, f
   tic_texture_draw_ex(canvas.texture, d, s, angle, sx, sy, cx, cy, color);
 }
 
-void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, int x, int y, tc_Color color) {
+void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_Color color) {
   tic_canvas_draw_part_scale(canvas, rect, x, y, 1, 1, color);
 }
-void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, int x, int y, float sx, float sy, tc_Color color) {
+void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
   tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
   tic_texture_draw(canvas.texture, dest, rect, color);
 }
-void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   int offy = (rect.h-cy)*sy;
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*-sy);
 //   TRACELOG("%f", dest.y);
@@ -753,5 +754,5 @@ void tic_canvas_draw_auto(tc_Canvas canvas) {
   int cCenterX = canvas.width/2;
   int cCenterY = canvas.height/2;
 
-  tic_canvas_draw_ex(canvas, wCenterX, wCenterY+2, 0, ratio, ratio, cCenterX, cCenterY, WHITE);
+  tic_canvas_draw_ex(canvas, wCenterX, wCenterY+(ratio/2), 0, ratio, ratio, cCenterX, cCenterY, WHITE);
 }
