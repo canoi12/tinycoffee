@@ -12,7 +12,10 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
   input->names.joyAxisNames = hashmap_create(JOY_AXIS_COUNT);
 
   for (int i = 0; i < TIC_JOY_COUNT; i++) {
-    if (!glfwJoystickIsGamepad(i)) continue;
+    if (!glfwJoystickIsGamepad(i)) {
+      input->joystickState[i].active = tc_false;
+      continue;
+    }
 
     input->joystickState[i].active = tc_true;
   }
@@ -255,7 +258,7 @@ void tic_input_update(tc_Input *input) {
   // }
 }
 
-int tic_input_get_keycode(const char *name) {
+int tic_input_get_key_code(const char *name) {
   hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
   int code = -1;
   if (item) code = item->value;
@@ -263,8 +266,25 @@ int tic_input_get_keycode(const char *name) {
   return code;
 }
 
-int tic_input_get_joybtncode(const char *name) {
+int tic_input_get_mouse_code(const char *name) {
+  hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
+  int code = -1;
+  if (item) code = item->value;
+
+  return code;
+}
+
+int tic_input_get_joy_btncode(const char *name) {
   hashmap_item *item = hashmap_get(Core.input.names.joyButtonNames, name);
+  int code = -1;
+  if (item) code = item->value;
+
+  return code;
+}
+
+int tic_input_get_joy_axiscode(const char *name) {
+  hashmap_item *item = hashmap_get(Core.input.names.joyAxisNames, name);
+
   int code = -1;
   if (item) code = item->value;
 
@@ -275,6 +295,7 @@ int tic_input_get_joybtncode(const char *name) {
 /* key functions */
 
 tc_bool tic_input_is_key_down(TIC_KEY key) {
+  if (key < 0) return tc_false;
   key = tic_clamp(key, 0, KEY_LAST);
   return Core.input.keyState.down[key];
 }

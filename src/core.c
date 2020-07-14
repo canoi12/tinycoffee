@@ -8,7 +8,7 @@ tc_Core Core;
 static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
   Core.window.x = x;
   Core.window.y = y;
-  tic_lua_callback("moved");
+//   tic_lua_callback("moved");
 }
 
 static void tic_window_resize_callback(GLFWwindow *window, int width, int height) {
@@ -19,12 +19,12 @@ static void tic_framebuffer_size_callback(GLFWwindow *window, int width, int hei
   glViewport(0, 0, width, height);
   Core.window.width = width;
   Core.window.height = height;
-  tic_lua_callback("resized");
+//   tic_lua_callback("resized");
 }
 
 static void tic_window_character_callback(GLFWwindow *window, unsigned int codepoint) {
   // tic_ui_text_callback(codepoint);
-  tic_lua_callback("textinput");
+//   tic_lua_callback("textinput");
 }
 
 static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -46,7 +46,7 @@ static void tic_mouse_pos_callback(GLFWwindow *window, double posX, double posY)
 {
   Core.input.mouseState.x = posX;
   Core.input.mouseState.y = posY;
-  tic_lua_callback("mousemoved");
+//   tic_lua_callback("mousemoved");
 
   // tic_ui_mouse_pos_callback(posX, posY);
 }
@@ -76,7 +76,7 @@ static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double
   Core.input.mouseState.scrollX = xoffset * -10;
   Core.input.mouseState.scrollY = yoffset * -10;
 
-  tic_lua_callback("mousescroll");
+//   tic_lua_callback("mousescroll");
 }
 
 tc_bool tic_init(tc_Config *config) {
@@ -102,13 +102,6 @@ tc_bool tic_init(tc_Config *config) {
     exit(-1);
   }
 
-  tic_lua_init(&Core.config);
-#ifdef LUA_LANG
-#endif
-#ifdef WREN_LANG
-  Core.wren = tic_init_wren(&Core.config);
-#endif
-
   // Window callbacks
   glfwSetWindowPosCallback(Core.window.handle, tic_window_move_callback);
   glfwSetWindowSizeCallback(Core.window.handle, tic_window_resize_callback);
@@ -122,6 +115,13 @@ tc_bool tic_init(tc_Config *config) {
   glfwSetFramebufferSizeCallback(Core.window.handle, tic_framebuffer_size_callback);
   TRACELOG("Setup callbacks");
 
+  if (config->lang == TIC_LUA_GAME) tic_lua_init(&Core.config);
+#ifdef LUA_LANG
+#endif
+#ifdef WREN_LANG
+  if (config->lang == TIC_WREN_GAME) tic_wren_init();
+#endif
+
   tic_input_init(&Core.input, 0);
 
   tic_render_init(&Core.render);
@@ -133,12 +133,7 @@ tc_bool tic_init(tc_Config *config) {
   tic_audio_init();
 
   // glViewport(0, 0, Core.window.width, Core.window.height);
-#ifdef WREN_LANG
-  tic_wren_game_load(Core.wren);
-#endif
-#ifdef LUA_LANG
-#endif
-  tic_lua_load();
+//   tic_lua_load();
 
   // tic_ui_init(Core.defaultFont);
 
@@ -152,6 +147,10 @@ void tic_init_config_json(tc_Config *config) {
   const char *name = tic_json_get_opt_string(jsonConfig, "name", config->title);
   if (name) {
     strcpy(config->title, name);
+  }
+  const char *lang = tic_json_get_opt_string(jsonConfig, "lang", "");
+  if (!strcmp(lang, "wren")) {
+    config->lang = TIC_WREN_GAME;
   }
   window = tic_json_get_object(jsonConfig, "window");
   if (window) {
@@ -180,6 +179,7 @@ tc_Config tic_config_init(const char *title, int width, int height, int argc, ch
   config.mode = TIC_MODE_GAME;
   config.argc = argc;
   config.argv = argv;
+  config.lang = TIC_LUA_GAME;
 
 
   if (argc < 2) strcpy(config.path, ".");
@@ -200,26 +200,78 @@ void tic_poll_events() {
   glfwPollEvents();
 }
 
-void tic_clear(tc_Color color) {
-  glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
-  glClear(GL_COLOR_BUFFER_BIT);
+static char *errMsg;
+
+static int tic_error_load() {
+}
+
+static int tic_error_step() {
+  tic_graphics_draw_text_scale("Error", 32, 32, 2, 2, WHITE);
+  // tic_graphics_draw_text(errMsg, 32, 64, WHITE);
+#ifdef WREN_LANG
+  int y = 64;
+  tc_WrenTraceback *trace = Core.wren.trace;
+  tic_graphics_draw_text(trace->message, 32, y, WHITE);
+
+  y += 24;
+  tic_graphics_draw_text("Traceback", 32, y, WHITE);
+
+  y += 24;
+  trace = trace->next;
+  while(trace->next) {
+    tic_graphics_draw_text(trace->message, 32, y, WHITE);
+    y += 16;
+    trace = trace->next;
+  }
+#endif
+}
+
+void tic_error(char *message) {
+  // TRACELOG("%s", message);
+#ifdef WREN_LANG
+  if (!Core.wren.trace) {
+    Core.wren.trace = malloc(sizeof(tc_WrenTraceback));
+    strcpy(Core.wren.trace->message, message);
+    Core.wren.trace->next = NULL;
+  } else {
+    tc_WrenTraceback *trace = Core.wren.trace;
+    while(trace->next) trace = trace->next;
+
+    tc_WrenTraceback *next = malloc(sizeof(tc_WrenTraceback));
+
+    strcpy(next->message, message);
+    next->next = NULL;
+    trace->next = next;
+  }
+#endif
+//   TRACEERR("%s", message);
+  Core.state.load = tic_error_load;
+  Core.state.step = tic_error_step;
 }
 
 void tic_begin_draw() {
+  tc_Canvas canvas;
+  canvas.id = 0;
+  canvas.width = Core.window.width;
+  canvas.height = Core.window.height;
 	tic_batch_begin(&Core.render.batch);
   glEnable(GL_BLEND);
   glEnable(GL_SCISSOR_TEST);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glBlendEquation(GL_FUNC_ADD);
-  glUseProgram(Core.render.state.currentShader.program);
-  tic_shader_send_world(Core.render.state.currentShader);
+  // glUseProgram(Core.render.state.currentShader.program);
+  // tic_shader_send_world(Core.render.state.currentShader);
   tic_batch_begin(&Core.render.batch);
 //   tc_attach_canvas(Core.render.state.defaultCanvas);
   // tic_ui_begin();
+  tic_shader_attach(Core.render.state.defaultShader);
+  tic_canvas_attach(canvas);
 }
 
 void tic_end_draw() {
-  tic_canvas_disable();
+  tic_canvas_detach();
+  tic_shader_detach();
+  // tic_canvas_disable();
   // tic_ui_end();
   tic_batch_flush(&Core.render.batch);
   tic_batch_draw(&Core.render.batch);
@@ -228,13 +280,14 @@ void tic_end_draw() {
 }
 
 void tic_main_loop() {
+  Core.state.load();
   while(!tic_window_should_close()) {
     tic_update();
 
-    tic_clear(BLACK);
+    tic_graphics_clear(BLACK);
     tic_begin_draw();
 
-    tic_lua_step();
+    Core.state.step(tic_timer_get_delta());
 
     tic_end_draw();
   }

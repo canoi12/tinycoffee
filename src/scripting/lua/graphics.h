@@ -258,8 +258,8 @@ static int tic_lua_draw_image(lua_State *L) {
 }
 
 static int tic_lua_destroy_image(lua_State *L) {
-  tc_Image *image = luaL_checkudata(L, 1, IMAGE_CLASS);
-  tic_image_destroy(image);
+  // tc_Image *image = luaL_checkudata(L, 1, IMAGE_CLASS);
+  // tic_image_destroy(image);
   return 0;
 }
 
@@ -609,7 +609,7 @@ static int tic_lua_graphics_clear(lua_State *L) {
     color = lua_optcolor(L, 1, BLACK);
   }
 
-  tic_clear(color);
+  tic_graphics_clear(color);
   return 0;
 }
 
@@ -627,14 +627,14 @@ static int tic_lua_graphics_clear(lua_State *L) {
 static int tic_lua_scissor(lua_State *L) {
   int n = lua_gettop(L);
   if (n < 4) {
-    tic_scissor(0, 0, Core.window.width, Core.window.height);
+    tic_graphics_scissor(0, 0, Core.window.width, Core.window.height);
     return 0;
   }
   int x = luaL_checknumber(L, 1);
   int y = luaL_checknumber(L, 2);
   int w = luaL_checknumber(L, 3);
   int h = luaL_checknumber(L, 4);
-  tic_scissor(x, y, w, h);
+  tic_graphics_scissor(x, y, w, h);
 
   return 0;
 }

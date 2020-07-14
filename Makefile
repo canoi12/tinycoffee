@@ -6,7 +6,7 @@ MODE := Debug
 EXTERNAL = src/external
 TMP = temp
 
-DEFINE = 
+DEFINE =
 CFLAGS = -g -std=gnu99
 LFLAGS = -lX11 -lm -ldl -lpthread -lGL
 LIBNAME = libtico
@@ -14,7 +14,11 @@ SLIBNAME = $(LIBNAME).a
 DLIBNAME = $(LIBNAME).so
 BINNAME = tico
 
+
 INCLUDE = -I$(EXTERNAL) -Isrc
+
+DEFINE += -DWREN_LANG
+INCLUDE += -I$(EXTERNAL)/wren/src/include -I$(EXTERNAL)/wren/src/optional -I$(EXTERNAL)/wren/src/vm
 
 DJITOBJ = $(EXTERNAL)/luajit/src/*_dyn.o
 SJITOBJ = $(EXTERNAL)/luajit/src/*.o
@@ -66,7 +70,7 @@ ZIP_OBJ = $(ZIP_FOLDER)/zip.o
 CJSON_OBJ = $(CJSON_FOLDER)/cJSON.o
 GL3W_OBJ = $(GL3W_FOLDER)/gl3w.o
 
-TOBJ += $(GLFW_OBJ) $(TICO_OBJ) $(ZIP_OBJ) $(CJSON_OBJ) $(GL3W_OBJ)
+TOBJ += $(GLFW_OBJ) $(TICO_OBJ) $(ZIP_OBJ) $(CJSON_OBJ) $(GL3W_OBJ) $(WREN_OBJ)
 
 ifdef NOJIT
 	TOBJ += $(LUA_OBJ)
@@ -83,11 +87,16 @@ DOBJ = $(OBJ:%.o=$(TMP)/shared/%.o)
 LUA_SCRIPTS = $(wildcard src/scripting/lua/*.lua)
 LUAH_SCRIPTS = $(LUA_SCRIPTS:%.lua=%.lua.h)
 LUAH_FILES = $(wildcard src/scripting/lua/*.h)
+
+WREN_SCRIPTS = $(wildcard src/scripting/wren/*.wren)
+WRENH_SCRIPTS = $(WREN_SCRIPTS:%.wren=%.wren.h)
+WRENH_FILES = $(wildcard src/scripting/wren/*.h)
+
 GLSL_FILES = $(wildcard src/shaders/*.glsl src/shaders/*.frag src/shaders/*.vert)
 GLSLH_FILES = $(GLSL_FILES:%=%.h)
 
 
-hello: 
+hello:
 	@echo "Hello"
 
 embed:
@@ -102,6 +111,9 @@ $(TMP)/shared/%.o: $$(subst __,/,%.c)
 	$(CROSS)$(CC) -c $< -o $@ -fPIC $(DEFINE) -D_GLFW_BUILD_DLL -DBUILD_SHARED $(INCLUDE) $(CFLAGS)
 
 %.lua.h: %.lua embed
+	./embed $<
+
+%.wren.h: %.wren embed
 	./embed $<
 
 %.glsl.h: %.glsl embed
@@ -129,10 +141,10 @@ luajit:
 	cp $(DJITOBJ) $(TMP)/shared
 	rm -f $(TMP)/shared/luajit.o
 
-$(SLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(SOBJ) $(COMPILE_JIT) $(LUAH_FILES)
+$(SLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(WRENH_SCRIPTS) $(SOBJ) $(COMPILE_JIT) $(LUAH_FILES)
 	ar rcs $(LIBNAME).a $(TMP)/static/*.o
 
-$(DLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(DOBJ) $(COMPILE_JIT) $(LUAH_FILES)
+$(DLIBNAME): setup $(LUAH_SCRIPTS) $(GLSLH_FILES) $(WRENH_SCRIPTS) $(DOBJ) $(COMPILE_JIT) $(LUAH_FILES)
 	$(CROSS)$(CC) -shared -o $@ $(TMP)/shared/*.o -DBUILD_SHARED $(CFLAGS) $(DEFINE) $(LFLAGS) $(INCLUDE)
 
 tico: $(SLIBNAME)
@@ -147,6 +159,7 @@ clean_builds:
 	rm -f $(SLIBNAME)
 	rm -f $(DLIBNAME)
 	rm -f src/scripting/lua/*.lua.h
+	rm -f src/shaders/*.h
 	cd $(EXTERNAL)/luajit/src && $(MAKE) clean
 
 clean: clean_builds

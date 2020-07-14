@@ -20,11 +20,6 @@
 #define FONT_CLASS "Font"
 #define SHADER_CLASS "Shader"
 
-#ifdef LUAJIT
-void lua_len(lua_State *L, int i) {
-  lua_pushnumber(L, lua_objlen(L, i));
-}
-
 int lua_isarray(lua_State *L, int index) {
   lua_len(L, index);
   int len = lua_tonumber(L, -1);
@@ -33,6 +28,11 @@ int lua_isarray(lua_State *L, int index) {
     return 1;
   }
   return 0;
+}
+
+#ifdef LUAJIT
+void lua_len(lua_State *L, int i) {
+  lua_pushnumber(L, lua_objlen(L, i));
 }
 
 void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int glb) {
@@ -169,6 +169,9 @@ tc_bool tic_lua_init(tc_Config *config) {
   // size_t size;
   // const char *lua_init = tic_filesystem_read_file("/home/canoi/Documentos/Projects/engine-tests/tico/src/wrap/lua/scripts/init.lua", &size);
   // int lerr = luaL_loadbuffer(Core.lua.L, lua_init, size, "init.lua");
+  Core.state.load = tic_lua_load;
+  Core.state.step = tic_lua_step;
+
   int lerr = luaL_loadbuffer(Core.lua.L, init_lua, init_lua_size, "init.lua");
   // free((void*)lua_init);
   int err = lua_pcall(Core.lua.L, 0, 0, 0);

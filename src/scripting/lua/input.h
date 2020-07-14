@@ -140,7 +140,7 @@ static const char *tc_Keys =
 
 static int tic_lua_is_key_down(lua_State *L) {
   const char *key = luaL_checkstring(L, 1);
-  int code = tic_input_get_keycode(key);
+  int code = tic_input_get_key_code(key);
   int down = tic_input_is_key_down(code);
 
   lua_pushboolean(L, down);
@@ -149,7 +149,7 @@ static int tic_lua_is_key_down(lua_State *L) {
 
 static int tic_lua_is_key_pressed(lua_State *L) {
   const char *key = luaL_checkstring(L, 1);
-  int code = tic_input_get_keycode(key);
+  int code = tic_input_get_key_code(key);
   int down = tic_input_is_key_pressed(code);
 
   lua_pushboolean(L, down);
@@ -158,7 +158,7 @@ static int tic_lua_is_key_pressed(lua_State *L) {
 
 static int tic_lua_is_key_up(lua_State *L) {
   const char *key = luaL_checkstring(L, 1);
-  int code = tic_input_get_keycode(key);
+  int code = tic_input_get_key_code(key);
   int down = tic_input_is_key_up(code);
 
   lua_pushboolean(L, down);
@@ -167,7 +167,7 @@ static int tic_lua_is_key_up(lua_State *L) {
 
 static int tic_lua_is_key_released(lua_State *L) {
   const char *key = luaL_checkstring(L, 1);
-  int code = tic_input_get_keycode(key);
+  int code = tic_input_get_key_code(key);
   int down = tic_input_is_key_released(code);
 
   lua_pushboolean(L, down);
@@ -313,6 +313,10 @@ static int tic_lua_is_released(lua_State *L) {
   if (strstr(name, "mouse")) {
     hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
     if (item) down = tic_input_is_mouse_released(item->value);
+  } else if(strstr(name, "jp")) {
+    int jid = luaL_optinteger(L, 2, 0);
+    hashmap_item *item = hashmap_get(Core.input.names.joyButtonNames, name);
+    if (item) down = tic_input_is_joy_released(jid, item->value);
   } else {
     hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
     if (item) down = tic_input_is_key_released(item->value);
@@ -340,7 +344,7 @@ static int tic_lua_get_mouse_scroll(lua_State *L) {
 static int tic_lua_is_joy_down(lua_State *L) {
   int jid = luaL_checkinteger(L, 1);
   const char *key = luaL_checkstring(L, 2);
-  int btn = tic_input_get_joybtncode(key);
+  int btn = tic_input_get_joy_btncode(key);
 
   int down = tic_input_is_joy_down(jid, btn);
   lua_pushboolean(L, down);
@@ -350,7 +354,7 @@ static int tic_lua_is_joy_down(lua_State *L) {
 static int tic_lua_is_joy_pressed(lua_State *L) {
   int jid = luaL_checkinteger(L, 1);
   const char *key = luaL_checkstring(L, 2);
-  int btn = tic_input_get_joybtncode(key);
+  int btn = tic_input_get_joy_btncode(key);
 
   int down = tic_input_is_joy_pressed(jid, btn);
   lua_pushboolean(L, down);
@@ -360,7 +364,7 @@ static int tic_lua_is_joy_pressed(lua_State *L) {
 static int tic_lua_is_joy_up(lua_State *L) {
   int jid = luaL_checkinteger(L, 1);
   const char *key = luaL_checkstring(L, 2);
-  int btn = tic_input_get_joybtncode(key);
+  int btn = tic_input_get_joy_btncode(key);
 
   int down = tic_input_is_joy_up(jid, btn);
   lua_pushboolean(L, down);
@@ -370,7 +374,7 @@ static int tic_lua_is_joy_up(lua_State *L) {
 static int tic_lua_is_joy_released(lua_State *L) {
   int jid = luaL_checkinteger(L, 1);
   const char *key = luaL_checkstring(L, 2);
-  int btn = tic_input_get_joybtncode(key);
+  int btn = tic_input_get_joy_btncode(key);
 
   int down = tic_input_is_joy_released(jid, btn);
   lua_pushboolean(L, down);

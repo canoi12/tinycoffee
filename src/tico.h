@@ -1,8 +1,10 @@
 #ifndef TICO_H
 #define TICO_H
 
+// #define WREN_LANG
 
-#ifndef TICO_DEF_ONLY
+
+#ifndef TICO_NO_INCLUDE
   #include <stdio.h>
   #include <stdlib.h>
   #include <math.h>
@@ -33,12 +35,20 @@
     #include "external/luajit/src/luaconf.h"
     #include "external/luajit/src/luajit.h"
   #endif
+
+  #ifdef WREN_LANG
+  #include "external/wren/src/include/wren.h"
+  #endif
 #else
   typedef void* GLFWwindow;
   typedef void* cJSON;
   typedef void* hashmap;
   typedef void* ma_decoder;
   typedef void* stbtt_fontinfo;
+
+  #ifdef WREN_LANG
+  typedef void* WrenVM;
+  #endif
 #endif
 
 #define TICO_VERSION "0.1.4"
@@ -444,6 +454,11 @@ typedef enum {
   TIC_DEFAULT_VERTEX = 0
 } TIC_VERTEX_SHADERS;
 
+typedef enum {
+  TIC_LUA_GAME = 0,
+  TIC_WREN_GAME
+} TIC_GAME_LANG;
+
 vec_struct(2);
 vec_struct(3);
 vec_struct(4);
@@ -723,6 +738,8 @@ typedef struct tc_Render {
     tc_Shader defaultShader;
     tc_Shader currentShader;
 
+    int canvasIndex;
+    int shaderIndex;
     tc_Shader shaderStack[SHADER_STACK_SIZE];
     tc_Canvas canvasStack[CANVAS_STACK_SIZE];
 
@@ -765,6 +782,28 @@ typedef struct {
   tc_bool mainLoaded;
 } tc_Lua;
 
+#ifdef WREN_LANG
+typedef struct tc_WrenTraceback tc_WrenTraceback;
+
+struct tc_WrenTraceback {
+  char message[512];
+  tc_WrenTraceback *next;
+};
+
+typedef struct {
+  WrenVM *vm;
+  WrenConfiguration config;
+  WrenHandle *loadHandle;
+  WrenHandle *stepHandle;
+  WrenHandle *errorHandle;
+
+  WrenHandle *classHandle;
+  tc_WrenTraceback *trace;
+
+  tc_bool mainLoaded;
+} tc_Wren;
+#endif
+
 typedef enum {
   TIC_RESOURCE_TEXTURE = 1,
   TIC_RESOURCE_SOUND,
@@ -793,6 +832,7 @@ typedef struct tc_Config {
   TIC_INIT_FLAGS flags;
   TIC_WINDOW_FLAGS windowFlags;
   TIC_MODE mode;
+  TIC_GAME_LANG lang;
   int argc;
   char ** argv;
 } tc_Config;
@@ -806,14 +846,16 @@ typedef struct tc_Core {
   tc_Config config;
   tc_Timer timer;
   tc_Lua lua;
+#ifdef WREN_LANG
+  tc_Wren wren;
+#endif
   tc_ResourceManager resources;
   struct {
     tc_bool packed;
     TIC_MODE mode;
     TIC_RENDER_MODE renderMode;
-    int (*loadGame)();
-    int (*updateGame)();
-    int (*drawGame)();
+    int (*load)();
+    int (*step)();
   } state;
 } tc_Core;
 
@@ -834,9 +876,10 @@ TIC_API tc_bool tic_config_json_init(tc_Config *config);
 TIC_API void tic_update();
 TIC_API void tic_poll_events();
 
+TIC_API void tic_error(char *message);
+
 TIC_API void tic_begin_draw();
 TIC_API void tic_end_draw();
-TIC_API void tic_clear(tc_Color color);
 TIC_API void tic_swap_buffers();
 
 TIC_API void tic_main_loop();
@@ -978,13 +1021,15 @@ TIC_API void tic_graphics_translate(float x, float y);
 TIC_API void tic_graphics_scale(float x, float y);
 TIC_API void tic_graphics_rotate(float angle);
 TIC_API void tic_graphics_scissor(int x, int y, int width, int height);
+TIC_API void tic_graphics_clear(tc_Color color);
+
 
 /*******************
  * Shapes
  *******************/
 
-TIC_API void tic_graphics_draw_rectangle(int x, int y, int width, int height, tc_Color color);
-TIC_API void tic_graphics_fill_rectangle(int x, int y, int width, int height, tc_Color color);
+TIC_API void tic_graphics_draw_rectangle(float x, float y, int width, int height, tc_Color color);
+TIC_API void tic_graphics_fill_rectangle(float x, float y, int width, int height, tc_Color color);
 TIC_API void tic_graphics_draw_rect(tc_Rect rect, tc_Color color);
 TIC_API void tic_graphics_fill_rect(tc_Rect rect, tc_Color color);
 
@@ -1138,6 +1183,11 @@ TIC_API int tic_font_get_text_height(tc_Font font, const tc_uint8 *text, int len
 TIC_API tc_bool tic_render_init(tc_Render *render);
 TIC_API void tic_render_destroy(tc_Render *render);
 
+TIC_API void tic_render_push_canvas(tc_Canvas canvas);
+TIC_API void tic_render_pop_canvas(void);
+TIC_API void tic_render_push_shader(tc_Shader shader);
+TIC_API void tic_render_pop_shader(void);
+
 TIC_API tc_DrawCall tic_drawcall_create(int start, int texture, TIC_DRAW_MODE mode, tc_Rect *clip, tc_Matrix modelview);
 TIC_API void tic_drawcall_destroy(tc_DrawCall *call);
 
@@ -1186,8 +1236,10 @@ TIC_API tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags);
 TIC_API void tic_input_destroy(tc_Input *input);
 
 TIC_API void tic_input_update(tc_Input *input);
-TIC_API int tic_input_get_keycode(const char *name);
-TIC_API int tic_input_get_joybtncode(const char *name);
+TIC_API int tic_input_get_key_code(const char *name);
+TIC_API int tic_input_get_joy_btncode(const char *name);
+TIC_API int tic_input_get_joy_axiscode(const char *name);
+TIC_API int tic_input_get_mouse_code(const char *name);
 
 TIC_API tc_bool tic_input_is_key_down(TIC_KEY key);
 TIC_API tc_bool tic_input_is_key_pressed(TIC_KEY key);
@@ -1349,6 +1401,18 @@ TIC_API int tic_lua_step();
 TIC_API void tic_lua_callback(const char *name);
 
 TIC_API int tic_lua_preload(const char *modName, const char *modCode, int bufSize);
+
+/***************
+ * Wren
+ ***************/
+
+TIC_API tc_bool tic_wren_init();
+TIC_API void tic_wren_terminate();
+
+TIC_API int tic_wren_load();
+TIC_API int tic_wren_step();
+
+TIC_API void tic_wren_callback(const char *name);
 
 /**********************
  * Debug

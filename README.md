@@ -1,4 +1,6 @@
-# Tiny Coffee lib
+![tinycoffee-banner](https://user-images.githubusercontent.com/15099243/87436458-7296c700-c5c3-11ea-9738-ed679731de7e.png)
+
+# Tiny Coffee
 
 [![Join the chat at https://gitter.im/tinycoffee/tinycoffee](https://badges.gitter.im/tinycoffee/tinycoffee.svg)](https://gitter.im/tinycoffee/tinycoffee?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/canoi12/tinycoffee.svg?branch=master)](https://travis-ci.org/canoi12/tinycoffee)
@@ -33,7 +35,7 @@ I'm using in this project:
 - [ ] wrap for wren (work in progress, stopped by now)
 - [x] json parser
 - [ ] autopack textures on the fly
-- [ ] joystick support
+- [x] joystick support (initial stage)
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
 - [ ] make specific game modules like camera, tilemap, physics, etc.
 - [ ] fuse game executable with zip (like love2d)
@@ -47,39 +49,43 @@ I'm using in this project:
 - [x] drawing canvas
 - [x] custom glsl shaders (but the shaders need to implement some attribute variables and uniforms)
 - [x] keyboard and mouse input
+- [ ] resource manager
 
 ## usage
 
-if you want to write your own game loop, use:
+if you want to use your own game loop using TICO static lib, use:
 
 ```c
-
 // main.c
-
+#define TICO_NO_INCLUDE
 #include "tico.h"
 
 int main(int argc, char ** argv) {
   tc_Config config = tic_config_init("title", 640, 380, argc, argv);
   tc_bool success = tic_init(&config);
 
-  tc_texture tex = tic_load_texture(filename);
+  tc_Image image = tic_image_load(filename);
+
+  Core.state.load(); // optional, use if you want scripting support
 
   while (!tic_window_should_close()) { // main loop
-    tic_poll_events(); // poll events
+    tic_update(); // update inputs, timers, ...
 
-    tic_clear(color3(75, 90, 90)); // clear screen with color
+    tic_graphics_clear(color3(75, 90, 90)); // clear screen with color
 
     tic_begin_draw(); // begin batch render
 
-    tic_draw_texture(tex, 0, 0, WHITE); // draw texture
-    tic_draw_texture_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
+    Core.state.step(tic_timer_delta()); // optional, use if you want scripting support
 
-    tic_lua_step();
+    tic_image_draw(tex, 0, 0, WHITE); // draw texture
+    tic_image_draw_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
+
+    
 
     tic_end_draw(); // finish batch render
   }
 
-  tc_terminate();
+  tic_terminate();
 
   return 0;
 }

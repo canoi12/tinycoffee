@@ -209,10 +209,10 @@ function Map:draw()
   lightShader:detach()
   self.lightCanvas:detach()
 
-  local p = self:getEntity(18)[Position]
-  image1:draw(p.x, p.y)
+  -- local p = self:getEntity(18)[Position]
+  -- image1:draw(p.x, p.y)
 
-  canvas:attach()
+  -- canvas:attach()
 
 
   tico.graphics.blendMode("multiply")

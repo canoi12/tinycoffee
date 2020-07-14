@@ -11,7 +11,7 @@ function CameraSystem:update(dt)
     local camera = e[Camera].camera
     local target = gamescene:getEntity(e[Target].id)
     camera:update(dt)
-    camera:follow(target[Position])
+    camera:follow(target[Position], true)
     -- camera.x = target[Position].x-(camera.w/2)
     -- camera.y = target[Position].y-(camera.h/2)
   end

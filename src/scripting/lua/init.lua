@@ -106,6 +106,6 @@ else
 
   function tico.draw()
     local w, h = tico.graphics.getSize()
-    tico.graphics.print("No file loaded", w/2 - 40, h/2)
+    tico.graphics.print("no code loaded", w/2 - 40, h/2)
   end
 end

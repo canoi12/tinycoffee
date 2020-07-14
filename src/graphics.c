@@ -31,15 +31,20 @@ void tic_graphics_pop() {
   Core.render.state.camera = NULL;
 }
 
-void tic_scissor(int x, int y, int w, int h) {
+void tic_graphics_scissor(int x, int y, int w, int h) {
   tic_batch_set_clip(&Core.render.batch, tic_rect(x, y, w, h));
+}
+
+void tic_graphics_clear(tc_Color color) {
+  glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
+  glClear(GL_COLOR_BUFFER_BIT);
 }
 
 /**********************
  * Shapes
  **********************/
 
-void tic_graphics_draw_rectangle(int x, int y, int width, int height, tc_Color color) {
+void tic_graphics_draw_rectangle(float x, float y, int width, int height, tc_Color color) {
   tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
   tic_batch_set_draw_mode(&Core.render.batch, TIC_LINES);
   tic_batch_reset_if_full(&Core.render.batch, 8);
@@ -47,7 +52,7 @@ void tic_graphics_draw_rectangle(int x, int y, int width, int height, tc_Color c
   // tic_batch_add_line_rect(&Core.render.batch, tic_rectf(x, y, width, height), tic_rectf(0, 0, 1, 1), color);
 }
 
-void tic_graphics_fill_rectangle(int x, int y, int width, int height, tc_Color color) {
+void tic_graphics_fill_rectangle(float x, float y, int width, int height, tc_Color color) {
   tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
   tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
   tic_batch_reset_if_full(&Core.render.batch, 4);
@@ -174,28 +179,31 @@ tc_Texture tic_texture_create_named(const char *name, void *data, int width, int
 tc_Texture tic_texture_load(const char *filename) {
 
  size_t size;
- tc_uint8* buffer = tic_filesystem_read_file(filename, &size);
- // tc_Texture *tex = tic_resources_get_texture(filename);
- // if (tex) {
- //   TRACELOG("Same texture for %s", filename);
- //   return *tex;
- // }
+ tc_Texture *tex = tic_resources_get_texture(filename);
+ if (tex) {
+   // TRACELOG("Same texture for %s", filename);
+   return *tex;
+ }
 
- // tex = malloc(sizeof(tc_Texture));
- // *tex = tic_texture_from_memory(buffer, size);
+
+ tc_uint8* buffer = tic_filesystem_read_file(filename, &size);
+ TRACELOG("testado");
+
+ tex = malloc(sizeof(tc_Texture));
+ *tex = tic_texture_from_memory(buffer, size);
  // tex->refs = 1;
 //  tex.refs = 0;
- tc_Texture tex = tic_texture_from_memory(buffer, size);
- if (tex.id == 0) {
+ // tc_Texture tex = tic_texture_from_memory(buffer, size);
+ if (!tex) {
   TRACELOG("Failed to load texture '%s'", filename);
   // free(tex);
   return (tc_Texture){0};
  }
- // tic_resources_add_texture(filename, tex);
+ tic_resources_add_texture(filename, tex);
 
  free(buffer);
 
- return tex;
+ return *tex;
 }
 
 
@@ -488,21 +496,36 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
                              "  //FragColor = v_Color * texture2D(gm_BaseTexture, v_Texcoord);\n"
                              "}\n";
 
-    size_t len = strlen(fragmentSource) + strlen(fragEffect);
-    char fragSource[len];
-    sprintf(fragSource, fragmentSource, fragEffect);
-    len = strlen(vertexSource) + strlen(vertEffect);
-    char vertSource[len];
-    sprintf(vertSource, vertexSource, vertEffect);
 
-    int vertShader = tic_shader_compile(vertSource, GL_VERTEX_SHADER);
-    int fragShader = tic_shader_compile(fragSource, GL_FRAGMENT_SHADER);
+    int usingDefaultVert = tc_true;
+    int usingDefaultFrag = tc_true;
+
+    int vertShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+    if (vertEffect) {
+      size_t len = strlen(vertexSource) + strlen(vertEffect);
+      char vertSource[len];
+      sprintf(vertSource, vertexSource, vertEffect);
+
+      vertShader = tic_shader_compile(vertSource, GL_VERTEX_SHADER);
+      usingDefaultVert = tc_false;
+    }
+
+    int fragShader = Core.render.state.fragmentShaders[TIC_DEFAULT_FRAGMENT];
+    if (fragEffect) {
+      size_t len = strlen(fragmentSource) + strlen(fragEffect);
+      char fragSource[len];
+      sprintf(fragSource, fragmentSource, fragEffect);
+      fragShader = tic_shader_compile(fragSource, GL_FRAGMENT_SHADER);
+      usingDefaultFrag = tc_false;
+    }
+    
 
     tc_Shader shader = {0};
     shader.program = tic_shader_load_program(vertShader, fragShader);
 
-    glDeleteShader(vertShader);
-    glDeleteShader(fragShader);
+    if (!usingDefaultVert) glDeleteShader(vertShader);
+    if (!usingDefaultFrag) glDeleteShader(fragShader);
+
     return shader;
 }
 
@@ -568,17 +591,19 @@ int tic_shader_load_program(int vertexShader, int fragmentShader) {
 }
 
 void tic_shader_attach(tc_Shader shader) {
-  tic_batch_draw_reset(&Core.render.batch);
-  glUseProgram(shader.program);
-  Core.render.state.currentShader = shader;
-  tic_shader_send_world(shader);
+  // tic_batch_draw_reset(&Core.render.batch);
+  // glUseProgram(shader.program);
+  // Core.render.state.currentShader = shader;
+  // tic_shader_send_world(shader);
+  tic_render_push_shader(shader);
 }
 
 void tic_shader_detach(void) {
-  tic_batch_draw_reset(&Core.render.batch);
-  glUseProgram(Core.render.state.defaultShader.program);
-  Core.render.state.currentShader = Core.render.state.defaultShader;
-  tic_shader_send_world(Core.render.state.currentShader);
+  // tic_batch_draw_reset(&Core.render.batch);
+  // glUseProgram(Core.render.state.defaultShader.program);
+  // Core.render.state.currentShader = Core.render.state.defaultShader;
+  // tic_shader_send_world(Core.render.state.currentShader);
+  tic_render_pop_shader();
 }
 
 tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
@@ -685,28 +710,30 @@ void tic_canvas_destroy(tc_Canvas *canvas) {
 
 void tic_canvas_attach(tc_Canvas canvas) {
 //   Core.render.state.currentCanvas = canvas;
-  if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
-  glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
-  glViewport(0, 0, canvas.width, canvas.height);
-  tic_shader_send_world(Core.render.state.currentShader);
-  Core.render.state.currentCanvas = canvas;
+  // if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  // glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
+  // glViewport(0, 0, canvas.width, canvas.height);
+  // tic_shader_send_world(Core.render.state.currentShader);
+  // Core.render.state.currentCanvas = canvas;
+  tic_render_push_canvas(canvas);
 }
 void tic_canvas_detach(void) {
-  if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//   Core.render.state.backToDefaultCanvas();
-  glViewport(0, 0, Core.window.width, Core.window.height);
-  tic_shader_send_world(Core.render.state.currentShader);
-  Core.render.state.currentCanvas.id = 0;
+//   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+// //   Core.render.state.backToDefaultCanvas();
+//   glViewport(0, 0, Core.window.width, Core.window.height);
+//   tic_shader_send_world(Core.render.state.currentShader);
+//   Core.render.state.currentCanvas.id = 0;
+  tic_render_pop_canvas();
 }
 
 void tic_canvas_disable(void) {
-  if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-//   Core.render.state.backToDefaultCanvas();
-  glViewport(0, 0, Core.window.width, Core.window.height);
-  tic_shader_send_world(Core.render.state.currentShader);
-  Core.render.state.currentCanvas.id = 0;
+//   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+//   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+// //   Core.render.state.backToDefaultCanvas();
+//   glViewport(0, 0, Core.window.width, Core.window.height);
+//   tic_shader_send_world(Core.render.state.currentShader);
+//   Core.render.state.currentCanvas.id = 0;
 }
 
 void tic_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color) {

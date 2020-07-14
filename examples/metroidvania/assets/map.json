@@ -397,7 +397,7 @@
          "y":0
         }],
  "nextlayerid":6,
- "nextobjectid":33,
+ "nextobjectid":34,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.4.1",
@@ -414,7 +414,117 @@
          "spacing":0,
          "tilecount":72,
          "tileheight":16,
-         "tilewidth":16
+         "tiles":[
+                {
+                 "id":0,
+                 "objectgroup":
+                    {
+                     "draworder":"index",
+                     "id":2,
+                     "name":"",
+                     "objects":[
+                            {
+                             "height":16,
+                             "id":1,
+                             "name":"",
+                             "rotation":0,
+                             "type":"",
+                             "visible":true,
+                             "width":16,
+                             "x":0,
+                             "y":0
+                            }],
+                     "opacity":1,
+                     "type":"objectgroup",
+                     "visible":true,
+                     "x":0,
+                     "y":0
+                    }
+                }],
+         "tilewidth":16,
+         "wangsets":[
+                {
+                 "cornercolors":[],
+                 "edgecolors":[
+                        {
+                         "color":"#ff0e6a",
+                         "name":"",
+                         "probability":1,
+                         "tile":-1
+                        }, 
+                        {
+                         "color":"#00ff00",
+                         "name":"",
+                         "probability":1,
+                         "tile":-1
+                        }],
+                 "name":"New Wang Set",
+                 "tile":-1,
+                 "wangtiles":[
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":0,
+                         "vflip":false,
+                         "wangid":[1, 0, 2, 0, 2, 0, 1, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":1,
+                         "vflip":false,
+                         "wangid":[1, 0, 2, 0, 2, 0, 2, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":2,
+                         "vflip":false,
+                         "wangid":[1, 0, 1, 0, 2, 0, 2, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":12,
+                         "vflip":false,
+                         "wangid":[2, 0, 2, 0, 2, 0, 1, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":13,
+                         "vflip":false,
+                         "wangid":[2, 0, 2, 0, 2, 0, 2, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":14,
+                         "vflip":false,
+                         "wangid":[2, 0, 1, 0, 2, 0, 2, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":24,
+                         "vflip":false,
+                         "wangid":[2, 0, 2, 0, 1, 0, 1, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":25,
+                         "vflip":false,
+                         "wangid":[2, 0, 2, 0, 1, 0, 2, 0]
+                        }, 
+                        {
+                         "dflip":false,
+                         "hflip":false,
+                         "tileid":26,
+                         "vflip":false,
+                         "wangid":[2, 0, 1, 0, 1, 0, 2, 0]
+                        }]
+                }]
         }, 
         {
          "columns":8,

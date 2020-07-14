@@ -25,6 +25,9 @@ tc_bool tic_render_init(tc_Render *render) {
     render->state.backToDefaultCanvas = &tic_render_mode_canvas_stretch;
   }
 
+  render->state.shaderIndex = 0;
+  render->state.canvasIndex = 0;
+
   render->state.camera = NULL;
   tic_matrix_identity(&render->state.modelview);
   render->state.defaultCanvas = tic_canvas_create(1366, 768);
@@ -50,6 +53,63 @@ void tic_render_destroy(tc_Render *render) {
   glDeleteShader(render->state.defaultFragmentShader);
   tic_shader_destroy(&render->state.defaultShader);
   TRACELOG("Render destroyed");
+}
+
+void tic_render_push_canvas(tc_Canvas canvas) {
+  int current = Core.render.state.canvasIndex;
+  if (current+1 >= CANVAS_STACK_SIZE) return;
+
+  Core.render.state.canvasStack[current] = canvas;
+  Core.render.state.canvasIndex++;
+
+  if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
+  glViewport(0, 0, canvas.width, canvas.height);
+  tic_shader_send_world(Core.render.state.currentShader);
+  Core.render.state.currentCanvas = canvas;
+}
+
+void tic_render_pop_canvas() {
+  int current = Core.render.state.canvasIndex-1;
+  if (current-1 < 0) return;
+
+  current--;
+  tc_Canvas canvas = Core.render.state.canvasStack[current];
+  Core.render.state.canvasIndex--;
+
+  if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
+  glViewport(0, 0, canvas.width, canvas.height);
+  tic_shader_send_world(Core.render.state.currentShader);
+  Core.render.state.currentCanvas = canvas;
+
+}
+
+void tic_render_push_shader(tc_Shader shader) {
+  int current = Core.render.state.shaderIndex;
+  if (current+1 >= SHADER_STACK_SIZE) return;
+
+  Core.render.state.shaderStack[current] = shader;
+  Core.render.state.shaderIndex++;
+
+  tic_batch_draw_reset(&Core.render.batch);
+  glUseProgram(shader.program);
+  Core.render.state.currentShader = shader;
+  tic_shader_send_world(shader);
+}
+
+void tic_render_pop_shader() {
+  int current = Core.render.state.shaderIndex-1;
+  if (current-1 < 0) return;
+
+  current--;
+  tc_Shader shader = Core.render.state.shaderStack[current];
+  Core.render.state.shaderIndex--;
+
+  tic_batch_draw_reset(&Core.render.batch);
+  glUseProgram(shader.program);
+  Core.render.state.currentShader = shader;
+  tic_shader_send_world(shader);
 }
 
 

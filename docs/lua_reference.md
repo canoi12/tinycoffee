@@ -515,6 +515,57 @@ Save a Lua table to a JSON file
 	- **`table`**: **table**
 
 # <a name="tico.window"></a>window module
+
+## <a name="tico.window.getTitle"></a>tico.window.getTitle()
+
+Get window title
+
+- return:
+  - **`title`**: **string**
+
+## <a name="tico.window.setTitle"></a>tico.window.setTitle(title)
+
+Set window title
+
+- args:
+  - **`title`**: **string**
+
+## <a name="tico.window.getWidth"></a>tico.window.getWidth()
+
+Get window width
+
+- return:
+  - **`width`**: **number**
+
+## <a name="tico.window.setWidth"></a>tico.window.setWidth(width)
+
+Set window width
+
+- return:
+  - **`width`**: **number**
+
+## <a name="tico.window.getHeight"></a>tico.window.getHeight()
+
+Get window height
+
+- return:
+  - **`height`**: **number**
+
+## <a name="tico.window.setHeight"></a>tico.window.setHeight(height)
+
+Set window height
+
+- args:
+  - **`height`**: **number**
+
+## <a name="tico.window.getSize"></a>tico.window.getSize()
+
+Get window size
+
+- return:
+  - **`width`**: **number**
+  - **`height`**: **number**
+
 # <a name="tico.timer"></a>timer module
 
 ## <a name="tico.timer.delta"></a>tico.timer.delta()
@@ -587,8 +638,8 @@ end
 Create a new canvas (OpenGL framebuffer)
 
 - args:
-	- **`width`**: **number**	
-	- **`height`**: **number**	
+	- **`width`**: **number**
+	- **`height`**: **number**
 
 - return:
   - **`Canvas`**: **userdata**
