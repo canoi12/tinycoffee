@@ -8,7 +8,7 @@ tc_Core Core;
 static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
   Core.window.x = x;
   Core.window.y = y;
-//   tic_lua_callback("moved");
+  tic_lua_callback("moved");
 }
 
 static void tic_window_resize_callback(GLFWwindow *window, int width, int height) {
@@ -19,12 +19,12 @@ static void tic_framebuffer_size_callback(GLFWwindow *window, int width, int hei
   glViewport(0, 0, width, height);
   Core.window.width = width;
   Core.window.height = height;
-//   tic_lua_callback("resized");
+  tic_lua_callback("resized");
 }
 
 static void tic_window_character_callback(GLFWwindow *window, unsigned int codepoint) {
-  // tic_ui_text_callback(codepoint);
-//   tic_lua_callback("textinput");
+  tic_ui_text_callback(codepoint);
+  tic_lua_callback("textinput");
 }
 
 static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -32,23 +32,23 @@ static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, i
     glfwSetWindowShouldClose(window, 1);
 
   Core.input.keyState.down[key] = tic_clamp(action, 0, 1);
-  // tic_ui_key_callback(key, action);
+  tic_ui_key_callback(key, action);
 }
 
 static void tic_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
   int fbutton = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
   Core.input.mouseState.down[fbutton] = action;
-  // tic_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
+  tic_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
 }
 
 static void tic_mouse_pos_callback(GLFWwindow *window, double posX, double posY)
 {
   Core.input.mouseState.x = posX;
   Core.input.mouseState.y = posY;
-//   tic_lua_callback("mousemoved");
+  tic_lua_callback("mousemoved");
 
-  // tic_ui_mouse_pos_callback(posX, posY);
+  tic_ui_mouse_pos_callback(posX, posY);
 }
 
 static void tic_window_focus_callback(GLFWwindow *window, int focused)
@@ -72,11 +72,11 @@ static void tic_joystick_callback(int jid, int event) {
 }
 
 static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-  // tic_ui_mouse_scroll_callback(xoffset, yoffset);
+  tic_ui_mouse_scroll_callback(xoffset, yoffset);
   Core.input.mouseState.scrollX = xoffset * -10;
   Core.input.mouseState.scrollY = yoffset * -10;
 
-//   tic_lua_callback("mousescroll");
+  tic_lua_callback("mousescroll");
 }
 
 tc_bool tic_init(tc_Config *config) {
@@ -135,7 +135,7 @@ tc_bool tic_init(tc_Config *config) {
   // glViewport(0, 0, Core.window.width, Core.window.height);
 //   tic_lua_load();
 
-  // tic_ui_init(Core.defaultFont);
+  tic_ui_init(Core.defaultFont);
 
   return tc_true;
 }
@@ -259,11 +259,9 @@ void tic_begin_draw() {
   glEnable(GL_SCISSOR_TEST);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glBlendEquation(GL_FUNC_ADD);
-  // glUseProgram(Core.render.state.currentShader.program);
-  // tic_shader_send_world(Core.render.state.currentShader);
-  tic_batch_begin(&Core.render.batch);
-//   tc_attach_canvas(Core.render.state.defaultCanvas);
-  // tic_ui_begin();
+  tic_ui_begin();
+  // tic_graphics_scissor(0, 0, Core.window.width, Core.window.height);
+  glViewport(0, 0, Core.window.width, Core.window.height);
   tic_shader_attach(Core.render.state.defaultShader);
   tic_canvas_attach(canvas);
 }
@@ -271,8 +269,12 @@ void tic_begin_draw() {
 void tic_end_draw() {
   tic_canvas_detach();
   tic_shader_detach();
+  // GLint view[4];
+  // glGetIntegerv(GL_VIEWPORT, view);
+  // TRACELOG("%d %d", view[2], view[3]);
   // tic_canvas_disable();
   // tic_ui_end();
+  tic_ui_end();
   tic_batch_flush(&Core.render.batch);
   tic_batch_draw(&Core.render.batch);
 
@@ -284,8 +286,8 @@ void tic_main_loop() {
   while(!tic_window_should_close()) {
     tic_update();
 
-    tic_graphics_clear(BLACK);
     tic_begin_draw();
+    tic_graphics_clear(BLACK);
 
     Core.state.step(tic_timer_get_delta());
 

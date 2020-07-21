@@ -3,6 +3,8 @@
 
 // #define WREN_LANG
 
+// #define WREN_LANG
+
 
 #ifndef TICO_NO_INCLUDE
   #include <stdio.h>
@@ -45,13 +47,14 @@
   typedef void* hashmap;
   typedef void* ma_decoder;
   typedef void* stbtt_fontinfo;
+  typedef void* mu_Context;
 
   #ifdef WREN_LANG
   typedef void* WrenVM;
   #endif
 #endif
 
-#define TICO_VERSION "0.1.4"
+#define TICO_VERSION "0.2.0"
 
 #ifndef TIC_API
   #if defined(_WIN32)
@@ -98,7 +101,7 @@
 #define SHADER_STACK_SIZE 32
 #define CANVAS_STACK_SIZE 32
 
-#define DEFAULT_MAX_TEXTURES 32
+#define DEFAULT_MAX_TEXTURES 64
 #define DEFAULT_MAX_SOUNDS 32
 #define DEFAULT_MAX_FONTS 32
 
@@ -823,6 +826,24 @@ typedef struct tc_ResourceManager {
   tc_Resource sounds;
 } tc_ResourceManager;
 
+#include "ui/microui.h"
+typedef void* mu_Font;
+
+typedef struct {
+  struct mu_Context *ctx;
+  tc_Font font;
+  struct {
+    tc_Texture tex;
+    tc_Rect rect[4];
+  } icons;
+  struct {
+    int *animation;
+    int *tileset;
+    int *tilemap;
+  } windows;
+  unsigned char ** names;
+} tc_UI;
+
 
 typedef struct tc_Config {
   tc_uint8 title[256];
@@ -846,6 +867,7 @@ typedef struct tc_Core {
   tc_Config config;
   tc_Timer timer;
   tc_Lua lua;
+  tc_UI ui;
 #ifdef WREN_LANG
   tc_Wren wren;
 #endif
@@ -1383,6 +1405,68 @@ TIC_API tc_AudioData* tic_resources_get_sound(const char *name);
 
 TIC_API tc_bool tic_resources_add_font(const char *name, tc_Font* sound);
 TIC_API tc_Font* tic_resources_get_font(const char *name);
+
+/*======================
+ * UI
+ *======================*/
+
+#define tic_ui_get_container(label) mu_get_container(Core.ui.ctx, label)
+#define tic_ui_get_current_container() mu_get_current_container(Core.ui.ctx)
+
+#define tic_ui_layout_row(n, width, height) mu_layout_row(Core.ui.ctx, n, (width), height)
+#define tic_ui_layout_width(width) mu_layout_width(Core.ui.ctx, width)
+#define tic_ui_layout_height(height) mu_layout_height(Core.ui.ctx, height)
+#define tic_ui_begin_column() mu_layout_begin_column(Core.ui.ctx)
+#define tic_ui_end_column() mu_layout_end_column(Core.ui.ctx)
+#define tic_ui_layout_next() mu_layout_next(Core.ui.ctx)
+#define tic_ui_get_layout() mu_get_layout(Core.ui.ctx)
+
+#define tic_ui_button(label) mu_button(Core.ui.ctx, label)
+#define tic_ui_slider(value, lo, hi) mu_slider(Core.ui.ctx, value, lo, hi)
+#define tic_ui_header(label) mu_header(Core.ui.ctx, label)
+#define tic_ui_header_ex(label, opt) mu_header_ex(Core.ui.ctx, label, opt)
+#define tic_ui_label(label) mu_label(Core.ui.ctx, label)
+#define tic_ui_text(text) mu_text(Core.ui.ctx, text)
+#define tic_ui_image(texId, size, src, color) mu_image(Core.ui.ctx, texId, size, src, color)
+#define tic_ui_number(number, step) mu_number(Core.ui.ctx, number, step)
+#define tic_ui_checkbox(label, value) mu_checkbox(Core.ui.ctx, label, value)
+#define tic_ui_checkbox_ex(label, value)
+#define tic_ui_textbox(buffer, size) mu_textbox(Core.ui.ctx, buffer, size)
+#define tic_ui_textbox_raw(id, buffer, size, r) mu_textbox_raw(Core.ui.ctx, buffer, size, id, r, 0)
+
+#define tic_ui_begin_window(title, rect) mu_begin_window(Core.ui.ctx, title, rect)
+#define tic_ui_begin_window_ex(title, rect, opt) mu_begin_window(Core.ui.ctx, title, rect)
+#define tic_ui_begin_panel(label) mu_begin_panel(Core.ui.ctx, label)
+#define tic_ui_begin_panel_ex(label, opt) mu_begin_panel_ex(Core.ui.ctx, label, opt)
+#define tic_ui_begin_treenode(label) mu_begin_treenode(Core.ui.ctx, label)
+#define tic_ui_begin_treenode_ex(label, opt) mu_begin_treenode_ex(Core.ui.ctx, label, opt)
+#define tic_ui_begin_popup(label) mu_begin_popup(Core.ui.ctx, label)
+#define tic_ui_open_popup(label) mu_open_popup(Core.ui.ctx, label)
+
+#define tic_ui_end_window() mu_end_window(Core.ui.ctx)
+#define tic_ui_end_panel() mu_end_panel(Core.ui.ctx)
+#define tic_ui_end_treenode() mu_end_treenode(Core.ui.ctx)
+#define tic_ui_end_popup() mu_end_popup(Core.ui.ctx)
+
+#define tic_ui_get_id(name, size) mu_get_id(Core.ui.ctx, name, size);
+#define tic_ui_get_focused() Core.ui.ctx->focus;
+#define tic_ui_get_last() Core.ui.ctx->last_id;
+#define tic_ui_last_zindex() Core.ui.ctx->last_zindex;
+
+TIC_API void tic_ui_init(tc_Font font);
+TIC_API void tic_ui_terminate();
+
+TIC_API void tic_ui_begin();
+TIC_API void tic_ui_end();
+
+TIC_API void tic_ui_mouse_pos_callback(double posX, double posY);
+TIC_API void tic_ui_mouse_btn_callback(int button, int x, int y, int action);
+TIC_API void tic_ui_mouse_scroll_callback(double xoff, double yoff);
+TIC_API void tic_ui_key_callback(int key, int action);
+TIC_API void tic_ui_text_callback(int codepoint);
+
+TIC_API int tic_ui_text_width(mu_Font font, const char *text, int len);
+TIC_API int tic_ui_text_height(mu_Font font);
 
 /*======================
  * Scripting

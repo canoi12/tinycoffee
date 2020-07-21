@@ -270,6 +270,28 @@ static int tic_lua_image_size(lua_State *L) {
   return 2;
 }
 
+static int tic_lua_image_wrap(lua_State *L) {
+  tc_Image *image = luaL_checkudata(L, 1, IMAGE_CLASS);
+
+  const char *minWrapName = luaL_checkstring(L, 2);
+  const char *magWrapName = luaL_checkstring(L, 3);
+
+  int minWrap, magWrap;
+
+  tic_texture_get_wrap(image->texture, &minWrap, &magWrap);
+
+  if (!strcmp(minWrapName, "repeat")) minWrap = GL_REPEAT;
+  else if (!strcmp(minWrapName, "clamp")) minWrap = GL_CLAMP_TO_BORDER;
+
+  if (!strcmp(magWrapName, "repeat")) magWrap = GL_REPEAT;
+  else if (!strcmp(magWrapName, "clamp")) magWrap = GL_CLAMP_TO_BORDER;
+
+  tic_texture_set_wrap(&image->texture, minWrap, magWrap);
+}
+
+static int tic_lua_image_filter(lua_State *L) {}
+
+
 static int luaopen_image(lua_State *L) {
 //   luaL_Reg methods[] = {
 //     {"new", tc_lua_new_image},
@@ -282,6 +304,8 @@ static int luaopen_image(lua_State *L) {
     {"getHeight",  tic_lua_image_height},
     {"draw", tic_lua_draw_image},
     {"getSize", tic_lua_image_size},
+    {"setWrap", tic_lua_image_wrap},
+    {"setFilter", tic_lua_image_filter},
     {"__gc", tic_lua_destroy_image},
     {NULL, NULL}
   };

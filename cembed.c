@@ -51,7 +51,7 @@ int main(int argc, char ** argv) {
   size_t ssize = size * 20 + 512;
   char out[ssize];
   memset(out, 0, ssize);
-  sprintf(out, "static const char %s[] = {\n", path);
+  sprintf(out, "static const unsigned char %s[] = {\n", path);
   for (int i = 0; i < size; i++) {
     if (buffer[i] == EOF) break;
     char c[10];
@@ -70,7 +70,6 @@ int main(int argc, char ** argv) {
   fp = fopen(outPath, "wb");
   int swrite = fwrite(oout, s, 1, fp);
   fclose(fp);
-
 
 
   return 0;

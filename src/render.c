@@ -56,8 +56,8 @@ void tic_render_destroy(tc_Render *render) {
 }
 
 void tic_render_push_canvas(tc_Canvas canvas) {
+  if (Core.render.state.canvasIndex+1 >= CANVAS_STACK_SIZE) return;
   int current = Core.render.state.canvasIndex;
-  if (current+1 >= CANVAS_STACK_SIZE) return;
 
   Core.render.state.canvasStack[current] = canvas;
   Core.render.state.canvasIndex++;
@@ -70,12 +70,12 @@ void tic_render_push_canvas(tc_Canvas canvas) {
 }
 
 void tic_render_pop_canvas() {
+  if (Core.render.state.canvasIndex-2 < 0) Core.render.state.canvasIndex = 2;
   int current = Core.render.state.canvasIndex-1;
-  if (current-1 < 0) return;
 
   current--;
   tc_Canvas canvas = Core.render.state.canvasStack[current];
-  Core.render.state.canvasIndex--;
+  Core.render.state.canvasIndex -= 2;
 
   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
@@ -508,7 +508,7 @@ void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, float an
 	// matrix_translate(&model, -cx, -cy, 0);
 	tic_matrix_scale_aniso(&model, model, dst.w, dst.h, 1);
 	float ox = cx / (float)src.w;
-	float oy = cy / (float)src.h;
+	float oy = cy / (float)abs(src.h);
 	tc_Matrix pos = {
 			-ox, -oy, 0, 0,
 			1-ox, -oy, 0, 0,

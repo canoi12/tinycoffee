@@ -188,11 +188,13 @@ local x = 0
 local y = 32
 
 -- local rect = tico.graphics.newRectangle(0, 0, 32, 32)
+local time = 0
 
 function tico.update(dt)
   -- input.update(dt)
   -- if tico.ui.isWindowFocused("game") then
     gamescene:update(dt)
+    time = time + 15 * dt
 --   end
 
   if tico.input.isDown("left") then ox = ox - 100 * dt end
@@ -215,10 +217,11 @@ local Player = require "entities.knight"
 local Position = require "components.position"
 local pos = Player[Position]
 
-local time = 0
+-- local time = 0
 local canvas2 = tico.graphics.newCanvas(160, 95)
 
 function tico.draw()
+  tico.graphics.clear(75, 90, 90)
   -- canvas:attach()
   -- tico.graphics.clear()
   -- tico.graphics.push()
@@ -257,7 +260,7 @@ function tico.draw()
   canvas:auto()
   gbaShader:detach()
   -- tico.graphics.print("joystick: " .. tico.input.joystickName(0))
-
+  drawEditor()
 end
 
 function initInput()
@@ -279,6 +282,8 @@ function drawEditor()
     tico.ui.endWindow()
   end
   if tico.ui.beginWindow("debug", {256, 0, 200, 112}) then
+    tico.ui.layoutRow(1, {-1}, -1)
+    tico.ui.image(image1)
     tico.ui.layoutRow(1, {-1}, 0)
 
     local fps = tico.timer.fps()

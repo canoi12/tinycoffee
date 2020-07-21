@@ -64,17 +64,34 @@ static tc_Color wrenSlotOptColor(WrenVM *vm, int slot, tc_Color opt) {
 	return color;
 }
 
+static tc_Rectf wrenSlotOptRectf(WrenVM *vm, int slot, tc_Rectf opt) {
+  tc_Rectf rect = opt;
+	if (wrenGetSlotType(vm, slot) == WREN_TYPE_LIST) {
+		int count = wrenGetListCount(vm, slot);
+		for (int i = 0; i < count; i++) {
+			wrenGetListElement(vm, slot, i, slot+1);
+			rect.data[i] = wrenGetSlotDouble(vm, slot+1);
+		}
+	} else {
+		rect = opt;
+	}
+
+	return rect;
+}
+
 #include "scripting/wren/tico.wren.h"
 #include "scripting/wren/init.wren.h"
 #include "scripting/wren/audio.wren.h"
 #include "scripting/wren/filesystem.wren.h"
 #include "scripting/wren/graphics.wren.h"
 #include "scripting/wren/input.wren.h"
+#include "scripting/wren/math.wren.h"
 
 #include "scripting/wren/audio.h"
 #include "scripting/wren/filesystem.h"
 #include "scripting/wren/graphics.h"
 #include "scripting/wren/input.h"
+#include "scripting/wren/math.h"
 
 static void tic_wren_print(WrenVM *vm, const char *str) {
   printf("%s", str);
@@ -139,6 +156,8 @@ tc_WrenClass tcWrenClasses[] = {
   registerWrenClassInline("Input", NULL, NULL, wrenInputLib),
   registerWrenClassInline("Mouse", NULL, NULL, wrenMouseLib),
   registerWrenClassInline("Joystick", NULL, NULL, wrenJoystickLib),
+  registerWrenClassInline("Math", NULL, NULL, wrenMathLib),
+  registerWrenClassInline("Rectangle", tic_wren_rectangle_allocate, tic_wren_rectangle_finalize, wrenRectangleLib),
   {NULL}
 };
 
@@ -181,6 +200,7 @@ tc_bool tic_wren_init() {
   tc_WrenModule wrenModules[] = {
     {"tico", tico_wren, tico_wren_size},
     {"tico.audio", audio_wren, audio_wren_size},
+    {"tico.math", math_wren, math_wren_size},
     {"tico.filesystem", filesystem_wren, filesystem_wren_size},
     {"tico.graphics", graphics_wren, graphics_wren_size},
     {"tico.input", input_wren, input_wren_size},
@@ -191,6 +211,7 @@ tc_bool tic_wren_init() {
     char buffer[mod->size + 1];
     memcpy(buffer, mod->buffer, mod->size);
     buffer[mod->size] = '\0';
+    // TRACELOG("loaded %s %d %s", mod->name, mod->size, buffer);
     wrenInterpret(wren->vm, mod->name, buffer);
   }
   Core.state.load = tic_wren_load;

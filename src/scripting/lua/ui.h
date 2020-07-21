@@ -2,11 +2,12 @@
 #define TICO_LUA_UI_H
 
 #include "../../tico.h"
-#include "../../ui/tcui.h"
 
 int luaopen_ui(lua_State *L);
 
 #endif
+
+// #define TICO_LUA_IMPLEMENTATION
 
 #if defined(TICO_LUA_IMPLEMENTATION)
 
@@ -51,9 +52,9 @@ static int tic_lua_ui_textbox(lua_State *L) {
   char *text = (char*)luaL_checkstring(L, 2);
   int size = luaL_optnumber(L, 3, 128);
 
-  char *str = calloc(1, size);
+  char *str = TIC_CALLOC(1, size);
   strcpy(str, text);
-  tc_Rect r = mu_layout_next(ui.ctx);
+  tc_Rect r = mu_layout_next(Core.ui.ctx);
   int send = tic_ui_textbox_raw(id, str, size, r);
 
   lua_pushstring(L, str);
@@ -68,8 +69,8 @@ static int tic_lua_ui_image(lua_State *L) {
   if (canvas) {
     int w = luaL_optnumber(L, 2, canvas->width);
     int h = luaL_optnumber(L, 3, canvas->height);
-    mu_Vec2 v = {w, -h};
-    tc_Rect rect = tic_rect(0, 0, canvas->width, canvas->height);
+    mu_Vec2 v = {w, h};
+    tc_Rect rect = tic_rect(0, canvas->height, canvas->width, -canvas->height);
     tic_ui_image(canvas->texture, v, rect, WHITE);
   } else if (image) {
     int w = luaL_optnumber(L, 2, image->height);
@@ -185,14 +186,14 @@ static int tic_lua_ui_slider(lua_State *L) {
   float lo = luaL_optnumber(L, 2, 0);
   float hi = luaL_optnumber(L, 3, 1);
 
-  float *val = TC_MALLOC(sizeof(float));
+  float *val = TIC_MALLOC(sizeof(float));
   *val = value;
 
 //   mu_get_id(ui.ctx, &val, sizeof(float));
   int state = tic_ui_slider(val, lo, hi);
   value = *val;
 //   mu_pop_id(ui.ctx);
-  TC_FREE(val);
+  TIC_FREE(val);
 
   lua_pushnumber(L, value);
   lua_pushnumber(L, state);

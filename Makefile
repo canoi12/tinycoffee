@@ -34,7 +34,7 @@ WREN_FOLDER := $(EXTERNAL)/wren/src
 GLFW_SOURCES = init.c context.c input.c monitor.c window.c egl_context.c osmesa_context.c vulkan.c
 LUA_SOURCES = $(wildcard $(LUA_FOLDER)/*.c)
 # TICO_SOURCES = $(wildcard $(TICO_FOLDER)/*.c $(TICO_FOLDER)/ui/*.c)
-TICO_SOURCES = $(wildcard $(TICO_FOLDER)/*.c)
+TICO_SOURCES = $(wildcard $(TICO_FOLDER)/*.c $(TICO_FOLDER)/ui/microui.c)
 WREN_SOURCES = $(wildcard $(WREN_FOLDER)/vm/*.c $(WREN_FOLDER)/optional/*.c)
 
 TARGET_OS = Linux

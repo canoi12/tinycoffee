@@ -1,6 +1,53 @@
 #include "../../tico.h"
 
 /***************
+ * Rectangle
+ ***************/
+
+static void tic_wren_rectangle_allocate(WrenVM *vm) {
+  tc_Rectf *rect = wrenSetSlotNewForeign(vm, 0, 0,  sizeof(*rect));
+
+  for (int i = 0; i < 4; i++) {
+    rect->data[i] = wrenGetSlotDouble(vm, i+1);
+  }
+}
+
+static void tic_wren_rectangle_finalize(void *data) {
+  TIC_FREE(data);
+}
+
+static void tic_wren_rectangle_x(WrenVM *vm) {
+  tc_Rectf *rect = wrenGetSlotForeign(vm, 0);
+
+  wrenSetSlotDouble(vm, 0, rect->x);
+}
+
+static void tic_wren_rectangle_y(WrenVM *vm) {
+  tc_Rectf *rect = wrenGetSlotForeign(vm, 0);
+
+  wrenSetSlotDouble(vm, 0, rect->y);
+}
+
+static void tic_wren_rectangle_width(WrenVM *vm) {
+  tc_Rectf *rect = wrenGetSlotForeign(vm, 0);
+
+  wrenSetSlotDouble(vm, 0, rect->w);
+}
+
+static void tic_wren_rectangle_height(WrenVM *vm) {
+  tc_Rectf *rect = wrenGetSlotForeign(vm, 0);
+
+  wrenSetSlotDouble(vm, 0, rect->h);
+}
+
+static tc_WrenLib wrenRectangleLib[] = {
+  {"x", tic_wren_rectangle_x},
+  {"y", tic_wren_rectangle_y},
+  {"width", tic_wren_rectangle_width},
+  {"height", tic_wren_rectangle_height},
+};
+
+/***************
  * Image
  ***************/
 
@@ -41,18 +88,44 @@ static void tic_wren_image_size(WrenVM *vm) {
 static void tic_wren_image_draw(WrenVM *vm) {
   tc_Image *image = wrenGetSlotForeign(vm, 0);
 
-  float x = wrenGetSlotDouble(vm, 1);
-  float y = wrenGetSlotDouble(vm, 2);
-  tc_Color color = wrenSlotOptColor(vm, 3, WHITE);
+  wrenInitSlot(0);
 
-  tic_image_draw(*image, x, y, color);
+  tc_Rectf rect = tic_rectf(0, 0, image->width, image->height);
+  if (wrenGetSlotType(vm, slot+1) == WREN_TYPE_FOREIGN) {
+    tc_Rectf *foreign = wrenGetSlotForeign(vm, nextSlot());
+    rect = *foreign;
+  } 
+
+  float x = wrenGetSlotDouble(vm, nextSlot());
+  float y = wrenGetSlotDouble(vm, nextSlot());
+  
+  // if (wrenGetSlotType(slot) == WREN_TYPE_LIST) {
+
+  // }
+  float angle = 0;
+  float sx = 1;
+  float sy = 1;
+  float cx = 0;
+  float cy = 0;
+  if (wrenGetSlotType(vm, nextSlot()) == WREN_TYPE_NUM) {
+    angle = wrenGetSlotDouble(vm, slot);
+    sx = wrenGetSlotDouble(vm, nextSlot());
+    sy = wrenGetSlotDouble(vm, nextSlot());
+    cx = wrenGetSlotDouble(vm, nextSlot());
+    cy = wrenGetSlotDouble(vm, nextSlot());
+  }
+  tc_Color color = wrenSlotOptColor(vm, nextSlot(), WHITE);
+
+  tic_image_draw_part_ex(*image, rect, x, y, angle, sx, sy, cx, cy, color);
 }
 
 static tc_WrenLib wrenImageLib[] = {
   {"draw(_,_)", tic_wren_image_draw},
   {"draw(_,_,_)", tic_wren_image_draw},
+  {"draw(_,_,_,_)", tic_wren_image_draw},
   {"draw(_,_,_,_,_,_,_)", tic_wren_image_draw},
   {"draw(_,_,_,_,_,_,_,_)", tic_wren_image_draw},
+  {"draw(_,_,_,_,_,_,_,_,_)", tic_wren_image_draw},
   {"getWidth()", tic_wren_image_width},
   {"getHeight()", tic_wren_image_height},
   {"getSize()", tic_wren_image_size},
@@ -99,9 +172,11 @@ static void tic_wren_canvas_size(WrenVM *vm) {
 static void tic_wren_canvas_draw(WrenVM *vm) {
   tc_Canvas *canvas = wrenGetSlotForeign(vm, 0);
 
-  float x = wrenGetSlotDouble(vm, 1);
-  float y = wrenGetSlotDouble(vm, 2);
-  tc_Color color = wrenSlotOptColor(vm, 3, WHITE);
+  wrenInitSlot(0);
+
+  float x = wrenGetSlotDouble(vm, nextSlot());
+  float y = wrenGetSlotDouble(vm, nextSlot());
+  tc_Color color = wrenSlotOptColor(vm, nextSlot(), WHITE);
 
   tic_canvas_draw(*canvas, x, y, color);
 }

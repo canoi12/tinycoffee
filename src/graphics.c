@@ -187,7 +187,6 @@ tc_Texture tic_texture_load(const char *filename) {
 
 
  tc_uint8* buffer = tic_filesystem_read_file(filename, &size);
- TRACELOG("testado");
 
  tex = malloc(sizeof(tc_Texture));
  *tex = tic_texture_from_memory(buffer, size);
@@ -741,37 +740,37 @@ void tic_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color) {
 }
 
 void tic_canvas_draw_scale(tc_Canvas canvas, float x, float y, float sx, float sy, tc_Color color) {
-//   tc_batch_set_texture(&Core.render.batch, canvas.texture);
-//   tc_batch_set_draw_mode(&Core.render.batch, TC_TRIANGLES);
-//   tc_batch_reset_if_full(&Core.render.batch, 8);
-  tc_Rectf d = tic_rectf(x, y + canvas.texture.height*sy, canvas.texture.width*sx, canvas.texture.height*-sy);
-  tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
-//   tc_batch_add_rect(&Core.render.batch, d, s, color);
-  tic_texture_draw(canvas.texture, d, s, color);
+  // tc_Rectf d = tic_rectf(x, y + canvas.texture.height*sy, canvas.texture.width*sx, canvas.texture.height*-sy);
+  // tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
+  // tic_texture_draw(canvas.texture, d, s, color);
+  tc_Rectf part = tic_rectf(0, 0, canvas.width, canvas.height);
+  tic_canvas_draw_part(canvas, part, x, y, color);
 }
 
 void tic_canvas_draw_ex(tc_Canvas canvas, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
-//   tc_batch_set_texture(&Core.render.batch, canvas.texture);
-//   tc_batch_set_draw_mode(&Core.render.batch, TC_TRIANGLES);
-//   tc_batch_reset_if_full(&Core.render.batch, 8);
-  tc_Rectf d = tic_rectf(x, y, canvas.texture.width*sx, canvas.texture.height*-sy);
-  tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
-//   tc_batch_add_rect(&Core.render.batch, d, s, color);
-  tic_texture_draw_ex(canvas.texture, d, s, angle, sx, sy, cx, cy, color);
+  // tc_Rectf d = tic_rectf(x, y, canvas.texture.width*sx, canvas.texture.height*-sy);
+  // tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
+  // tic_texture_draw_ex(canvas.texture, d, s, angle, sx, sy, cx, cy, color);
+  tc_Rectf part = tic_rectf(0, 0, canvas.width, canvas.height);
+  tic_canvas_draw_part_ex(canvas, part, x, y, angle, sx, sy, cx, cy, color);
 }
 
 void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_Color color) {
   tic_canvas_draw_part_scale(canvas, rect, x, y, 1, 1, color);
 }
 void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
-  tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
-  tic_texture_draw(canvas.texture, dest, rect, color);
+  // tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
+  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
+  tc_Rectf part = tic_rectf(rect.x, rect.h, rect.w, rect.y-rect.h);
+  tic_texture_draw(canvas.texture, dest, part, color);
 }
 void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   int offy = (rect.h-cy)*sy;
-  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*-sy);
-//   TRACELOG("%f", dest.y);
-  tic_texture_draw_ex(canvas.texture, dest, rect, angle, sx, sy, cx, rect.h-cy, color);
+  // tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*-sy);
+  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
+  tc_Rectf part = tic_rectf(rect.x, rect.h, rect.w, rect.y-rect.h);
+  // tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, rect.h-cy, color);
+  tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, cy, color);
 }
 
 void tic_canvas_draw_auto(tc_Canvas canvas) {
@@ -781,5 +780,5 @@ void tic_canvas_draw_auto(tc_Canvas canvas) {
   int cCenterX = canvas.width/2;
   int cCenterY = canvas.height/2;
 
-  tic_canvas_draw_ex(canvas, wCenterX, wCenterY+(ratio/2), 0, ratio, ratio, cCenterX, cCenterY, WHITE);
+  tic_canvas_draw_ex(canvas, wCenterX, wCenterY-(ratio/2), 0, ratio, ratio, cCenterX, cCenterY, WHITE);
 }

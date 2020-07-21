@@ -1,5 +1,6 @@
 bin/
 builds/
+build/
 data/
 lite
 temp/
@@ -20,3 +21,6 @@ build.sh.old
 error.txt
 
 docs.json
+
+.vscode
+CMakeLists.txt

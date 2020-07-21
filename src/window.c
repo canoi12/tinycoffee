@@ -1,6 +1,14 @@
 #include "tico.h"
 
+#include "tico-icon.png.h"
+#include "external/stb_image.h"
+
 tc_bool tic_window_init(tc_Window *window, const char *title, int width, int height, TIC_WINDOW_FLAGS flags) {
+  GLFWimage icon;
+
+  icon.pixels = stbi_load_from_memory(tico_icon_png, tico_icon_png_size, &icon.width, &icon.height, NULL, 0);
+  // TRACEERR("%d %d %d", iw, ih, ic);
+
   if (!title) sprintf(window->title, "tico %s", TICO_VERSION);
   else strcpy(window->title, title);
   window->width = tic_max(width, 10);
@@ -17,6 +25,9 @@ tc_bool tic_window_init(tc_Window *window, const char *title, int width, int hei
   tic_window_get_pos(&window->x, &window->y);
   tic_window_get_size(&window->width, &window->height);
 //   glfwSwapInterval(1);
+
+  glfwSetWindowIcon(window->handle, 1, &icon);
+  stbi_image_free(icon.pixels);
 
   if (flags & TIC_WINDOW_FULLSCREEN) {
     tic_window_set_fullscreen(tc_true);

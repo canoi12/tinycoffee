@@ -30,6 +30,21 @@ int lua_isarray(lua_State *L, int index) {
   return 0;
 }
 
+static tc_Rect lua_optrect_table(lua_State *l, int index, tc_Rect opt) {
+  tc_Rect rect = opt;
+  if (lua_istable(l, index)) {
+    int i = 0;
+    lua_pushnil(l);
+    while(lua_next(l, -2)) {
+      rect.data[i] = lua_tonumber(l, -1);
+      lua_pop(l, 1);
+      ++i;
+    }
+  }
+
+  return rect;
+}
+
 #ifdef LUAJIT
 void lua_len(lua_State *L, int i) {
   lua_pushnumber(L, lua_objlen(L, i));
@@ -117,21 +132,7 @@ static int luaopen_bit(lua_State *L) {
 #include "scripting/lua/math.h"
 #include "scripting/lua/timer.h"
 #include "scripting/lua/window.h"
-
-static tc_Rect lua_optrect_table(lua_State *l, int index, tc_Rect opt) {
-  tc_Rect rect = opt;
-  if (lua_istable(l, index)) {
-    int i = 0;
-    lua_pushnil(l);
-    while(lua_next(l, -2)) {
-      rect.data[i] = lua_tonumber(l, -1);
-      lua_pop(l, 1);
-      ++i;
-    }
-  }
-
-  return rect;
-}
+#include "scripting/lua/ui.h"
 
 int tic_lua_preload(const char *modName, const char *modCode, int bufSize) {
   size_t size = bufSize + 100;
@@ -324,7 +325,7 @@ int luaopen_tico(lua_State *L) {
     {"timer", luaopen_timer},
     {"window", luaopen_window},
     {"json", luaopen_json},
-    // {"ui", luaopen_ui},
+    {"ui", luaopen_ui},
     {NULL, NULL}
   };
 

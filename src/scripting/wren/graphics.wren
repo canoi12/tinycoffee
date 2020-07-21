@@ -65,9 +65,11 @@ foreign class Image {
   foreign getSize()
 
   foreign draw(x, y)
-  foreign draw(x, y, color)
+  foreign draw(rect, x, y) // or (x, y, color)
+  foreign draw(rect, x, y, color)
   foreign draw(x, y, angle, sx, sy, cx, cy)
   foreign draw(x, y, angle, sx, sy, cx, cy, color)
+  foreign draw(rect, x, y, angle, sx, sy, cx, cy, color)
 }
 
 foreign class Canvas {
@@ -85,6 +87,14 @@ foreign class Canvas {
   foreign draw(x, y, angle, sx, sy, cx, cy)
   foreign draw(x, y, angle, sx, sy, cx, cy, color)
   foreign auto()
+}
+
+foreign class Rectangle {
+  construct new(x, y, w, h) {}
+  foreign x
+  foreign y
+  foreign width
+  foreign height
 }
 
 class Color {
