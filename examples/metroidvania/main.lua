@@ -202,8 +202,8 @@ function tico.update(dt)
   if tico.input.isDown("up") then oy = oy - 100 * dt end
   if tico.input.isDown("down") then oy = oy + 100 * dt end
 
-  if (tico.input.isDown("ctrl") and tico.input.isPressed("down")) or tico.input.isJoyPressed(0, "lb") then if currentColor > 1 then currentColor = currentColor - 1 end end
-  if (tico.input.isDown("ctrl") and tico.input.isPressed("up")) or tico.input.isJoyPressed(0, "y")  then if currentColor < #gbacolors then currentColor = currentColor + 1 end end
+  if (tico.input.isDown("ctrl") and tico.input.isPressed("down")) or tico.input.joyPressed(0, "lb") then if currentColor > 1 then currentColor = currentColor - 1 end end
+  if (tico.input.isDown("ctrl") and tico.input.isPressed("up")) or tico.input.joyPressed(0, "y")  then if currentColor < #gbacolors then currentColor = currentColor + 1 end end
 
   -- if tico.input.isJoyDown(0, "dleft") then
   --   x = x - 100 * dt

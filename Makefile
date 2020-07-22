@@ -59,7 +59,7 @@ else
 endif
 
 ifeq ($(MODE), Release)
-	CFLAGS += -O3
+	CFLAGS += -O2
 endif
 
 GLFW_OBJ = $(GLFW_SOURCES:%.c=$(GLFW_FOLDER)/%.o)

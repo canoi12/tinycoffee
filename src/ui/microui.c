@@ -540,7 +540,7 @@ void mu_draw_image(mu_Context *ctx, tc_Texture id, tc_Rect rect, tc_Rect src, tc
 ** layout
 **============================================================================*/
 
-enum { RELATIVE = 1, ABSOLUTE = 2 };
+enum { MU_RELATIVE = 1, MU_ABSOLUTE = 2 };
 
 
 void mu_layout_begin_column(mu_Context *ctx) {
@@ -587,7 +587,7 @@ void mu_layout_height(mu_Context *ctx, int height) {
 void mu_layout_set_next(mu_Context *ctx, tc_Rect r, int relative) {
   mu_Layout *layout = get_layout(ctx);
   layout->next = r;
-  layout->next_type = relative ? RELATIVE : ABSOLUTE;
+  layout->next_type = relative ? MU_RELATIVE : MU_ABSOLUTE;
 }
 
 
@@ -601,7 +601,7 @@ tc_Rect mu_layout_next(mu_Context *ctx) {
     int type = layout->next_type;
     layout->next_type = 0;
     res = layout->next;
-    if (type == ABSOLUTE) { return (ctx->last_rect = res); }
+    if (type == MU_ABSOLUTE) { return (ctx->last_rect = res); }
 
   } else {
     /* handle next row */

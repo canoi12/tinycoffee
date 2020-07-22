@@ -1263,25 +1263,26 @@ TIC_API int tic_input_get_joy_btncode(const char *name);
 TIC_API int tic_input_get_joy_axiscode(const char *name);
 TIC_API int tic_input_get_mouse_code(const char *name);
 
-TIC_API tc_bool tic_input_is_key_down(TIC_KEY key);
-TIC_API tc_bool tic_input_is_key_pressed(TIC_KEY key);
-TIC_API tc_bool tic_input_is_key_up(TIC_KEY key);
-TIC_API tc_bool tic_input_is_key_released(TIC_KEY key);
+TIC_API tc_bool tic_input_key_down(TIC_KEY key);
+TIC_API tc_bool tic_input_key_pressed(TIC_KEY key);
+TIC_API tc_bool tic_input_key_up(TIC_KEY key);
+TIC_API tc_bool tic_input_key_released(TIC_KEY key);
 
-TIC_API tc_bool tic_input_is_mouse_down(TIC_MOUSEBUTTON button);
-TIC_API tc_bool tic_input_is_mouse_pressed(TIC_MOUSEBUTTON button);
-TIC_API tc_bool tic_input_is_mouse_up(TIC_MOUSEBUTTON button);
-TIC_API tc_bool tic_input_is_mouse_released(TIC_MOUSEBUTTON button);
+TIC_API tc_bool tic_input_mouse_down(TIC_MOUSEBUTTON button);
+TIC_API tc_bool tic_input_mouse_pressed(TIC_MOUSEBUTTON button);
+TIC_API tc_bool tic_input_mouse_up(TIC_MOUSEBUTTON button);
+TIC_API tc_bool tic_input_mouse_released(TIC_MOUSEBUTTON button);
 
-TIC_API tc_bool tic_input_is_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
-TIC_API tc_bool tic_input_is_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
-TIC_API tc_bool tic_input_is_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
-TIC_API tc_bool tic_input_is_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
+TIC_API tc_bool tic_input_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
 
-TIC_API void tic_input_get_mouse(int *x, int *y);
+TIC_API void tic_input_get_mouse_pos(int *x, int *y);
 TIC_API void tic_input_fix_mouse();
 TIC_API void tic_input_release_mouse();
 TIC_API void tic_input_get_mouse_delta(int *x, int *y);
+TIC_API void tic_input_get_mouse_scroll(float *x, float *y);
 
 /*======================
  * Filesystem

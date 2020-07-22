@@ -294,30 +294,30 @@ int tic_input_get_joy_axiscode(const char *name) {
 
 /* key functions */
 
-tc_bool tic_input_is_key_down(TIC_KEY key) {
+tc_bool tic_input_key_down(TIC_KEY key) {
   if (key < 0) return tc_false;
   key = tic_clamp(key, 0, KEY_LAST);
   return Core.input.keyState.down[key];
 }
 
-tc_bool tic_input_is_key_pressed(TIC_KEY key) {
+tc_bool tic_input_key_pressed(TIC_KEY key) {
   key = tic_clamp(key, 0, KEY_LAST);
   return !Core.input.keyState.pressed[key] && Core.input.keyState.down[key];
 }
 
-tc_bool tic_input_is_key_up(TIC_KEY key) {
+tc_bool tic_input_key_up(TIC_KEY key) {
   key = tic_clamp(key, 0, KEY_LAST);
   return !Core.input.keyState.down[key];
 }
 
-tc_bool tic_input_is_key_released(TIC_KEY key) {
+tc_bool tic_input_key_released(TIC_KEY key) {
   key = tic_clamp(key, 0, KEY_LAST);
   return Core.input.keyState.pressed[key] && !Core.input.keyState.down[key];
 }
 
 /* Mouse functions */
 
-void tic_input_get_mouse(int *x, int *y) {
+void tic_input_get_mouse_pos(int *x, int *y) {
   if (x) *x = Core.input.mouseState.x;
   if (y) *y = Core.input.mouseState.y;
 }
@@ -342,52 +342,69 @@ void tic_input_get_mouse_scroll(float *x, float *y) {
   if (y) *y = Core.input.mouseState.scrollY;
 }
 
-tc_bool tic_input_is_mouse_down(TIC_MOUSEBUTTON button) {
+tc_bool tic_input_mouse_down(TIC_MOUSEBUTTON button) {
   button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
   return Core.input.mouseState.down[button];
 }
 
-tc_bool tic_input_is_mouse_pressed(TIC_MOUSEBUTTON button) {
+tc_bool tic_input_mouse_pressed(TIC_MOUSEBUTTON button) {
   button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
   return !Core.input.mouseState.pressed[button] && Core.input.mouseState.down[button];
 }
 
-tc_bool tic_input_is_mouse_up(TIC_MOUSEBUTTON button) {
+tc_bool tic_input_mouse_up(TIC_MOUSEBUTTON button) {
   button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  return !tic_input_is_mouse_down(button);
+  return !tic_input_mouse_down(button);
 }
 
-tc_bool tic_input_is_mouse_released(TIC_MOUSEBUTTON button) {
+tc_bool tic_input_mouse_released(TIC_MOUSEBUTTON button) {
   button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
   return Core.input.mouseState.pressed[button] && !Core.input.mouseState.down[button];
 }
 
-tc_bool tic_input_is_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
-  if (Core.input.joystickState[jid].active) {
-    return Core.input.joystickState[jid].down[button];
-  }
+/***********************
+ * Joystick functions
+ ***********************/
+
+tc_bool tic_input_is_joy_active(TIC_JOYSTICKS jid) {
+  return Core.input.joystickState[jid].active;
 }
 
-tc_bool tic_input_is_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tic_input_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  if (Core.input.joystickState[jid].active) {
-    return !Core.input.joystickState[jid].down[button];
-  }
+  return tic_input_is_joy_active(jid) && Core.input.joystickState[jid].down[button];
+  // if (Core.input.joystickState[jid].active) {
+  //   return Core.input.joystickState[jid].down[button];
+  // }
 }
 
-tc_bool tic_input_is_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tic_input_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  if (Core.input.joystickState[jid].active) {
-    return !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
-  }
+  return tic_input_is_joy_active(jid) && !Core.input.joystickState[jid].down[button];
+
+  // if (Core.input.joystickState[jid].active) {
+  //   return !Core.input.joystickState[jid].down[button];
+  // }
 }
 
-tc_bool tic_input_is_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tic_input_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  if (Core.input.joystickState[jid].active) {
-    return Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
-  }
+  tc_bool pressed = !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
+  return tic_input_is_joy_active(jid) && pressed;
+  // if (Core.input.joystickState[jid].active) {
+  //   return !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
+  // }
+}
+
+tc_bool tic_input_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+  if (jid > TIC_JOY_COUNT) return tc_false;
+
+  tc_bool released = Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
+  return tic_input_is_joy_active(jid) && released;
+  // if (Core.input.joystickState[jid].active) {
+  //   return Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
+  // }
 }

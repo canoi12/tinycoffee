@@ -5,7 +5,7 @@ static void tic_wren_joystick_is_down(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 2);
 
 	int code = tic_input_get_joy_btncode(name);
-	int down = tic_input_is_joy_down(jid, code);
+	int down = tic_input_joy_down(jid, code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -15,7 +15,7 @@ static void tic_wren_joystick_is_pressed(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 2);
 
 	int code = tic_input_get_joy_btncode(name);
-	int down = tic_input_is_joy_pressed(jid, code);
+	int down = tic_input_joy_pressed(jid, code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -25,7 +25,7 @@ static void tic_wren_joystick_is_up(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 2);
 
 	int code = tic_input_get_joy_btncode(name);
-	int down = tic_input_is_joy_up(jid, code);
+	int down = tic_input_joy_up(jid, code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -35,7 +35,7 @@ static void tic_wren_joystick_is_released(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 2);
 
 	int code = tic_input_get_joy_btncode(name);
-	int down = tic_input_is_joy_released(jid, code);
+	int down = tic_input_joy_released(jid, code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -67,14 +67,14 @@ static tc_WrenLib wrenJoystickLib[] = {
 static void tic_wren_mouse_is_down(WrenVM *vm) {
 	int code = wrenGetSlotDouble(vm, 1);
 
-	int down = tic_input_is_mouse_down(code - 1);
+	int down = tic_input_mouse_down(code - 1);
 
 	wrenSetSlotBool(vm, 0, down);
 }
 static void tic_wren_mouse_is_pressed(WrenVM *vm) {
 	int code = wrenGetSlotDouble(vm, 1);
 
-	int down = tic_input_is_mouse_pressed(code - 1);
+	int down = tic_input_mouse_pressed(code - 1);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -82,7 +82,7 @@ static void tic_wren_mouse_is_pressed(WrenVM *vm) {
 static void tic_wren_mouse_is_up(WrenVM *vm) {
 	int code = wrenGetSlotDouble(vm, 1);
 
-	int down = tic_input_is_mouse_up(code - 1);
+	int down = tic_input_mouse_up(code - 1);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -90,7 +90,7 @@ static void tic_wren_mouse_is_up(WrenVM *vm) {
 static void tic_wren_mouse_is_released(WrenVM *vm) {
 	int code = wrenGetSlotDouble(vm, 1);
 
-	int down = tic_input_is_mouse_released(code - 1);
+	int down = tic_input_mouse_released(code - 1);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -106,7 +106,7 @@ static void tic_wren_keyboard_is_down(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 1);
 
 	int code = tic_input_get_key_code(name);
-	int down = tic_input_is_key_down(code);
+	int down = tic_input_key_down(code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -115,7 +115,7 @@ static void tic_wren_keyboard_is_pressed(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 1);
 
 	int code = tic_input_get_key_code(name);
-	int down = tic_input_is_key_pressed(code);
+	int down = tic_input_key_pressed(code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -124,7 +124,7 @@ static void tic_wren_keyboard_is_up(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 1);
 
 	int code = tic_input_get_key_code(name);
-	int down = tic_input_is_key_up(code);
+	int down = tic_input_key_up(code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -133,7 +133,7 @@ static void tic_wren_keyboard_is_released(WrenVM *vm) {
 	const char *name = wrenGetSlotString(vm, 1);
 
 	int code = tic_input_get_key_code(name);
-	int down = tic_input_is_key_released(code);
+	int down = tic_input_key_released(code);
 
 	wrenSetSlotBool(vm, 0, down);
 }
@@ -150,15 +150,15 @@ static void tic_wren_input_is_down(WrenVM *vm) {
 	int down = -1;
 	if (strstr(name, "mouse")) {
 		int code = tic_input_get_mouse_code(name);
-		down = tic_input_is_mouse_down(code);
+		down = tic_input_mouse_down(code);
 	} else if (strstr(name, "jp")) {
 		int jid = 0;
 		if (wrenGetSlotCount(vm) > 2) jid = wrenGetSlotDouble(vm, 2);
 		int code = tic_input_get_joy_btncode(name);
-		down = tic_input_is_joy_down(jid, code);
+		down = tic_input_joy_down(jid, code);
 	} else {
 		int code = tic_input_get_key_code(name);
-		down = tic_input_is_key_down(code);
+		down = tic_input_key_down(code);
 	}
 
 	wrenSetSlotBool(vm, 0, down);
@@ -169,15 +169,15 @@ static void tic_wren_input_is_pressed(WrenVM *vm) {
 	int pressed = -1;
 	if (strstr("mouse", name)) {
 		int code = tic_input_get_mouse_code(name);
-		pressed = tic_input_is_mouse_pressed(code);
+		pressed = tic_input_mouse_pressed(code);
 	} else if (strstr("jp", name)) {
 		int jid = 0;
 		if (wrenGetSlotCount(vm) > 2) jid = wrenGetSlotDouble(vm, 2);
 		int code = tic_input_get_joy_btncode(name);
-		pressed = tic_input_is_joy_pressed(jid, code);
+		pressed = tic_input_joy_pressed(jid, code);
 	} else {
 		int code = tic_input_get_key_code(name);
-		pressed = tic_input_is_key_pressed(code);
+		pressed = tic_input_key_pressed(code);
 	}
 
 	wrenSetSlotBool(vm, 0, pressed);
@@ -188,15 +188,15 @@ static void tic_wren_input_is_up(WrenVM *vm) {
 	int up = -1;
 	if (strstr("mouse", name)) {
 		int code = tic_input_get_mouse_code(name);
-		up = tic_input_is_mouse_up(code);
+		up = tic_input_mouse_up(code);
 	} else if (strstr("jp", name)) {
 		int jid = 0;
 		if (wrenGetSlotCount(vm) > 2) jid = wrenGetSlotDouble(vm, 2);
 		int code = tic_input_get_joy_btncode(name);
-		up = tic_input_is_joy_up(jid, code);
+		up = tic_input_joy_up(jid, code);
 	} else {
 		int code = tic_input_get_key_code(name);
-		up = tic_input_is_key_up(code);
+		up = tic_input_key_up(code);
 	}
 
 	wrenSetSlotBool(vm, 0, up);
@@ -207,15 +207,15 @@ static void tic_wren_input_is_released(WrenVM *vm) {
 	int released = -1;
 	if (strstr("mouse", name)) {
 		int code = tic_input_get_mouse_code(name);
-		released = tic_input_is_mouse_released(code);
+		released = tic_input_mouse_released(code);
 	} else if (strstr("jp", name)) {
 		int jid = 0;
 		if (wrenGetSlotCount(vm) > 2) jid = wrenGetSlotDouble(vm, 2);
 		int code = tic_input_get_joy_btncode(name);
-		released = tic_input_is_joy_released(jid, code);
+		released = tic_input_joy_released(jid, code);
 	} else {
 		int code = tic_input_get_key_code(name);
-		released = tic_input_is_key_released(code);
+		released = tic_input_key_released(code);
 	}
 
 	wrenSetSlotBool(vm, 0, released);
