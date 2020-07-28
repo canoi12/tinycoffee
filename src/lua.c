@@ -13,12 +13,16 @@
 // "return color";
 
 #define SOUND_CLASS "Sound"
-#define TEXTURE_CLASS "Texture"
-#define CANVAS_CLASS "Canvas"
-#define IMAGE_CLASS "Image"
-#define RECTANGLE_CLASS "Rectangle"
-#define FONT_CLASS "Font"
-#define SHADER_CLASS "Shader"
+
+#define TEXTURE_CLASS LUA_CLASS(tc_Texture)
+#define CANVAS_CLASS LUA_CLASS(tc_Canvas)
+#define IMAGE_CLASS LUA_CLASS(tc_Image)
+#define RECTANGLE_CLASS LUA_CLASS(tc_Rectf)
+#define FONT_CLASS LUA_CLASS(tc_Font)
+#define SHADER_CLASS LUA_CLASS(tc_Shader)
+
+#define TILESET_CLASS LUA_CLASS(tc_Tileset)
+#define TILEMAP_CLASS LUA_CLASS(tc_Tilemap)
 
 int lua_isarray(lua_State *L, int index) {
   lua_len(L, index);
@@ -43,6 +47,22 @@ static tc_Rect lua_optrect_table(lua_State *l, int index, tc_Rect opt) {
   }
 
   return rect;
+}
+
+static tc_Color lua_optcolor(lua_State *l, int index, tc_Color opt) {
+  tc_Color color = opt;
+  if (lua_istable(l, index)) {
+    lua_len(l, index);
+    int count = tic_min(lua_tonumber(l, -1), 4);
+    lua_pop(l, 1);
+    for (int i = 0; i < count; i++) {
+      lua_rawgeti(l, index, i+1);
+      color.data[i] = lua_tonumber(l, -1);
+      lua_pop(l, 1);
+    }
+  }
+
+  return color;
 }
 
 #ifdef LUAJIT
@@ -133,6 +153,9 @@ static int luaopen_bit(lua_State *L) {
 #include "scripting/lua/timer.h"
 #include "scripting/lua/window.h"
 #include "scripting/lua/ui.h"
+#include "scripting/lua/engine.h"
+#include "scripting/lua/editor.h"
+#include "scripting/lua/resources.h"
 
 int tic_lua_preload(const char *modName, const char *modCode, int bufSize) {
   size_t size = bufSize + 100;
@@ -182,6 +205,7 @@ tc_bool tic_lua_init(tc_Config *config) {
     return tc_false;
   }
   Core.lua.mainLoaded = tc_true;
+  TRACELOG("Lua initiated");
 
   return tc_true;
 }
@@ -226,6 +250,7 @@ int tic_lua_step() {
 
 void tic_lua_callback(const char *name) {
   lua_State *L = Core.lua.L;
+  if (!L) return;
   lua_getglobal(L, "tico");
   if (!lua_isnil(L, -1)) {
     lua_getfield(L, -1, "_doCallback");
@@ -317,11 +342,16 @@ int luaopen_tico(lua_State *L) {
     {"Rectangle", luaopen_rectangle},
     {"Font", luaopen_font},
     {"Shader", luaopen_shader},
+    {"Tileset", luaopen_tileset},
+    {"Tilemap", luaopen_tilemap},
     {"graphics", luaopen_graphics},
     {"filesystem", luaopen_filesystem},
     {"input", luaopen_input},
     {"audio", luaopen_audio},
     {"math", luaopen_tcmath},
+    {"engine", luaopen_engine},
+    {"editor", luaopen_editor},
+    {"resources", luaopen_resources},
     {"timer", luaopen_timer},
     {"window", luaopen_window},
     {"json", luaopen_json},

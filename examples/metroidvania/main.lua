@@ -1,6 +1,7 @@
 input = require "libs.input"
 local GameScene = require "scenes.gamescene"
 local Tilemap = require "tilemap"
+local Camera = require "libs.camera"
 
 local sprite = require "tico.sprite"
 
@@ -103,8 +104,14 @@ local fps = 0
 local bump = require "libs.bump"
 bumpWorld = bump.newWorld(32)
 
+local pos = {
+  x = 0,
+  y = 0
+}
+
 function tico.load()
   -- gamescene = GameScene()
+  tico.editor.load()
   gamescene = Map("assets/map.json")
   canvas = tico.graphics.newCanvas(160, 95)
   canvas1 = tico.graphics.newCanvas(160, 95)
@@ -112,6 +119,16 @@ function tico.load()
   image = sprite("assets/images/goblin_run_anim_strip_6.png", 16, 16)
   image:addAnimation("idle", "1-6")
   image1 = tico.graphics.newImage("assets/icons.png")
+  camera = Camera(0, 0, 160, 95)
+  camera:follow(pos)
+
+
+  img = tico.graphics.newImage("assets/images/tileset.png")
+  tileset = tico.engine.load_tileset("tileset.json", img)
+  tilemap = tico.engine.load_tilemap("tilemap.json", tileset)
+
+  tico.editor.set_tilemap(tilemap)
+  -- tico.editor.set_tileset(tileset)
   -- tilemap = Tilemap("assets/map.json")
   shader = tico.graphics.newOutlineShader()
   gbaShader = tico.graphics.newGBAShader()
@@ -202,6 +219,11 @@ function tico.update(dt)
   if tico.input.isDown("up") then oy = oy - 100 * dt end
   if tico.input.isDown("down") then oy = oy + 100 * dt end
 
+  pos.x = ox
+  pos.y = oy
+
+  camera:follow(pos)
+
   if (tico.input.isDown("ctrl") and tico.input.isPressed("down")) or tico.input.joyPressed(0, "lb") then if currentColor > 1 then currentColor = currentColor - 1 end end
   if (tico.input.isDown("ctrl") and tico.input.isPressed("up")) or tico.input.joyPressed(0, "y")  then if currentColor < #gbacolors then currentColor = currentColor + 1 end end
 
@@ -210,6 +232,7 @@ function tico.update(dt)
   -- elseif tico.input.isJoyDown(0, "dright") then
   --   x = x + 100 * dt
   -- end
+
 end
 
 local t = ""
@@ -236,6 +259,12 @@ function tico.draw()
   canvas:attach()
   -- tico.graphics.clear()
   tico.graphics.clear(gbacolors[currentColor][2])
+  -- tico.graphics.push()
+  -- tico.graphics.translate(-ox,-oy)
+  -- camera:attach()
+  -- tilemap:draw()
+  -- tico.graphics.pop()
+  -- camera:detach()
   gamescene:draw()
   tico.graphics.print("joystick: " .. tico.input.joystickName(0))
   canvas:detach()
@@ -255,12 +284,16 @@ function tico.draw()
 
 
 
-  gbaShader:attach()
-  gbaShader:send("u_col", unpack(gbacolors[currentColor]))
-  canvas:auto()
-  gbaShader:detach()
+  if tico.editor.begin_draw() then
+    gbaShader:attach()
+    gbaShader:send("u_col", unpack(gbacolors[currentColor]))
+    canvas:draw(0, 0, 0, 4, 4)
+    gbaShader:detach()
+    tico.editor.end_draw()
+  end
+  tico.editor.draw()
   -- tico.graphics.print("joystick: " .. tico.input.joystickName(0))
-  drawEditor()
+  -- drawEditor()
 end
 
 function initInput()
@@ -282,9 +315,11 @@ function drawEditor()
     tico.ui.endWindow()
   end
   if tico.ui.beginWindow("debug", {256, 0, 200, 112}) then
-    tico.ui.layoutRow(1, {-1}, -1)
+    tico.ui.beginColumn()
+    tico.ui.layoutRow(1, {16}, 16)
     tico.ui.image(image1)
-    tico.ui.layoutRow(1, {-1}, 0)
+    tico.ui.text("testando")
+    tico.ui.endColumn()
 
     local fps = tico.timer.fps()
     local delta = tico.timer.delta()
@@ -292,6 +327,16 @@ function drawEditor()
     tico.ui.text("FPS: " .. fps)
     tico.ui.text("delta: " .. delta)
     tico.ui.text("path: " .. tico.filesystem.getPath())
+
+    if tico.ui.button("open popup") then
+      tico.ui.openPopup("popup")
+    end
+
+    if tico.ui.beginPopup("popup") then
+      tico.ui.layoutRow(1, {160}, 95)
+      tico.ui.image(canvas)
+      tico.ui.endPopup()
+    end
 
     tico.ui.endWindow()
   end

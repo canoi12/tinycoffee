@@ -33,6 +33,23 @@ static int tic_lua_ui_button(lua_State *L) {
   return 1;
 }
 
+static int tic_lua_ui_image_button(lua_State *L) {
+  const char *label = luaL_checkstring(L, 1);
+  tc_Image *image = luaL_testudata(L, 2, IMAGE_CLASS);
+  tc_Canvas *canvas = luaL_testudata(L, 2, CANVAS_CLASS);
+
+  int res = tc_false;
+  if (image) {
+    res = tic_ui_image_button(label, image->texture);
+  } else if (canvas) {
+    res = tic_ui_image_button(label, canvas->texture);
+  }
+
+  lua_pushboolean(L, res);
+
+  return 1;
+}
+
 static int tic_lua_ui_text(lua_State *L) {
   const char *text = luaL_checkstring(L, 1);
   tic_ui_text(text);
@@ -81,6 +98,85 @@ static int tic_lua_ui_image(lua_State *L) {
   }
 
   return 0;
+}
+
+// static int* tic_lua_int_array(lua_State *L, int index, int sz) {
+//   for (int i = 0; i < sz; i++) {
+
+//   }
+// }
+
+static int tic_lua_ui_grid(lua_State *L) {
+  const char *label = luaL_checkstring(L, 1);
+  int w = luaL_checkinteger(L, 2);
+  int h = luaL_checkinteger(L, 3);
+  mu_Vec2 v = {w, h};
+  int cell[w*h];
+  memset(cell, 0, w*h);
+  int opt = 0;
+  // int cell = luaL_optinteger(L, 4, -1);
+  if (lua_type(L, 4) == LUA_TTABLE) {
+    opt |= MU_OPT_GRIDMULTI;
+    lua_len(L, 4);
+    int len = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+    for (int i = 0; i < len; i++) {
+      lua_rawgeti(L, 4, i+1);
+      cell[i] = lua_tonumber(L, -1);
+      lua_pop(L, 1);
+    }
+  } else {
+    cell[0] = luaL_optnumber(L, 4, -1);
+  }
+  if (lua_type(L, 5) == LUA_TBOOLEAN) opt |= MU_OPT_INPUTDOWN;
+  int res = tic_ui_grid_ex(label, v, cell, opt);
+
+  lua_pushboolean(L, res);
+  if (opt & MU_OPT_GRIDMULTI) {
+    lua_newtable(L);
+    for (int i = 0; i < w*h; i++) {
+      lua_pushnumber(L, cell[i]);
+      lua_rawseti(L, -2, (i+1));
+    }
+  } else {
+    lua_pushnumber(L, cell[0]);
+  }
+  // lua_pushinteger(L, cell);
+
+  return 2;
+}
+
+static int tic_lua_ui_image_grid(lua_State *L) {
+  const char *label = luaL_checkstring(L, 1);
+  tc_Canvas *canvas = luaL_testudata(L, 2, "Canvas");
+  tc_Image *image = luaL_testudata(L, 2, "Image");
+  tc_Texture *tex = NULL;
+  tc_Rect r = tic_rect(0, 0, 32, 32);
+  int w = luaL_checknumber(L, 3);
+  int h = luaL_checknumber(L, 4);
+  mu_Vec2 v = {w, h};
+  int cell = luaL_optinteger(L, 5, -1);
+  int opt = 0;
+  int res = 0;
+  if (canvas) {
+    r.y = canvas->height;
+    r.w = canvas->width;
+    r.h = -canvas->height;
+    tex = &canvas->texture;
+  } else if (image) {
+    r.w = image->width;
+    r.h = image->height;
+    tex = &image->texture;
+  }
+
+  if (lua_type(L, 6) == LUA_TBOOLEAN) opt |= MU_OPT_INPUTDOWN;
+
+  if (tex) res = tic_ui_image_grid_ex(label, *tex, r, v, &cell, opt);
+  
+  lua_pushboolean(L, res);
+  lua_pushinteger(L, cell);
+
+  return 2;
 }
 
 static int tic_lua_ui_window_size(lua_State *L) {
@@ -201,9 +297,10 @@ static int tic_lua_ui_slider(lua_State *L) {
 }
 
 static int tic_lua_ui_number(lua_State *L) {
-  float number = luaL_checknumber(L, 1);
-  float step = luaL_optnumber(L, 2, 1);
-  int state = tic_ui_number(&number, step);
+  const char *label = luaL_checkstring(L, 1);
+  float number = luaL_checknumber(L, 2);
+  float step = luaL_optnumber(L, 3, 1);
+  int state = tic_ui_number((char*)label, &number, step);
 
   lua_pushnumber(L, number);
   lua_pushnumber(L, state);
@@ -223,6 +320,27 @@ static int tic_lua_end_tree_node(lua_State *L) {
   return 0;
 }
 
+static int tic_lua_ui_begin_popup(lua_State *L) {
+  const char *label = luaL_checkstring(L, 1);
+  int open = tic_ui_begin_popup(label);
+
+  lua_pushboolean(L, open);
+  return 1;
+}
+
+static int tic_lua_ui_end_popup(lua_State *L) {
+  tic_ui_end_popup();
+
+  return 0;
+}
+
+static int tic_lua_ui_open_popup(lua_State *L) {
+  const char *label = luaL_checkstring(L, 1);
+  tic_ui_open_popup(label);
+
+  return 0;
+}
+
 static int tic_lua_ui_is_window_focused(lua_State *L) {
   const char *str = luaL_checkstring(L, 1);
   mu_Container *cnt = tic_ui_get_container(str);
@@ -230,6 +348,7 @@ static int tic_lua_ui_is_window_focused(lua_State *L) {
   lua_pushboolean(L, cnt->zindex == last);
   return 1;
 }
+
 
 int luaopen_ui(lua_State *L) {
   luaL_Reg reg[] = {
@@ -239,7 +358,10 @@ int luaopen_ui(lua_State *L) {
     {"endTree", tic_lua_end_tree_node},
     {"windowSize", tic_lua_ui_window_size},
     {"windowPos", tic_lua_ui_window_pos},
+    {"grid", tic_lua_ui_grid},
+    {"imageGrid", tic_lua_ui_image_grid},
     {"button", tic_lua_ui_button},
+    {"imageButton", tic_lua_ui_image_button},
     {"image", tic_lua_ui_image},
     {"label", tic_lua_ui_label},
     {"text", tic_lua_ui_text},
@@ -255,6 +377,9 @@ int luaopen_ui(lua_State *L) {
     {"endColumn", tic_lua_end_column},
     {"beginPanel", tic_lua_ui_begin_panel},
     {"endPanel", tic_lua_ui_end_panel},
+    {"beginPopup", tic_lua_ui_begin_popup},
+    {"endPopup", tic_lua_ui_end_popup},
+    {"openPopup", tic_lua_ui_open_popup},
     {"isWindowFocused", tic_lua_ui_is_window_focused},
     {NULL, NULL}
   };

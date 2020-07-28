@@ -28,11 +28,13 @@ static void tic_window_character_callback(GLFWwindow *window, unsigned int codep
 }
 
 static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, 1);
+  // if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+  //   glfwSetWindowShouldClose(window, 1);
 
   Core.input.keyState.down[key] = tic_clamp(action, 0, 1);
   tic_ui_key_callback(key, action);
+
+  tic_lua_callback("keypressed");
 }
 
 static void tic_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
@@ -73,8 +75,15 @@ static void tic_joystick_callback(int jid, int event) {
 
 static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   tic_ui_mouse_scroll_callback(xoffset, yoffset);
-  Core.input.mouseState.scrollX = xoffset * -10;
-  Core.input.mouseState.scrollY = yoffset * -10;
+  // Core.input.mouseState.scroll_delta.x = (xoffset * -10) - Core.input.mouseState.scroll.x;
+  // Core.input.mouseState.scroll_delta.y = (yoffset * -10) - Core.input.mouseState.scroll.y;
+  Core.input.mouseState.scroll.x = xoffset * -10;
+  Core.input.mouseState.scroll.y = yoffset * -10;
+  Core.input.mouseState.scroll_delta.x += xoffset * -10;
+  Core.input.mouseState.scroll_delta.y += yoffset * -10;
+
+  // TRACELOG("%f %f", Core.input.mouseState.scroll_delta.x, Core.input.mouseState.scroll_delta.y);
+
 
   tic_lua_callback("mousescroll");
 }
@@ -94,7 +103,6 @@ tc_bool tic_init(tc_Config *config) {
   TRACELOG("packed: %d", Core.fs.packed);
 
   tic_window_init(&Core.window, config->title, config->width, config->height, config->windowFlags);
-  tic_resources_init(&Core.resources);
   // Core.packed = tc_false;
 
   if (gl3wInit()) {
@@ -115,12 +123,14 @@ tc_bool tic_init(tc_Config *config) {
   glfwSetFramebufferSizeCallback(Core.window.handle, tic_framebuffer_size_callback);
   TRACELOG("Setup callbacks");
 
+  Core.lua.L = NULL;
+
   if (config->lang == TIC_LUA_GAME) tic_lua_init(&Core.config);
-#ifdef LUA_LANG
-#endif
 #ifdef WREN_LANG
+  Core.wren.vm = NULL;
   if (config->lang == TIC_WREN_GAME) tic_wren_init();
 #endif
+  
 
   tic_input_init(&Core.input, 0);
 
@@ -135,18 +145,20 @@ tc_bool tic_init(tc_Config *config) {
   // glViewport(0, 0, Core.window.width, Core.window.height);
 //   tic_lua_load();
 
+  // tic_resources_init(&Core.resources);
+
   tic_ui_init(Core.defaultFont);
 
   return tc_true;
 }
 
 void tic_init_config_json(tc_Config *config) {
-  if (!tic_filesystem_file_exists("config.json")) return;
+  if (!tic_filesystem_file_exists((unsigned char*)"config.json")) return;
   cJSON *jsonConfig = tic_json_open("config.json");
   cJSON *window = NULL;
-  const char *name = tic_json_get_opt_string(jsonConfig, "name", config->title);
+  const char *name = tic_json_get_opt_string(jsonConfig, "name", (char*)config->title);
   if (name) {
-    strcpy(config->title, name);
+    strcpy((char*)config->title, name);
   }
   const char *lang = tic_json_get_opt_string(jsonConfig, "lang", "");
   if (!strcmp(lang, "wren")) {
@@ -277,6 +289,8 @@ void tic_end_draw() {
   tic_ui_end();
   tic_batch_flush(&Core.render.batch);
   tic_batch_draw(&Core.render.batch);
+  // glScissor(0, 0, Core.window.width, Core.window.height);
+  // glDisable(GL_SCISSOR_TEST);
 
   tic_swap_buffers();
 }
@@ -308,7 +322,7 @@ void tic_terminate() {
 	tic_render_destroy(&Core.render);
   tic_window_destroy(&Core.window);
   tic_audio_terminate();
-  tic_resources_destroy(&Core.resources);
+  // tic_resources_destroy(&Core.resources);
   // lua_close(Core.lua.L);
 //   TRACELOG("Lua close");
   glfwTerminate();

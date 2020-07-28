@@ -26,6 +26,8 @@
 
   #include "external/stb_truetype.h"
 
+  #include "external/map.h"
+
   #ifndef LUAJIT
     #include "external/lua/src/lua.h"
     #include "external/lua/src/lauxlib.h"
@@ -155,6 +157,7 @@ typedef unsigned char tc_uint8;
 #define deg2rad(a) ((a) * PI/180)
 #define rad2deg(a) ((a) * 180/PI)
 
+#define LUA_CLASS(name) #name
 #define WHITE tic_rgb(255, 255, 255)
 #define BLACK tic_rgb(0, 0, 0)
 #define BLUE tic_rgb(48, 52, 109)
@@ -616,14 +619,22 @@ typedef struct tc_Shader {
   unsigned int program;
 } tc_Shader;
 
+enum {
+  TIC_CURSOR_ARROW = 0,
+  TIC_CURSOR_TEXT,
+  TIC_CURSOR_CROSSHAIR,
+  TIC_CURSOR_HAND,
+  TIC_CURSOR_HRESIZE,
+  TIC_CURSOR_VRESIZE
+};
+
 typedef struct {
   struct {
-    hashmap mouseButtonNames;
-    hashmap keyNames;
-    hashmap joyButtonNames;
-    hashmap joyAxisNames;
+    map_int_t mouseButtonNames;
+    map_int_t keyNames;
+    map_int_t joyButtonNames;
+    map_int_t joyAxisNames;
   } names;
-
   struct {
     int x;
     int y;
@@ -631,11 +642,17 @@ typedef struct {
     int fixY;
     float scrollX;
     float scrollY;
+    tc_Vec2 scroll;
+    tc_Vec2 scroll_delta;
+    tc_Vec2 pos;
+    tc_Vec2 pos_delta;
     tc_bool down[MOUSE_BUTTON_LAST];
     tc_bool pressed[MOUSE_BUTTON_LAST];
     tc_bool fixed;
     tc_bool active;
     hashmap buttonNames;
+
+    GLFWcursor *cursors[6];
   } mouseState;
   struct {
     tc_bool down[KEY_LAST];
@@ -808,23 +825,14 @@ typedef struct {
 #endif
 
 typedef enum {
-  TIC_RESOURCE_TEXTURE = 1,
-  TIC_RESOURCE_SOUND,
-  TIC_RESOURCE_FONT
+  TIC_RESOURCE_IMAGE = (1 << 0),
+  TIC_RESOURCE_SOUND = (1 << 1),
+  TIC_RESOURCE_FONT = (1 << 2),
+  TIC_RESOURCE_TILESET = (1 << 3),
+  TIC_RESOURCE_TILEMAP = (1 << 4),
+  TIC_RESOURCE_LUA = (1 << 5),
+  TIC_RESOURCE_WREN = (1 << 6)
 } TIC_RESOURCE_TYPE;
-
-typedef struct tc_Resource {
-  hashmap map;
-  void **pool;
-  int maxSize;
-  TIC_RESOURCE_TYPE type;
-} tc_Resource;
-
-typedef struct tc_ResourceManager {
-  tc_Resource textures;
-  tc_Resource fonts;
-  tc_Resource sounds;
-} tc_ResourceManager;
 
 #include "ui/microui.h"
 typedef void* mu_Font;
@@ -844,7 +852,6 @@ typedef struct {
   unsigned char ** names;
 } tc_UI;
 
-
 typedef struct tc_Config {
   tc_uint8 title[256];
   tc_uint8 path[128];
@@ -858,6 +865,100 @@ typedef struct tc_Config {
   char ** argv;
 } tc_Config;
 
+typedef struct tc_Tileset {
+  tc_Image image;
+  tc_Vec2 tilesize;
+  int tilecount;
+  int columns;
+  int *bitmasks;
+  tc_Rectf *rect;
+} tc_Tileset;
+
+typedef struct tc_Tilemap {
+  tc_Tileset *tileset;
+  tc_Vec2 grid;
+  int width;
+  int height;
+  int count;
+  int *data;
+} tc_Tilemap;
+
+typedef struct tc_TilesetEditor {
+  tc_Canvas canvas;
+  tc_Tileset *tileset;
+  void (*draw_panel)(void*);
+  char *name;
+  char *filename;
+  char *image_name;
+  int cell;
+  float scale;
+  int mask[9];
+  void *cnt;
+} tc_TilesetEditor;
+
+typedef struct tc_TilemapEditor {
+  tc_Canvas canvas;
+  tc_Canvas bg;
+  tc_Tilemap *map;
+  void (*draw_panel)(void*);
+  char *name;
+  char *filename;
+  char *tileset_name;
+  int cell;
+  float scale;
+  tc_Vec2 size;
+  void *cnt;
+} tc_TilemapEditor;
+
+// typedef map_t(mu_Container*) map_container_t;
+
+typedef struct tc_Editor {
+  tc_TilesetEditor tileset_editor;
+  tc_TilemapEditor tilemap_editor;
+  tc_Canvas bg;
+  tc_Canvas game_canvas;
+  int sidebar_width;
+  void *game_cnt;
+} tc_Editor;
+
+#define MAX_RESOURCES_DEPS 32
+
+typedef struct tc_Resource tc_Resource;
+
+struct tc_Resource {
+  int deps_count;
+  int id;
+  int type;
+  char *name;
+  char *path;
+  tc_Image *image;
+  tc_Tileset *tileset;
+  tc_Tilemap *tilemap;
+  tc_Sound *sound;
+  lua_State *L;
+#ifdef WREN_LANG
+  WrenVM *vm;
+#endif
+  tc_Resource *deps[MAX_RESOURCES_DEPS];
+};
+
+// typedef struct tc_Resource {
+//   hashmap map;
+//   void **pool;
+//   int maxSize;
+//   TIC_RESOURCE_TYPE type;
+// } tc_Resource;
+
+typedef map_t(tc_Resource) map_resource_t;
+typedef map_t(map_resource_t) map_res_manager_t;
+
+typedef struct tc_ResourceManager {
+  tc_Resource textures;
+  tc_Resource fonts;
+  tc_Resource sounds;
+  map_res_manager_t resources;
+} tc_ResourceManager;
+
 typedef struct tc_Core {
   tc_Window window;
   tc_Render render;
@@ -868,6 +969,7 @@ typedef struct tc_Core {
   tc_Timer timer;
   tc_Lua lua;
   tc_UI ui;
+  tc_Editor editor;
 #ifdef WREN_LANG
   tc_Wren wren;
 #endif
@@ -1051,7 +1153,7 @@ TIC_API void tic_graphics_clear(tc_Color color);
  *******************/
 
 TIC_API void tic_graphics_draw_rectangle(float x, float y, int width, int height, tc_Color color);
-TIC_API void tic_graphics_fill_rectangle(float x, float y, int width, int height, tc_Color color);
+TIC_API void tic_graphics_fill_rectangle(float x, float y, float width, float height, tc_Color color);
 TIC_API void tic_graphics_draw_rect(tc_Rect rect, tc_Color color);
 TIC_API void tic_graphics_fill_rect(tc_Rect rect, tc_Color color);
 
@@ -1272,6 +1374,7 @@ TIC_API tc_bool tic_input_mouse_down(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_mouse_pressed(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_mouse_up(TIC_MOUSEBUTTON button);
 TIC_API tc_bool tic_input_mouse_released(TIC_MOUSEBUTTON button);
+TIC_API void tic_input_mouse_set_cursor(int cursor);
 
 TIC_API tc_bool tic_input_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
 TIC_API tc_bool tic_input_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button);
@@ -1283,6 +1386,7 @@ TIC_API void tic_input_fix_mouse();
 TIC_API void tic_input_release_mouse();
 TIC_API void tic_input_get_mouse_delta(int *x, int *y);
 TIC_API void tic_input_get_mouse_scroll(float *x, float *y);
+TIC_API void tic_input_get_mouse_scroll_delta(float *x, float *y);
 
 /*======================
  * Filesystem
@@ -1396,16 +1500,33 @@ TIC_API void* tic_resource_get(tc_Resource *resource, const char *name);
 TIC_API tc_bool tic_resource_is_full(tc_Resource *resource);
 
 TIC_API tc_bool tic_resources_init(tc_ResourceManager *manager);
+TIC_API tc_bool tic_resources_load(tc_ResourceManager *manager, const char *path);
 TIC_API tc_bool tic_resources_destroy(tc_ResourceManager *manager);
 
 TIC_API tc_bool tic_resources_add_texture(const char *name, tc_Texture *texture);
 TIC_API tc_Texture* tic_resources_get_texture(const char *name);
 
-TIC_API tc_bool tic_resources_add_sound(const char *name, tc_AudioData* sound);
-TIC_API tc_AudioData* tic_resources_get_sound(const char *name);
+// TIC_API tc_bool tic_resources_add_sound(const char *name, tc_AudioData* sound);
+// TIC_API tc_AudioData* tic_resources_get_sound(const char *name);
 
-TIC_API tc_bool tic_resources_add_font(const char *name, tc_Font* sound);
-TIC_API tc_Font* tic_resources_get_font(const char *name);
+// TIC_API tc_bool tic_resources_add_font(const char *name, tc_Font* sound);
+// TIC_API tc_Font* tic_resources_get_font(const char *name);
+
+TIC_API void tic_resources_new_type(tc_ResourceManager *manager, const char *type);
+
+TIC_API tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const char *name, tc_Resource resource);
+TIC_API tc_Resource* tic_resources_get(tc_ResourceManager *manager, const char *type, const char *name);
+
+TIC_API tc_Image *tic_resources_image_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+TIC_API tc_Tileset *tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+TIC_API tc_Tilemap *tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+
+TIC_API void tic_resources_tileset_store(tc_ResourceManager *manager, const char *name);
+TIC_API void tic_resources_tilemap_store(tc_ResourceManager *manager, const char *name);
+
+TIC_API tc_bool tic_resources_add_image(tc_ResourceManager *manager, const char *name, tc_Image *image);
+TIC_API tc_Image* tic_resources_get_image(tc_ResourceManager *manager, const char *name);
+TIC_API void tic_resources_remove_image(tc_ResourceManager *manager, const char *name);
 
 /*======================
  * UI
@@ -1422,18 +1543,23 @@ TIC_API tc_Font* tic_resources_get_font(const char *name);
 #define tic_ui_layout_next() mu_layout_next(Core.ui.ctx)
 #define tic_ui_get_layout() mu_get_layout(Core.ui.ctx)
 
-#define tic_ui_button(label) mu_button(Core.ui.ctx, label)
-#define tic_ui_slider(value, lo, hi) mu_slider(Core.ui.ctx, value, lo, hi)
-#define tic_ui_header(label) mu_header(Core.ui.ctx, label)
-#define tic_ui_header_ex(label, opt) mu_header_ex(Core.ui.ctx, label, opt)
-#define tic_ui_label(label) mu_label(Core.ui.ctx, label)
-#define tic_ui_text(text) mu_text(Core.ui.ctx, text)
-#define tic_ui_image(texId, size, src, color) mu_image(Core.ui.ctx, texId, size, src, color)
-#define tic_ui_number(number, step) mu_number(Core.ui.ctx, number, step)
-#define tic_ui_checkbox(label, value) mu_checkbox(Core.ui.ctx, label, value)
-#define tic_ui_checkbox_ex(label, value)
-#define tic_ui_textbox(buffer, size) mu_textbox(Core.ui.ctx, buffer, size)
-#define tic_ui_textbox_raw(id, buffer, size, r) mu_textbox_raw(Core.ui.ctx, buffer, size, id, r, 0)
+#define tic_ui_grid(label, size, cell)                 mu_grid(Core.ui.ctx, label, size, cell)
+#define tic_ui_grid_ex(label, size, cell, opt)         mu_grid_ex(Core.ui.ctx, label, size, cell, opt)
+#define tic_ui_image_grid(label, image, size, cell)    mu_image_grid(Core.ui.ctx, label, image, size, cell)
+#define tic_ui_image_grid_ex(label, image, p, size, cell, opt)    mu_image_grid_ex(Core.ui.ctx, label, image, p, size, cell, opt)
+#define tic_ui_button(label)                           mu_button(Core.ui.ctx, label)
+#define tic_ui_image_button(label, texture)            mu_image_button(Core.ui.ctx, label, texture)
+#define tic_ui_slider(value, lo, hi)                   mu_slider(Core.ui.ctx, value, lo, hi)
+#define tic_ui_header(label)                           mu_header(Core.ui.ctx, label)
+#define tic_ui_header_ex(label, opt)                   mu_header_ex(Core.ui.ctx, label, opt)
+#define tic_ui_label(label)                            mu_label(Core.ui.ctx, label)
+#define tic_ui_text(text)                              mu_text(Core.ui.ctx, text)
+#define tic_ui_image(texId, size, src, color)          mu_image(Core.ui.ctx, texId, size, src, color)
+#define tic_ui_number(label, number, step)             mu_number(Core.ui.ctx, label, number, step)
+#define tic_ui_checkbox(label, value)                  mu_checkbox(Core.ui.ctx, label, value)
+#define tic_ui_checkbox_ex(label, value)               mu_checkbox(Core.ui.ctx, label, value)
+#define tic_ui_textbox(buffer, size)                   mu_textbox(Core.ui.ctx, buffer, size)
+#define tic_ui_textbox_raw(id, buffer, size, r)        mu_textbox_raw(Core.ui.ctx, buffer, size, id, r, 0)
 
 #define tic_ui_begin_window(title, rect) mu_begin_window(Core.ui.ctx, title, rect)
 #define tic_ui_begin_window_ex(title, rect, opt) mu_begin_window(Core.ui.ctx, title, rect)
@@ -1450,9 +1576,9 @@ TIC_API tc_Font* tic_resources_get_font(const char *name);
 #define tic_ui_end_popup() mu_end_popup(Core.ui.ctx)
 
 #define tic_ui_get_id(name, size) mu_get_id(Core.ui.ctx, name, size);
-#define tic_ui_get_focused() Core.ui.ctx->focus;
-#define tic_ui_get_last() Core.ui.ctx->last_id;
-#define tic_ui_last_zindex() Core.ui.ctx->last_zindex;
+#define tic_ui_get_focused() Core.ui.ctx->focus
+#define tic_ui_get_last() Core.ui.ctx->last_id
+#define tic_ui_last_zindex() Core.ui.ctx->last_zindex
 
 TIC_API void tic_ui_init(tc_Font font);
 TIC_API void tic_ui_terminate();
@@ -1468,6 +1594,95 @@ TIC_API void tic_ui_text_callback(int codepoint);
 
 TIC_API int tic_ui_text_width(mu_Font font, const char *text, int len);
 TIC_API int tic_ui_text_height(mu_Font font);
+
+/*======================
+ * Engine
+ *======================*/
+
+/**********************
+ * Tileset
+ **********************/
+
+TIC_API tc_Tileset tic_tileset_create(tc_Image image, int w, int h);
+TIC_API tc_Tileset tic_tileset_load(const char *path, tc_Image image);
+TIC_API void tic_tileset_destroy(tc_Tileset *tileset);
+
+TIC_API void tic_tileset_set_bitmask(tc_Tileset *tileset, int index, int bitmask);
+
+TIC_API void tic_tileset_calc_mask_array(tc_Tileset tileset, int bitmask, int *bitmask_array);
+TIC_API int tic_tileset_calc_mask(tc_Tileset tileset, int *bitmask_array);
+
+TIC_API void tic_tileset_draw(tc_Tileset tileset, int index, int x, int y, tc_Color color);
+
+TIC_API tc_Rectf tic_tileset_get_rect(tc_Tileset tileset, int index);
+TIC_API int tic_tileset_get_from_bitmask(tc_Tileset tileset, int bitmask);
+
+/**********************
+ * Tilemap
+ **********************/
+
+TIC_API tc_Tilemap tic_tilemap_create(tc_Tileset *tileset, int w, int h);
+TIC_API tc_Tilemap tic_tilemap_load(const char *path, tc_Tileset *tileset);
+TIC_API void tic_tilemap_resize(tc_Tilemap *tilemap, int w, int h);
+TIC_API void tic_tilemap_destroy(tc_Tilemap *map);
+
+TIC_API int tic_tilemap_has_tile(tc_Tilemap map, int x, int y);
+
+TIC_API void tic_tilemap_draw(tc_Tilemap map);
+TIC_API void tic_tilemap_draw_part(tc_Tilemap map, tc_Rect part, int x, int y);
+
+TIC_API int tic_tilemap_autotile(tc_Tilemap tilemap, int index);
+TIC_API int tic_tilemap_autotile_pos(tc_Tilemap tilemap, int x, int y);
+
+TIC_API void tic_tilemap_insert(tc_Tilemap *map, int index);
+TIC_API void tic_tilemap_remove(tc_Tilemap *map, int index);
+TIC_API void tic_tilemap_insert_pos(tc_Tilemap *map, int index);
+
+TIC_API int tic_tilemap_get_index(tc_Tilemap map, int x, int y);
+TIC_API void tic_tilemap_get_position(tc_Tilemap map, int index, tc_Vec2 *v);
+
+/*======================
+ * Editor
+ *======================*/
+
+TIC_API void tic_editor_load(tc_Editor *editor);
+TIC_API void tic_editor_destroy(tc_Editor *editor);
+
+TIC_API void tic_editor_set_tileset(tc_Editor *editor, const char *name, tc_Tileset *tileset);
+TIC_API void tic_editor_set_tilemap(tc_Editor *editor, const char *name, tc_Tilemap *tilemap);
+
+TIC_API void tic_editor_new_tileset(tc_Editor *editor, int w, int h);
+TIC_API void tic_editor_new_tilemap(tc_Editor *editor, int w, int h);
+
+TIC_API void tic_editor_update(tc_Editor *editor);
+TIC_API void tic_editor_draw(tc_Editor *editor);
+TIC_API int tic_editor_begin_draw(tc_Editor *editor);
+TIC_API void tic_editor_end_draw(tc_Editor *editor);
+
+/*********************
+ * Tileset
+ *********************/
+
+TIC_API void tic_editor_tileset_init(tc_TilesetEditor *editor);
+TIC_API void tic_editor_tileset_destroy(tc_TilesetEditor *editor);
+
+TIC_API void tic_editor_tileset_change(tc_TilesetEditor *editor, tc_Tileset *tileset);
+
+TIC_API int tic_editor_tileset_draw(tc_TilesetEditor *editor);
+TIC_API void tic_editor_tileset_save(tc_TilesetEditor *editor);
+
+/**********************
+ * Tilemap
+ **********************/
+
+TIC_API void tic_editor_tilemap_init(tc_TilemapEditor *editor);
+TIC_API void tic_editor_tilemap_destroy(tc_TilemapEditor *editor);
+
+TIC_API void tic_editor_tilemap_change(tc_TilemapEditor *editor, tc_Tilemap *tilemap);
+
+TIC_API int tic_editor_tilemap_draw(tc_TilemapEditor *editor);
+TIC_API void tic_editor_tilemap_save(tc_TilemapEditor *editor);
+
 
 /*======================
  * Scripting

@@ -75,7 +75,9 @@ enum {
 enum {
   MU_RES_ACTIVE       = (1 << 0),
   MU_RES_SUBMIT       = (1 << 1),
-  MU_RES_CHANGE       = (1 << 2)
+  MU_RES_CHANGE       = (1 << 2),
+  MU_RES_MOUSELEFT    = (1 << 3),
+  MU_RES_MOUSERIGHT   = (1 << 4)
 };
 
 enum {
@@ -91,7 +93,11 @@ enum {
   MU_OPT_AUTOSIZE     = (1 << 9),
   MU_OPT_POPUP        = (1 << 10),
   MU_OPT_CLOSED       = (1 << 11),
-  MU_OPT_EXPANDED     = (1 << 12)
+  MU_OPT_EXPANDED     = (1 << 12),
+  MU_OPT_GRIDMULTI    = (1 << 13),
+  MU_OPT_INPUTDOWN    = (1 << 14),
+  MU_OPT_NOFRONT      = (1 << 15),
+  MU_OPT_HRESIZE      = (1 << 16)
 };
 
 enum {
@@ -106,6 +112,11 @@ enum {
   MU_KEY_ALT          = 342,
   MU_KEY_BACKSPACE    = 259,
   MU_KEY_RETURN       = 257
+};
+
+enum {
+  MU_MOUSE_DOWN = 1,
+  MU_MOUSE_PRESSED
 };
 
 
@@ -162,6 +173,7 @@ typedef struct {
   mu_Vec2 scroll;
   int zindex;
   int open;
+  int no_front;
 } mu_Container;
 
 typedef struct {
@@ -187,6 +199,8 @@ struct mu_Context {
   mu_Id hover;
   mu_Id focus;
   mu_Id last_id;
+  int cursor;
+  int text_cursor;
   tc_Rect last_rect;
   int last_zindex;
   int updated_focus;
@@ -273,24 +287,30 @@ void mu_draw_control_text(mu_Context *ctx, const char *str, tc_Rect rect, int co
 int mu_mouse_over(mu_Context *ctx, tc_Rect rect);
 void mu_update_control(mu_Context *ctx, mu_Id id, tc_Rect rect, int opt);
 
-#define mu_button(ctx, label)             mu_button_ex(ctx, label, 0, MU_OPT_ALIGNCENTER)
-#define mu_textbox(ctx, buf, bufsz)       mu_textbox_ex(ctx, buf, bufsz, 0)
-#define mu_slider(ctx, value, lo, hi)     mu_slider_ex(ctx, value, lo, hi, 0, MU_SLIDER_FMT, MU_OPT_ALIGNCENTER)
-#define mu_number(ctx, value, step)       mu_number_ex(ctx, value, step, MU_SLIDER_FMT, MU_OPT_ALIGNCENTER)
-#define mu_header(ctx, label)             mu_header_ex(ctx, label, 0)
-#define mu_begin_treenode(ctx, label)     mu_begin_treenode_ex(ctx, label, 0)
-#define mu_begin_window(ctx, title, rect) mu_begin_window_ex(ctx, title, rect, 0)
-#define mu_begin_panel(ctx, name)         mu_begin_panel_ex(ctx, name, 0)
+#define mu_grid(ctx, label, size, cell)                 mu_grid_ex(ctx, label, size, cell, 0)
+#define mu_image_grid(ctx, label, image, size, cell)    mu_image_grid_ex(ctx, label, image, tic_rect(0, 0, image.width, image.height), size, cell, 0)
+#define mu_button(ctx, label)                           mu_button_ex(ctx, label, 0, MU_OPT_ALIGNCENTER)
+#define mu_image_button(ctx, label, tex)                mu_image_button_ex(ctx, label, tex, MU_OPT_ALIGNCENTER)
+#define mu_textbox(ctx, buf, bufsz)                     mu_textbox_ex(ctx, buf, bufsz, 0)
+#define mu_slider(ctx, value, lo, hi)                   mu_slider_ex(ctx, value, lo, hi, 0, MU_SLIDER_FMT, MU_OPT_ALIGNCENTER)
+#define mu_number(ctx, label, value, step)              mu_number_ex(ctx, label, value, step, MU_SLIDER_FMT, MU_OPT_ALIGNCENTER)
+#define mu_header(ctx, label)                           mu_header_ex(ctx, label, 0)
+#define mu_begin_treenode(ctx, label)                   mu_begin_treenode_ex(ctx, label, 0)
+#define mu_begin_window(ctx, title, rect)               mu_begin_window_ex(ctx, title, rect, 0)
+#define mu_begin_panel(ctx, name)                       mu_begin_panel_ex(ctx, name, 0)
 
 void mu_image(mu_Context *ctx, tc_Texture tex, mu_Vec2 size, tc_Rect part, tc_Color color);
 void mu_text(mu_Context *ctx, const char *text);
 void mu_label(mu_Context *ctx, const char *text);
+int mu_grid_ex(mu_Context *ctx, const char *label, mu_Vec2 size, int *cell_selected, int opt);
+int mu_image_grid_ex(mu_Context *ctx, const char *label, tc_Texture tex, tc_Rect part, mu_Vec2 size, int* cell_selected, int opt);
 int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt);
+int mu_image_button_ex(mu_Context *ctx, const char *label, tc_Texture tex, int opt);
 int mu_checkbox(mu_Context *ctx, const char *label, int *state);
 int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r, int opt);
 int mu_textbox_ex(mu_Context *ctx, char *buf, int bufsz, int opt);
 int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high, mu_Real step, const char *fmt, int opt);
-int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step, const char *fmt, int opt);
+int mu_number_ex(mu_Context *ctx, char *label, mu_Real *value, mu_Real step, const char *fmt, int opt);
 int mu_header_ex(mu_Context *ctx, const char *label, int opt);
 int mu_begin_treenode_ex(mu_Context *ctx, const char *label, int opt);
 void mu_end_treenode(mu_Context *ctx);

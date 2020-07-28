@@ -116,11 +116,16 @@ static int tic_lua_down(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
-    if (item) down = tic_input_mouse_down(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
+    int *val = map_get(&Core.input.names.mouseButtonNames, name);
+    if (val) down = tic_input_mouse_down(*val);
+  } else if (strstr(name, "jp")) {
+    int *val = map_get(&Core.input.names.joyButtonNames, name);
+    if (val) down = tic_input_joy_down(0, *val);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
-    if (item) down = tic_input_key_down(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
+    int *val = map_get(&Core.input.names.keyNames, name);
+    if (val) down = tic_input_key_down(*val);
   }
 
   if (down < 0) {
@@ -138,11 +143,16 @@ static int tic_lua_pressed(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
-    if (item) down = tic_input_mouse_pressed(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
+    int *val = map_get(&Core.input.names.mouseButtonNames, name);
+    if (val) down = tic_input_mouse_pressed(*val);
+  } else if (strstr(name, "jp")) {
+    int *val = map_get(&Core.input.names.joyButtonNames, name);
+    if (val) down = tic_input_joy_pressed(0, *val);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
-    if (item) down = tic_input_key_pressed(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
+    int *val = map_get(&Core.input.names.keyNames, name);
+    if (val) down = tic_input_key_pressed(*val);
   }
 
   if (down < 0) {
@@ -160,11 +170,16 @@ static int tic_lua_up(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
-    if (item) down = tic_input_mouse_up(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
+    int *val = map_get(&Core.input.names.mouseButtonNames, name);
+    if (val) down = tic_input_mouse_up(*val);
+  } else if (strstr(name, "jp")) {
+    int *val = map_get(&Core.input.names.joyButtonNames, name);
+    if (val) down = tic_input_joy_up(0, *val);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
-    if (item) down = tic_input_key_up(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
+    int *val = map_get(&Core.input.names.keyNames, name);
+    if (val) down = tic_input_key_up(*val);
   }
 
   if (down < 0) {
@@ -182,15 +197,16 @@ static int tic_lua_released(lua_State *L) {
   const char *name = luaL_checkstring(L, 1);
   int down = -1;
   if (strstr(name, "mouse")) {
-    hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
-    if (item) down = tic_input_mouse_released(item->value);
-  } else if(strstr(name, "jp")) {
-    int jid = luaL_optinteger(L, 2, 0);
-    hashmap_item *item = hashmap_get(Core.input.names.joyButtonNames, name);
-    if (item) down = tic_input_joy_released(jid, item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
+    int *val = map_get(&Core.input.names.mouseButtonNames, name);
+    if (val) down = tic_input_mouse_released(*val);
+  } else if (strstr(name, "jp")) {
+    int *val = map_get(&Core.input.names.joyButtonNames, name);
+    if (val) down = tic_input_joy_released(0, *val);
   } else {
-    hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
-    if (item) down = tic_input_key_released(item->value);
+    // hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
+    int *val = map_get(&Core.input.names.keyNames, name);
+    if (val) down = tic_input_key_released(*val);
   }
 
   if (down < 0) {

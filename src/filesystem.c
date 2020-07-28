@@ -327,6 +327,11 @@ char *tic_json_get_opt_string(cJSON* const json, char *name, char *optVal) {
   return optVal;
 }
 cJSON *tic_json_set_string(cJSON* const json, char *name, char *value) {
+  cJSON *val = cJSON_GetObjectItem(json, name);
+  if (val) {
+    cJSON_SetValuestring(val, value);
+    return val;
+  }
   cJSON *strVal = cJSON_AddStringToObject(json, name, value);
   if (strVal == NULL) TRACEERR("failed to add string '%s' to json ['%s']", value, name);
   return strVal;
@@ -353,6 +358,11 @@ float tic_json_get_opt_number(cJSON* const json, char *name, float optVal) {
   return optVal;
 }
 cJSON *tic_json_set_number(cJSON* const json, char *name, float value) {
+  cJSON *val = cJSON_GetObjectItem(json, name);
+  if (val) {
+    val->valuedouble = value;
+    return val;
+  }
   cJSON *nVal = cJSON_AddNumberToObject(json, name, value);
   if (nVal == NULL) TRACEERR("Failed to add number '%f' to json ['%s']", value, name);
   return nVal;
@@ -403,6 +413,11 @@ cJSON* tic_json_get_array(cJSON* const json, char *name) {
 }
 
 cJSON* tic_json_set_array(cJSON* const json, char *name, cJSON* const jsonArray) {
+  cJSON *val = cJSON_GetObjectItem(json, name);
+  if (val) {
+    // TRACELOG("testando");
+    tic_json_delete(val);
+  }
   if (jsonArray) {
     cJSON_AddItemToObject(json, name, jsonArray);
   } else {

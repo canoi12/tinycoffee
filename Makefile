@@ -70,7 +70,7 @@ ZIP_OBJ = $(ZIP_FOLDER)/zip.o
 CJSON_OBJ = $(CJSON_FOLDER)/cJSON.o
 GL3W_OBJ = $(GL3W_FOLDER)/gl3w.o
 
-TOBJ += $(GLFW_OBJ) $(TICO_OBJ) $(ZIP_OBJ) $(CJSON_OBJ) $(GL3W_OBJ) $(WREN_OBJ)
+TOBJ += $(GLFW_OBJ) $(TICO_OBJ) $(ZIP_OBJ) $(CJSON_OBJ) $(GL3W_OBJ) $(WREN_OBJ) $(EXTERNAL)/map.o
 
 ifdef NOJIT
 	TOBJ += $(LUA_OBJ)
@@ -80,6 +80,7 @@ else
 endif
 
 SOURCES = $(TOBJ:%.o=%.c)
+# SOURCES += $(EXTERNAL)/map.c
 OBJ = $(subst /,__, $(TOBJ))
 SOBJ = $(OBJ:%.o=$(TMP)/static/%.o)
 DOBJ = $(OBJ:%.o=$(TMP)/shared/%.o)

@@ -63,6 +63,7 @@ void tic_render_push_canvas(tc_Canvas canvas) {
   Core.render.state.canvasIndex++;
 
   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  tic_batch_set_clip(&Core.render.batch, tic_rect(0, 0, canvas.width, canvas.height));
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
   glViewport(0, 0, canvas.width, canvas.height);
   tic_shader_send_world(Core.render.state.currentShader);
@@ -70,14 +71,16 @@ void tic_render_push_canvas(tc_Canvas canvas) {
 }
 
 void tic_render_pop_canvas() {
-  if (Core.render.state.canvasIndex-2 < 0) Core.render.state.canvasIndex = 2;
-  int current = Core.render.state.canvasIndex-1;
+  if (Core.render.state.canvasIndex-1 < 0) Core.render.state.canvasIndex = 1;
+  int current = Core.render.state.canvasIndex;
 
   current--;
+  Core.render.state.canvasIndex = current;
+  current = tic_clamp(current-1, 0, CANVAS_STACK_SIZE-1);
   tc_Canvas canvas = Core.render.state.canvasStack[current];
-  Core.render.state.canvasIndex -= 2;
 
   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  tic_batch_set_clip(&Core.render.batch, tic_rect(0, 0, canvas.width, canvas.height));
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
   glViewport(0, 0, canvas.width, canvas.height);
   tic_shader_send_world(Core.render.state.currentShader);

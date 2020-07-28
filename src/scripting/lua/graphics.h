@@ -10,22 +10,6 @@ int luaopen_graphics(lua_State *L);
 
 #if defined(TICO_LUA_IMPLEMENTATION)
 
-static tc_Color lua_optcolor(lua_State *l, int index, tc_Color opt) {
-  tc_Color color = opt;
-  if (lua_istable(l, index)) {
-    lua_len(l, index);
-    int count = tic_min(lua_tonumber(l, -1), 4);
-    lua_pop(l, 1);
-    for (int i = 0; i < count; i++) {
-      lua_rawgeti(l, index, i+1);
-      color.data[i] = lua_tonumber(l, -1);
-      lua_pop(l, 1);
-    }
-  }
-
-  return color;
-}
-
 static tc_Rectf lua_optrectf(lua_State *l, int index, tc_Rectf opt) {
   tc_Rectf rect = opt;
   tc_Rectf *ur = luaL_testudata(l, index, RECTANGLE_CLASS);
@@ -50,10 +34,10 @@ static int tic_lua_draw_rectangle(lua_State *L) {
   return 0;
 }
 static int tic_lua_fill_rectangle(lua_State *L) {
-  int x = luaL_checknumber(L, 1);
-  int y = luaL_checknumber(L, 2);
-  int w = luaL_checknumber(L, 3);
-  int h = luaL_checknumber(L, 4);
+  float x = luaL_checknumber(L, 1);
+  float y = luaL_checknumber(L, 2);
+  float w = luaL_checknumber(L, 3);
+  float h = luaL_checknumber(L, 4);
   tc_Color color = lua_optcolor(L, 5, WHITE);
 
   tic_graphics_fill_rectangle(x, y, w, h, color);

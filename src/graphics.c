@@ -33,6 +33,7 @@ void tic_graphics_pop() {
 
 void tic_graphics_scissor(int x, int y, int w, int h) {
   tic_batch_set_clip(&Core.render.batch, tic_rect(x, y, w, h));
+  // TRACELOG("%d %d", w, h);
 }
 
 void tic_graphics_clear(tc_Color color) {
@@ -52,7 +53,7 @@ void tic_graphics_draw_rectangle(float x, float y, int width, int height, tc_Col
   // tic_batch_add_line_rect(&Core.render.batch, tic_rectf(x, y, width, height), tic_rectf(0, 0, 1, 1), color);
 }
 
-void tic_graphics_fill_rectangle(float x, float y, int width, int height, tc_Color color) {
+void tic_graphics_fill_rectangle(float x, float y, float width, float height, tc_Color color) {
   tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
   tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
   tic_batch_reset_if_full(&Core.render.batch, 4);
@@ -179,30 +180,32 @@ tc_Texture tic_texture_create_named(const char *name, void *data, int width, int
 tc_Texture tic_texture_load(const char *filename) {
 
  size_t size;
- tc_Texture *tex = tic_resources_get_texture(filename);
- if (tex) {
-   // TRACELOG("Same texture for %s", filename);
-   return *tex;
- }
+ // tc_Texture *tex = tic_resources_get_texture(filename);
+ // if (tex) {
+ //   // TRACELOG("Same texture for %s", filename);
+ //   return *tex;
+ // }
 
+ // tc_Texture *tex = NULL;
+ tc_Texture tex = {0};
+ tex.id = 0;
+ tc_uint8* buffer = tic_filesystem_read_file((tc_uint8*)filename, &size);
 
- tc_uint8* buffer = tic_filesystem_read_file(filename, &size);
-
- tex = malloc(sizeof(tc_Texture));
- *tex = tic_texture_from_memory(buffer, size);
+ // tex = malloc(sizeof(tc_Texture));
+ tex = tic_texture_from_memory(buffer, size);
  // tex->refs = 1;
 //  tex.refs = 0;
  // tc_Texture tex = tic_texture_from_memory(buffer, size);
- if (!tex) {
+ if (tex.id == 0) {
   TRACELOG("Failed to load texture '%s'", filename);
   // free(tex);
   return (tc_Texture){0};
  }
- tic_resources_add_texture(filename, tex);
+ // tic_resources_add_texture(filename, tex);
 
  free(buffer);
 
- return *tex;
+ return tex;
 }
 
 
@@ -762,6 +765,8 @@ void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float 
   // tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
   tc_Rectf part = tic_rectf(rect.x, rect.h, rect.w, rect.y-rect.h);
+  // tc_Rectf part = tic_rectf(rect.x, rect.y, rect.w, rect.h);
+  // TRACELOG("%f %f", dest.x, dest.y);
   tic_texture_draw(canvas.texture, dest, part, color);
 }
 void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {

@@ -29,6 +29,10 @@ end
 local function _init_callbacks()
   tico.callbacks = {}
 
+  tico.callbacks["keypressed"] = function()
+    if tico.keypressed then tico.keypressed("key") end
+  end
+
   tico.callbacks["textinput"] = function()
     if tico.textinput then tico.textinput("tico") end
   end

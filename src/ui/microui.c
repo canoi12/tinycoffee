@@ -145,6 +145,7 @@ void mu_begin(mu_Context *ctx) {
   ctx->mouse_delta.x = ctx->mouse_pos.x - ctx->last_mouse_pos.x;
   ctx->mouse_delta.y = ctx->mouse_pos.y - ctx->last_mouse_pos.y;
   ctx->frame++;
+  ctx->cursor = 0;
 }
 
 
@@ -176,7 +177,7 @@ void mu_end(mu_Context *ctx) {
       ctx->next_hover_root->zindex < ctx->last_zindex &&
       ctx->next_hover_root->zindex >= 0
   ) {
-    mu_bring_to_front(ctx, ctx->next_hover_root);
+    if (!ctx->next_hover_root->no_front) mu_bring_to_front(ctx, ctx->next_hover_root);
   }
 
   /* reset input state */
@@ -207,6 +208,7 @@ void mu_end(mu_Context *ctx) {
       cnt->tail->jump.dst = ctx->command_list.items + ctx->command_list.idx;
     }
   }
+  tic_input_mouse_set_cursor(ctx->cursor);
 }
 
 
@@ -323,7 +325,10 @@ static mu_Container* get_container(mu_Context *ctx, mu_Id id, int opt) {
   cnt = &ctx->containers[idx];
   memset(cnt, 0, sizeof(*cnt));
   cnt->open = 1;
-  mu_bring_to_front(ctx, cnt);
+  cnt->no_front = 0;
+  if (~opt & MU_OPT_NOFRONT) mu_bring_to_front(ctx, cnt);
+  else cnt->no_front = 1;
+  // cnt->no_front = 0;
   return cnt;
 }
 
@@ -523,8 +528,11 @@ void mu_draw_image(mu_Context *ctx, tc_Texture id, tc_Rect rect, tc_Rect src, tc
   // tc_Rect clipr = mu_rect(rect.x, rect.y, part.w, abs(part.h));
   // int clipped = mu_check_clip(ctx, clipr);
   int clipped = mu_check_clip(ctx, rect);
+  tc_Rect r = mu_get_clip_rect(ctx);
   if (clipped == MU_CLIP_ALL) { return; };
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, r); }
+  // TRACELOG("%d %d", r.x, r.y);
+  // TRACELOG("%d %d", id.id, clipped);
   cmd = mu_push_command(ctx, MU_COMMAND_IMAGE, sizeof(mu_ImageCommand));
   cmd->tex.tex = id;
   cmd->tex.rect = rect;
@@ -760,6 +768,198 @@ void mu_label(mu_Context *ctx, const char *text) {
   mu_draw_control_text(ctx, text, mu_layout_next(ctx), MU_COLOR_TEXT, 0);
 }
 
+int mu_image_button_ex(mu_Context *ctx, const char *label, tc_Texture tex, int opt) {
+  int res = 0;
+  mu_Id id = mu_get_id(ctx, label, strlen(label));
+  tc_Rect r = mu_layout_next(ctx);
+  mu_update_control(ctx, id, r, opt);
+
+  if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
+    res |= MU_RES_SUBMIT;
+  }
+
+  mu_draw_control_frame(ctx, id, r, MU_COLOR_BUTTON, opt);
+
+  int color = (ctx->focus == id) ? MU_COLOR_BUTTONFOCUS : (ctx->hover == id) ? MU_COLOR_BUTTONHOVER : MU_COLOR_TEXT;
+  r.x += 1;
+  r.y += 1;
+  r.w -= 2; 
+  r.h -= 2;
+  mu_draw_image(ctx, tex, r, tic_rect(0, 0, 0, 0), tic_rect(0, 0, tex.width, tex.height), ctx->style->colors[color]);
+
+  return res;
+}
+
+int mu_grid_ex(mu_Context *ctx, const char *label, mu_Vec2 size, int *cell_selected, int opt) {
+  int res = 0;
+  mu_Id id = mu_get_id(ctx, label, strlen(label));
+
+  tc_Rect r = mu_layout_next(ctx);
+  mu_update_control(ctx, id, r, opt);
+  int rx = r.x;
+  int ry = r.y;
+  int tw = r.w / size.x;
+  int th = r.h / size.y;
+  int cellx = floor((ctx->mouse_pos.x - 4 - rx)/tw);
+  int celly = floor((ctx->mouse_pos.y - ry)/th);
+
+  int mouse_cell = -1;
+  if (ctx->hover == id) {
+    mouse_cell = cellx + (size.x * celly);
+  }
+
+  // if (opt & MU_OPT_GRIDMULTI) {
+  //   if (ctx->focus == id && ctx->mouse_down == MU_MOUSE_LEFT) {
+  //     if (mouse_cell >= 0 && mouse_cell < tw*th) cell_selected[mouse_cell] = 1;
+  //     res |= MU_RES_CHANGE;
+  //   } else if (ctx->focus == id && ctx->mouse_down == MU_MOUSE_RIGHT) {
+  //     if (mouse_cell >= 0 && mouse_cell < tw*th) cell_selected[mouse_cell] = -1;
+  //     res |= MU_RES_CHANGE;
+  //   }
+  // } else {
+  //   if (ctx->focus == id && ctx->mouse_pressed == MU_MOUSE_LEFT) {
+  //     cell_selected[0] = 1;
+  //     res |= MU_RES_CHANGE;
+  //   }
+  // }
+
+  if (ctx->focus == id) {
+    int down = 0;
+    int mouse = 0;
+    if (~opt & MU_OPT_INPUTDOWN) mouse = ctx->mouse_pressed;
+    else if (opt & MU_OPT_INPUTDOWN) mouse = ctx->mouse_down;
+    
+    if (mouse == MU_MOUSE_LEFT) res |= MU_RES_MOUSELEFT;
+    if (mouse == MU_MOUSE_RIGHT) res |= MU_RES_MOUSERIGHT;
+
+    if ((opt & MU_OPT_GRIDMULTI) && mouse_cell >= 0 && mouse_cell < tw*th) {
+      if (mouse == MU_MOUSE_LEFT) cell_selected[mouse_cell] = 1;
+      if (mouse == MU_MOUSE_RIGHT) cell_selected[mouse_cell] = -1;
+    }
+
+    if (mouse) {
+      res |= MU_RES_CHANGE;
+      if ((opt & MU_OPT_GRIDMULTI) && mouse_cell >= 0 && mouse_cell < tw*th) {
+        if (mouse == MU_MOUSE_LEFT) cell_selected[mouse_cell] = 1;
+        if (mouse == MU_MOUSE_RIGHT) cell_selected[mouse_cell] = -1;
+      } else {
+        *cell_selected = mouse_cell;
+      }
+    }
+  }
+
+  int x = 0;
+  int y = 0;
+  r.w = tw;
+  r.h = th;
+  for (int i = 0; i < size.x*size.y; i++) {
+    if (i != 0 && i % size.x == 0) y += th;
+    x = (i % size.x) * tw;
+    r.x = rx + x;
+    r.y = ry + y;
+    // r.w = tw - 2;
+    // r.h = th - 2;
+    tc_Rect rec = tic_rect(r.x + 2, r.y + 2, tw - 4, th - 4);
+    mu_draw_rect(ctx, rec, ctx->style->colors[MU_COLOR_BUTTON]);
+    // TRACELOG("%s", label);
+    if (i == mouse_cell) {
+      mu_draw_rect(ctx, r, tic_color(189, 31, 63, 125));
+      mu_draw_box(ctx, r, tic_color(189, 31, 63, 175));
+    }
+    if (opt & MU_OPT_GRIDMULTI) {
+      if (1 == cell_selected[i]) {
+        mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+        mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+      }
+    } else {
+      if (i == cell_selected[0]) {
+        mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+        mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+      }
+    }
+  }
+
+  return res;
+}
+
+int mu_image_grid_ex(mu_Context *ctx, const char *label, tc_Texture tex, tc_Rect part, mu_Vec2 size, int *cell_selected, int opt) {
+  int res = 0;
+  mu_Id id = mu_get_id(ctx, label, strlen(label));
+  // opt |= MU_OPT_HOLDFOCUS;
+
+  tc_Rect r = mu_layout_next(ctx);
+  mu_update_control(ctx, id, r, opt);
+
+  int rx = r.x;
+  int ry = r.y;
+  int tw = r.w / size.x;
+  int th = r.h / size.y;
+
+  int cellx = floor((ctx->mouse_pos.x - rx)/tw);
+  int celly = floor((ctx->mouse_pos.y - ry)/th);
+
+  int mouse_cell = -1;
+  if (ctx->hover == id) {
+    mouse_cell = cellx + (size.x * celly);
+  }
+
+  if (ctx->focus == id) {
+    int down = 0;
+    int mouse = 0;
+    if (~opt & MU_OPT_INPUTDOWN) mouse = ctx->mouse_pressed;
+    else if (opt & MU_OPT_INPUTDOWN) mouse = ctx->mouse_down;
+    
+    if (mouse == MU_MOUSE_LEFT) res |= MU_RES_MOUSELEFT;
+    if (mouse == MU_MOUSE_RIGHT) res |= MU_RES_MOUSERIGHT;
+
+    if (mouse) {
+      res |= MU_RES_CHANGE;
+      if ((opt & MU_OPT_GRIDMULTI) && mouse_cell >= 0 && mouse_cell < tw*th) {
+        if (mouse == MU_MOUSE_LEFT) cell_selected[mouse_cell] = 1;
+        if (mouse == MU_MOUSE_RIGHT) cell_selected[mouse_cell] = -1;
+      } else {
+        *cell_selected = mouse_cell;
+      }
+    }
+  }
+
+  // TRACELOG("%d %d %d %d", r.x, r.y, r.w, r.h);
+
+  mu_draw_image(ctx, tex, r, tic_rect(0, 0, 0, 0), part, WHITE);
+
+  
+  int x = 0;
+  int y = 0;
+  r.w = tw;
+  r.h = th;
+  for (int i = 0; i < size.x*size.y; i++) {
+    if (i != 0 && i % size.x == 0) y += th;
+    x = (i % size.x) * tw;
+    r.x = rx + x;
+    r.y = ry + y;
+    // mu_draw_box(ctx, r, WHITE);
+
+    if (i == *cell_selected) {
+      mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+      mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+    }
+    if (i == mouse_cell) {
+      mu_draw_rect(ctx, r, tic_color(189, 31, 63, 125));
+      mu_draw_box(ctx, r, tic_color(189, 31, 63, 175));
+    }
+  }
+
+  // if (mouse_cell >= 0 && mouse_cell < tw*th) {
+  //   int mcx = (mouse_cell % size.x) * tw;
+  //   int mcy = ceil(mouse_cell / size.x) * th;
+  //   r.x = rx + mcx;
+  //   r.y = ry + mcy;
+  //   mu_draw_rect(ctx, r, tic_color(189, 31, 63, 125));
+  //   mu_draw_box(ctx, r, tic_color(189, 31, 63, 175));
+  // }
+
+  return res;
+}
 
 int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
   int res = 0;
@@ -767,6 +967,7 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
                    : mu_get_id(ctx, &icon, sizeof(icon));
   tc_Rect r = mu_layout_next(ctx);
   mu_update_control(ctx, id, r, opt);
+  if (ctx->hover == id) ctx->cursor = TIC_CURSOR_HAND;
   /* handle click */
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
     res |= MU_RES_SUBMIT;
@@ -785,6 +986,7 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
   tc_Rect r = mu_layout_next(ctx);
   tc_Rect box = mu_rect(r.x, r.y, r.h, r.h);
   mu_update_control(ctx, id, r, 0);
+  if (ctx->hover == id) ctx->cursor = TIC_CURSOR_HAND;
   /* handle click */
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == id) {
     res |= MU_RES_CHANGE;
@@ -805,11 +1007,16 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
   int opt)
 {
   int res = 0;
+  int was_focus = 0;
+  if (ctx->focus == id) was_focus = 1;
   mu_update_control(ctx, id, r, opt | MU_OPT_HOLDFOCUS);
+  if (ctx->hover == id) ctx->cursor = TIC_CURSOR_TEXT;
 
   if (ctx->focus == id) {
     /* handle text input */
     int len = strlen(buf);
+    if (!was_focus) ctx->text_cursor = len;
+    // if (ctx->updated_focus) ctx->text_cursor = len;
     int n = mu_min(bufsz - len - 1, (int) strlen(ctx->input_text));
     if (n > 0) {
       memcpy(buf + len, ctx->input_text, n);
@@ -817,6 +1024,14 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
       buf[len] = '\0';
       res |= MU_RES_CHANGE;
     }
+
+    if (ctx->key_pressed == KEY_LEFT) {
+      ctx->text_cursor -= 1;
+    } else if (ctx->key_pressed == KEY_RIGHT) {
+      ctx->text_cursor += 1;
+    }
+    ctx->text_cursor = tic_clamp(ctx->text_cursor, 0, len);
+
     /* handle backspace */
     if (ctx->key_pressed == MU_KEY_BACKSPACE && len > 0) {
       /* skip utf-8 continuation bytes */
@@ -824,6 +1039,7 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
       buf[len] = '\0';
       res |= MU_RES_CHANGE;
     }
+    
     /* handle return */
     if (ctx->key_pressed == MU_KEY_RETURN) {
       mu_set_focus(ctx, 0);
@@ -836,7 +1052,8 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
   if (ctx->focus == id) {
     tc_Color color = ctx->style->colors[MU_COLOR_TEXT];
     mu_Font font = ctx->style->font;
-    int textw = ctx->text_width(font, buf, -1);
+    int textw = ctx->text_width(font, buf, ctx->text_cursor);
+    // int textw_t = ctx->text_width(font, buf, ctx->text_cursor);
     int texth = ctx->text_height(font);
     int ofx = r.w - ctx->style->padding - textw - 1;
     int textx = r.x + mu_min(ofx, ctx->style->padding);
@@ -844,6 +1061,7 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
     mu_push_clip_rect(ctx, r);
     mu_draw_text(ctx, font, buf, -1, mu_vec2(textx, texty), color);
     mu_draw_rect(ctx, mu_rect(textx + textw, texty, 1, texth), color);
+    // mu_draw_rect(ctx, mu_rect(textx + textw, texty, 1, texth), color);
     mu_pop_clip_rect(ctx);
   } else {
     mu_draw_control_text(ctx, buf, r, MU_COLOR_TEXT, opt);
@@ -854,6 +1072,7 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
 
 
 static int number_textbox(mu_Context *ctx, mu_Real *value, tc_Rect r, mu_Id id) {
+  if (ctx->hover == id) ctx->cursor = TIC_CURSOR_HAND;
   if (ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->key_down & MU_KEY_SHIFT &&
       ctx->hover == id
   ) {
@@ -921,12 +1140,12 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
 }
 
 
-int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
+int mu_number_ex(mu_Context *ctx, char *label, mu_Real *value, mu_Real step,
   const char *fmt, int opt)
 {
   char buf[MU_MAX_FMT + 1];
   int res = 0;
-  mu_Id id = mu_get_id(ctx, &value, sizeof(value));
+  mu_Id id = mu_get_id(ctx, &label, sizeof(label));
   tc_Rect base = mu_layout_next(ctx);
   mu_Real last = *value;
 
@@ -980,6 +1199,8 @@ static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
   /* draw */
   if (istreenode) {
     if (ctx->hover == id) { ctx->draw_frame(ctx, r, MU_COLOR_BUTTONHOVER); }
+    // ctx->draw_frame(ctx, r, MU_COLOR_BUTTONHOVER);
+    // if (ctx->hover == id) ctx->cursor = TIC_CURSOR_HAND;
   } else {
     mu_draw_control_frame(ctx, id, r, MU_COLOR_BUTTON, 0);
   }
@@ -1152,10 +1373,13 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
       tr.w -= r.w;
       mu_draw_icon(ctx, MU_ICON_CLOSE, r, ctx->style->colors[MU_COLOR_TITLETEXT]);
       mu_update_control(ctx, id, r, opt);
+      if (ctx->hover == id) ctx->cursor = TIC_CURSOR_HAND;
       if (ctx->mouse_pressed == MU_MOUSE_LEFT && id == ctx->focus) {
         cnt->open = 0;
       }
     }
+
+    // mu_Container *ccnt = mu_get_current_container(ctx);
   }
 
   push_container_body(ctx, cnt, body, opt);
@@ -1163,10 +1387,18 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
   /* do `resize` handle */
   if (~opt & MU_OPT_NORESIZE) {
     int sz = ctx->style->title_height;
+    // int sz = 8;
     mu_Id id = mu_get_id(ctx, "!resize", 7);
     tc_Rect r = mu_rect(rect.x + rect.w - sz, rect.y + rect.h - sz, sz, sz);
+    if (opt & MU_OPT_HRESIZE) {
+      sz -= 12;
+      r = mu_rect(rect.x + rect.w - sz, rect.y + sz, sz, rect.h);
+    }
+    // tc_Rect r = mu_rect(rect.x + rect.w - sz, rect.y+ctx->style->title_height, sz, rect.h);
     mu_update_control(ctx, id, r, opt);
+    if (id == ctx->hover) ctx->cursor = TIC_CURSOR_HRESIZE;
     if (id == ctx->focus && ctx->mouse_down == MU_MOUSE_LEFT) {
+      ctx->cursor = TIC_CURSOR_HRESIZE;
       cnt->rect.w = mu_max(96, cnt->rect.w + ctx->mouse_delta.x);
       cnt->rect.h = mu_max(64, cnt->rect.h + ctx->mouse_delta.y);
     }
@@ -1182,6 +1414,11 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
   /* close if this is a popup window and elsewhere was clicked */
   if (opt & MU_OPT_POPUP && ctx->mouse_pressed && ctx->hover_root != cnt) {
     cnt->open = 0;
+  }
+
+  if (cnt == ctx->hover_root && ctx->key_down == MU_KEY_ALT) {
+    ctx->scroll_delta.x += -ctx->mouse_delta.x;
+    ctx->scroll_delta.y += -ctx->mouse_delta.y;
   }
 
   mu_push_clip_rect(ctx, cnt->body);
@@ -1201,6 +1438,10 @@ void mu_open_popup(mu_Context *ctx, const char *name) {
   ctx->hover_root = ctx->next_hover_root = cnt;
   /* position at mouse cursor, open and bring-to-front */
   cnt->rect = mu_rect(ctx->mouse_pos.x, ctx->mouse_pos.y, 1, 1);
+  // TRACELOG("%d %d", cnt->body.w, cnt->body.h);
+  mu_Vec2 size = mu_vec2(cnt->body.w > 5 ? cnt->body.w : 64, cnt->body.h > 5 ? cnt->body.h : 64);
+  if (cnt->rect.y + size.y > Core.window.height) cnt->rect.y -= size.y;
+  if (cnt->rect.x + size.x > Core.window.width) cnt->rect.x -= size.x;
   cnt->open = 1;
   mu_bring_to_front(ctx, cnt);
 }

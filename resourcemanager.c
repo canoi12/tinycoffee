@@ -16,11 +16,14 @@ void tic_resource_init(tc_Resource *resource, TIC_RESOURCE_TYPE type, int poolSi
   resource->type = type;
 }
 
+#define res_destroy_fn void (*)(void *data)
+
 void tic_resource_destroy(tc_Resource *resource) {
   void (*destroy_fn)(void *data) = NULL;
-  if (resource->type == TIC_RESOURCE_TEXTURE) destroy_fn = tic_texture_destroy;
-  else if (resource->type == TIC_RESOURCE_FONT) destroy_fn = tic_font_destroy;
-  else if (resource->type == TIC_RESOURCE_SOUND) destroy_fn = tic_audio_data_free;
+  // res_destroy_fn(destroy_fn) = NULL;
+  if (resource->type == TIC_RESOURCE_TEXTURE) destroy_fn = (res_destroy_fn) tic_texture_destroy;
+  else if (resource->type == TIC_RESOURCE_FONT) destroy_fn = (res_destroy_fn) tic_font_destroy;
+  else if (resource->type == TIC_RESOURCE_SOUND) destroy_fn = (res_destroy_fn) tic_audio_data_free;
   else return;
 
   for (int i = 0; i < resource->maxSize; i++) {
@@ -73,6 +76,8 @@ tc_bool tic_resources_init(tc_ResourceManager *resources) {
   tic_resource_init(&resources->textures, TIC_RESOURCE_TEXTURE, DEFAULT_MAX_TEXTURES);
   tic_resource_init(&resources->fonts, TIC_RESOURCE_FONT, DEFAULT_MAX_FONTS);
   tic_resource_init(&resources->sounds, TIC_RESOURCE_SOUND, DEFAULT_MAX_SOUNDS);
+  // resources->resources = hashmap_create(MAX_RESOURCES);
+  map_init(&resources->resources);
 }
 
 tc_bool tic_resources_destroy(tc_ResourceManager *resources) {

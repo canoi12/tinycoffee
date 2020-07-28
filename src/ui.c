@@ -50,6 +50,7 @@ void tic_ui_key_callback(int key, int action) {
 
 void tic_ui_text_callback(int codepoint) {
   tc_uint8 c[4];
+  memset(c, 0, 4);
   tic_utf8_encode(c, codepoint);
   mu_input_text(Core.ui.ctx, c);
 }
@@ -74,7 +75,7 @@ static void tic_mu_draw_icon(int id, tc_Rect rect, tc_Color color) {
 static void tic_mu_draw_image(tc_Texture tex, tc_Rect rect, tc_Rect src, tc_Rect part, tc_Color color) {
   tc_Color col = tic_rgba(color.r, color.g, color.b, color.a);
   tc_Rectf r = {part.x, part.y, part.w, part.h};
-  tc_Rectf rec;
+  tc_Rectf rec = {0, 0, 0, 0};
   for (int i = 0; i < 4; i++) rec.data[i] = rect.data[i];
   // TRACELOG("%d %f", part.y, r.h);
 //   TRACELOG("%d %d %d %d", r.x, r.y, r.width, r.height);
