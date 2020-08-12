@@ -12,7 +12,7 @@
 // "function color.rgb(r, g, b) return {r, g, b} end\n"
 // "return color";
 
-#define SOUND_CLASS "Sound"
+#define SOUND_CLASS LUA_CLASS(tc_Sound)
 
 #define TEXTURE_CLASS LUA_CLASS(tc_Texture)
 #define CANVAS_CLASS LUA_CLASS(tc_Canvas)
@@ -23,6 +23,7 @@
 
 #define TILESET_CLASS LUA_CLASS(tc_Tileset)
 #define TILEMAP_CLASS LUA_CLASS(tc_Tilemap)
+#define CAMERA_CLASS LUA_CLASS(tc_Camera)
 
 int lua_isarray(lua_State *L, int index) {
   lua_len(L, index);
@@ -344,6 +345,7 @@ int luaopen_tico(lua_State *L) {
     {"Shader", luaopen_shader},
     {"Tileset", luaopen_tileset},
     {"Tilemap", luaopen_tilemap},
+    {"Camera", luaopen_camera},
     {"graphics", luaopen_graphics},
     {"filesystem", luaopen_filesystem},
     {"input", luaopen_input},

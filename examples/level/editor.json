@@ -1,0 +1,32 @@
+{
+	"props":	{
+		"sidebar":	200
+	},
+	"tools":	{
+		"tileset//forest":	{
+			"rect":	[200, 0, 340, 316],
+			"open":	false,
+			"fullscreen":	false
+		},
+		"game":	{
+			"rect":	[0, 0, 0, 0],
+			"open":	false,
+			"fullscreen":	false
+		},
+		"tilemap//forest":	{
+			"rect":	[200, 0, 440, 380],
+			"open":	true,
+			"fullscreen":	true
+		},
+		"tileset//knightvania":	{
+			"rect":	[0, 0, 0, 0],
+			"open":	false,
+			"fullscreen":	false
+		},
+		"tilemap//teste":	{
+			"rect":	[200, 0, 440, 380],
+			"open":	true,
+			"fullscreen":	true
+		}
+	}
+}

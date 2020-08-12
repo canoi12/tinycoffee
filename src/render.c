@@ -6,8 +6,6 @@ enum {
   TIC_TEXCOORD_INDEX = 6
 };
 
-
-
 static void tic_render_mode_canvas_2D() {
   glBindFramebuffer(GL_FRAMEBUFFER, Core.render.state.defaultCanvas.id);
 }
@@ -16,6 +14,12 @@ static void tic_render_mode_canvas_stretch() {
 }
 
 tc_bool tic_render_init(tc_Render *render) {
+  stack_arr_init(&render->state.canvasStack, CANVAS_STACK_SIZE);
+  stack_arr_init(&render->state.shaderStack, SHADER_STACK_SIZE);
+  stack_arr_init(&render->state.matrixStack, MATRIX_STACK_SIZE);
+
+  // TRACELOG("%d", render->state.matrixStack.top);
+  
 	render->state.shapeTexture = tic_texture_create_named("default", WHITE.data, 1, 1, GL_RGBA);
   tic_texture_set_wrap(&render->state.shapeTexture, GL_REPEAT, GL_REPEAT);
   render->state.defaultTextureId = render->state.shapeTexture.id;
@@ -41,6 +45,10 @@ tc_bool tic_render_init(tc_Render *render) {
   render->state.currentCanvas.id = 0;
   render->state.currentMatrix = 0;
 
+  // TRACELOG("%d", render->state.canvasStack.top);
+  // TRACELOG("%d", render->state.canvasStack.top);
+  // TRACELOG("%d", render->state.canvasStack.top);
+
   tic_shader_init_shaders();
 
   return tc_true;
@@ -52,15 +60,20 @@ void tic_render_destroy(tc_Render *render) {
   glDeleteShader(render->state.defaultVertexShader);
   glDeleteShader(render->state.defaultFragmentShader);
   tic_shader_destroy(&render->state.defaultShader);
+  // stack_arr_destroy(&render->state.canvasStack);
+  // stack_arr_destroy(&render->state.shaderStack);
+  // stack_arr_destroy(&render->state.matrixStack);
+  // TRACELOG("destroyed");
   TRACELOG("Render destroyed");
 }
 
 void tic_render_push_canvas(tc_Canvas canvas) {
-  if (Core.render.state.canvasIndex+1 >= CANVAS_STACK_SIZE) return;
-  int current = Core.render.state.canvasIndex;
+  // if (Core.render.state.canvasIndex+1 >= CANVAS_STACK_SIZE) return;
+  // int current = Core.render.state.canvasIndex;
 
-  Core.render.state.canvasStack[current] = canvas;
-  Core.render.state.canvasIndex++;
+  // Core.render.state.canvasStack[current] = canvas;
+  // Core.render.state.canvasIndex++;
+  stack_arr_push(&Core.render.state.canvasStack, canvas);
 
   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
   tic_batch_set_clip(&Core.render.batch, tic_rect(0, 0, canvas.width, canvas.height));
@@ -71,13 +84,16 @@ void tic_render_push_canvas(tc_Canvas canvas) {
 }
 
 void tic_render_pop_canvas() {
-  if (Core.render.state.canvasIndex-1 < 0) Core.render.state.canvasIndex = 1;
-  int current = Core.render.state.canvasIndex;
+  // if (Core.render.state.canvasIndex-1 < 0) Core.render.state.canvasIndex = 1;
+  // int current = Core.render.state.canvasIndex;
 
-  current--;
-  Core.render.state.canvasIndex = current;
-  current = tic_clamp(current-1, 0, CANVAS_STACK_SIZE-1);
-  tc_Canvas canvas = Core.render.state.canvasStack[current];
+  // current--;
+  // Core.render.state.canvasIndex = current;
+  // current = tic_clamp(current-1, 0, CANVAS_STACK_SIZE-1);
+  // tc_Canvas canvas = Core.render.state.canvasStack[current];
+  stack_arr_pop(&Core.render.state.canvasStack);
+  tc_Canvas canvas = stack_arr_top(&Core.render.state.canvasStack);
+  // TRACEERR("%d", Core.render.state.canvasStack.top);
 
   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
   tic_batch_set_clip(&Core.render.batch, tic_rect(0, 0, canvas.width, canvas.height));
@@ -89,12 +105,13 @@ void tic_render_pop_canvas() {
 }
 
 void tic_render_push_shader(tc_Shader shader) {
-  int current = Core.render.state.shaderIndex;
-  if (current+1 >= SHADER_STACK_SIZE) return;
+  // int current = Core.render.state.shaderIndex;
+  // if (current+1 >= SHADER_STACK_SIZE) return;
 
-  Core.render.state.shaderStack[current] = shader;
-  Core.render.state.shaderIndex++;
+  // Core.render.state.shaderStack[current] = shader;
+  // Core.render.state.shaderIndex++;
 
+  stack_arr_push(&Core.render.state.shaderStack, shader);
   tic_batch_draw_reset(&Core.render.batch);
   glUseProgram(shader.program);
   Core.render.state.currentShader = shader;
@@ -102,12 +119,16 @@ void tic_render_push_shader(tc_Shader shader) {
 }
 
 void tic_render_pop_shader() {
-  int current = Core.render.state.shaderIndex-1;
-  if (current-1 < 0) return;
+  // int current = Core.render.state.shaderIndex-1;
+  // if (current-1 < 0) return;
 
-  current--;
-  tc_Shader shader = Core.render.state.shaderStack[current];
-  Core.render.state.shaderIndex--;
+  // current--;
+  // tc_Shader shader = Core.render.state.shaderStack[current];
+  // Core.render.state.shaderIndex--;
+  // tc_Shader *sv;
+  stack_arr_pop(&Core.render.state.shaderStack);
+  tc_Shader shader = stack_arr_top(&Core.render.state.shaderStack);
+  // tc_Shader shader = *sv;
 
   tic_batch_draw_reset(&Core.render.batch);
   glUseProgram(shader.program);
@@ -177,6 +198,7 @@ void tic_batch_destroy(tc_Batch *batch) {
   TIC_FREE(batch->indices);
   glDeleteVertexArrays(1, &batch->vao);
   glDeleteBuffers(2, batch->vbo);
+  TRACELOG("Batch destroyed");
 }
 
 tc_DrawCall tic_drawcall_create(int start, int texture, TIC_DRAW_MODE mode, tc_Rect *clip, tc_Matrix modelview) {
@@ -287,7 +309,8 @@ void tic_batch_set_transform(tc_Batch *batch, tc_Matrix transform) {
       batch->drawCallIndex++;
       batch->drawCalls[batch->drawCallIndex] = tic_drawcall_create(start, prev->textureId, prev->mode, &prev->clip, transform);
     } else {
-      prev->modelview = transform;
+      // prev->modelview = transform;
+      tic_matrix_clone(&prev->modelview, transform);
       prev->indexStart = start;
     }
   }
@@ -420,7 +443,7 @@ void tic_batch_add_rect(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, tc_Color co
 	  float offset = 1;
 	  tc_Matrix *camera = Core.render.state.camera;
 	  if (camera) offset = 1.f-(1.f/camera->data[0][0]);
-	  batch->verticesPtr[0] = tic_vertexc(pos.x+offset, pos.y, color, uv.x, uv.y);
+	  // batch->verticesPtr[0] = tic_vertexc(pos.x+offset, pos.y, color, uv.x, uv.y);
 	  // batch->verticesPtr[1] = tic_vertexc(pos.z-0.5, pos.y, color, uv.z, uv.y);
     batch->verticesPtr[0] = tic_vertexc(pos.x+1, pos.y, color, uv.x, uv.y);
     batch->verticesPtr[1] = tic_vertexc(pos.z, pos.y, color, uv.z, uv.y);
@@ -508,17 +531,18 @@ void tic_batch_add_rect_ex(tc_Batch *batch, tc_Rectf dst, tc_Rectf src, float an
   tc_Matrix model;
 	tic_matrix_translate(&model, dst.x, dst.y, 0);
 	tic_matrix_rotate_z(&model, model, angle);
-	// matrix_translate(&model, -cx, -cy, 0);
+	tic_matrix_translate(&model, -cx, -cy, 0);
 	tic_matrix_scale_aniso(&model, model, dst.w, dst.h, 1);
-	float ox = cx / (float)src.w;
-	float oy = cy / (float)abs(src.h);
-	tc_Matrix pos = {
-			-ox, -oy, 0, 0,
-			1-ox, -oy, 0, 0,
-			1 - ox, 1 - oy, 0, 0,
-			-ox, 1 - oy, 0, 0};
+	// float ox = cx / (float)src.w;
+	// float oy = cy / (float)abs(src.h);
+	// tc_Matrix pos = {
+	// 		-ox, -oy, 0, 0,
+	// 		1-ox, -oy, 0, 0,
+	// 		1 - ox, 1 - oy, 0, 0,
+	// 		-ox, 1 - oy, 0, 0};
 
-	tic_matrix_mul(&pos, model, pos);
+	// tic_matrix_mul(&pos, model, pos);
+  tc_Matrix pos = model;
 
   float s0 = src.x / (float)width;
 	float t0 = src.y / (float)height;

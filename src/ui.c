@@ -1,16 +1,23 @@
 #include "tico.h"
-#include "ui_icons.png.h"
+#include "ui_icons1.png.h"
 
 void tic_ui_init(tc_Font font) {
   Core.ui.ctx = malloc(sizeof(mu_Context));
   Core.ui.font = font;
 //   ui.log[0] = '\0';
-  Core.ui.icons.tex = tic_texture_from_memory(ui_icons_png, ui_icons_png_size);
-  tc_Rect rect[4] = {
-    tic_rect(0, 0, 8, 8),
-    tic_rect(8, 0, 8, 8),
-    tic_rect(0, 8, 8, 8),
-    tic_rect(8, 8, 8, 8)
+  Core.ui.icons.tex = tic_texture_from_memory(ui_icons1_png, ui_icons1_png_size);
+  tc_Rect rect[MU_ICON_MAX] = {
+    tic_rect(0, 0, 16, 16),
+    tic_rect(16, 0, 16, 16),
+    tic_rect(32, 0, 16, 16),
+
+    tic_rect(0, 16, 16, 16),
+    tic_rect(16, 16, 16, 16),
+    tic_rect(32, 16, 16, 16),
+
+    tic_rect(0, 32, 16, 16),
+    tic_rect(16, 32, 16, 16),
+    tic_rect(32, 32, 16, 16)
   };
   memcpy(&Core.ui.icons.rect, &rect, sizeof(rect));
   Core.ui.names = malloc(MU_CONTAINERPOOL_SIZE * sizeof(char**));
@@ -65,21 +72,22 @@ static void tic_mu_draw_icon(int id, tc_Rect rect, tc_Color color) {
   for (int i = 0; i < 4; i++) r.data[i] = Core.ui.icons.rect[id-1].data[i];
   tc_Rectf rec;
   for (int i = 0; i < 4; i++) rec.data[i] = rect.data[i];
-  rec.x += 2;
-  rec.y += 2;
+  // rec.x += 2;
+  // rec.y += 2;
   rec.w = 16;
   rec.h = 16;
   tic_texture_draw(Core.ui.icons.tex, rec, r, col);
 }
 
 static void tic_mu_draw_image(tc_Texture tex, tc_Rect rect, tc_Rect src, tc_Rect part, tc_Color color) {
-  tc_Color col = tic_rgba(color.r, color.g, color.b, color.a);
+  // tc_Color col = tic_rgba(color.r, color.g, color.b, color.a);
+  // TRACELOG("%d %d %d", part.x, part.y, part.h);
   tc_Rectf r = {part.x, part.y, part.w, part.h};
   tc_Rectf rec = {0, 0, 0, 0};
   for (int i = 0; i < 4; i++) rec.data[i] = rect.data[i];
   // TRACELOG("%d %f", part.y, r.h);
 //   TRACELOG("%d %d %d %d", r.x, r.y, r.width, r.height);
-  tic_texture_draw(tex, rec, r, col);
+  tic_texture_draw(tex, rec, r, color);
 }
 
 void tic_ui_end() {
@@ -107,6 +115,16 @@ void tic_ui_end() {
       case MU_COMMAND_IMAGE: tic_mu_draw_image(cmd->tex.tex, cmd->tex.rect, cmd->tex.src, cmd->tex.part, cmd->tex.color); break;
     }
   }
+}
+
+void tic_ui_indent() {
+  mu_Layout *layout = &Core.ui.ctx->layout_stack.items[Core.ui.ctx->layout_stack.idx - 1];
+  layout->indent += Core.ui.ctx->style->indent;
+}
+
+void tic_ui_unindent() {
+  mu_Layout *layout = &Core.ui.ctx->layout_stack.items[Core.ui.ctx->layout_stack.idx - 1];
+  layout->indent -= Core.ui.ctx->style->indent;
 }
 
 void tc_ui_savestate() {

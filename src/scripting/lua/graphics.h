@@ -682,6 +682,11 @@ static int tic_lua_graphics_pop(lua_State *L) {
   return 0;
 }
 
+static int tic_lua_graphics_origin(lua_State *L) {
+  tic_graphics_origin();
+  return 0;
+}
+
 static int tic_lua_graphics_translate(lua_State *L) {
   float x = luaL_optnumber(L, 1, 0);
   float y = luaL_optnumber(L, 2, 0);
@@ -752,6 +757,7 @@ int luaopen_graphics(lua_State *L) {
     {"getSize", tic_lua_graphics_dimensions},
     {"push", tic_lua_graphics_push},
     {"pop", tic_lua_graphics_pop},
+    {"origin", tic_lua_graphics_origin},
     {"translate", tic_lua_graphics_translate},
     {"rotate", tic_lua_graphics_rotate},
     {"scale", tic_lua_graphics_scale},

@@ -3,6 +3,9 @@
 #define HASHMAP_IMPLEMENTATION
 #include "external/hashmap.h"
 
+#define TICO_UTILS_IMPLEMENTATION
+#include "utils.h"
+
 tc_Core Core;
 
 static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
@@ -276,9 +279,12 @@ void tic_begin_draw() {
   glViewport(0, 0, Core.window.width, Core.window.height);
   tic_shader_attach(Core.render.state.defaultShader);
   tic_canvas_attach(canvas);
+  tic_graphics_push();
+  tic_graphics_origin();
 }
 
 void tic_end_draw() {
+  tic_graphics_pop();
   tic_canvas_detach();
   tic_shader_detach();
   // GLint view[4];
@@ -318,10 +324,12 @@ void tic_close() {
 }
 
 void tic_terminate() {
+  tic_resources_store(&Core.resources);
 	tic_input_destroy(&Core.input);
 	tic_render_destroy(&Core.render);
   tic_window_destroy(&Core.window);
   tic_audio_terminate();
+  tic_editor_save_state(&Core.editor);
   // tic_resources_destroy(&Core.resources);
   // lua_close(Core.lua.L);
 //   TRACELOG("Lua close");

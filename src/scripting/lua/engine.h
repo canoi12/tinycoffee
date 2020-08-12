@@ -15,7 +15,7 @@ static int tic_lua_tileset_new(lua_State *L) {
 	int width = luaL_optinteger(L, 2, 16);
 	int height = luaL_optinteger(L, 3, 16);
 
-	*tileset = tic_tileset_create(*image, width, height);
+	*tileset = tic_tileset_create(image, width, height);
 
 	return 1;
 }
@@ -26,7 +26,7 @@ static int tic_lua_tileset_load(lua_State *L) {
 
 	const char *path = luaL_checkstring(L, 1);
 	tc_Image *image = luaL_checkudata(L, 2, IMAGE_CLASS);
-	*tileset = tic_tileset_load(path, *image);
+	*tileset = tic_tileset_load(path, image);
 
 	return 1;
 }
@@ -187,8 +187,71 @@ int luaopen_tilemap(lua_State *L) {
   return 1;
 }
 
+/*********************
+ * Camera
+ *********************/
+
+static int tic_lua_camera_new(lua_State *L) {
+
+	float x = luaL_optnumber(L, 1, 0);
+	float y = luaL_optnumber(L, 2, 0);
+	float w = luaL_optnumber(L, 3, Core.window.width);
+	float h = luaL_optnumber(L, 4, Core.window.height);
+
+	tc_Camera *camera = lua_newuserdata(L, sizeof(*camera));
+	luaL_setmetatable(L, CAMERA_CLASS);
+
+	*camera = tic_camera_create(x, y, w, h);
+
+	return 1;
+}
+
+static int tic_lua_camera_attach(lua_State *L) {
+	tc_Camera *camera = luaL_checkudata(L, 1, CAMERA_CLASS);
+
+	tic_camera_attach(*camera);
+
+	return 0;
+}
+
+static int tic_lua_camera_detach(lua_State *L) {
+	tc_Camera *camera = luaL_checkudata(L, 1, CAMERA_CLASS);
+	tic_camera_detach();
+
+	return 0;
+}
+
+static int tic_lua_camera_move(lua_State *L) {
+	tc_Camera *camera = luaL_checkudata(L, 1, CAMERA_CLASS);
+
+	float x = luaL_optnumber(L, 2, camera->area.x);
+	float y = luaL_optnumber(L, 3, camera->area.y);
+
+	camera->area.x = x;
+	camera->area.y = y;
+
+	return 0;
+}
+
+int luaopen_camera(lua_State *L) {
+	luaL_Reg reg[] = {
+		{"__call", tic_lua_camera_new},
+		{"attach", tic_lua_camera_attach},
+		{"detach", tic_lua_camera_detach},
+		{"move", tic_lua_camera_move},
+		{NULL, NULL}
+	};
+
+	luaL_newmetatable(L, CAMERA_CLASS);
+  luaL_setfuncs(L, reg, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+  return 1;
+}
+
 int luaopen_engine(lua_State *L) {
 	luaL_Reg reg[] = {
+		{"newCamera", tic_lua_camera_new},
 		{"new_tileset", tic_lua_tileset_new},
 		{"load_tileset", tic_lua_tileset_load},
 		{"new_tilemap", tic_lua_tilemap_new},

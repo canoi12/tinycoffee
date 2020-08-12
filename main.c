@@ -1,6 +1,9 @@
 #include "src/tico.h"
 
+typedef list_t(int) list_int_t;
+
 int main(int argc, char ** argv) {
+
 	tc_Config config = tic_config_init(NULL, 640, 380, argc, argv);
 	tic_init(&config);
 

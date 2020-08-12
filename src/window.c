@@ -48,6 +48,7 @@ tc_bool tic_window_init(tc_Window *window, const char *title, int width, int hei
 }
 
 void tic_window_destroy(tc_Window *window) {
+  // TRACELOG("Q caralho");
   glfwDestroyWindow(window->handle);
   TRACELOG("Window destroyed");
 }

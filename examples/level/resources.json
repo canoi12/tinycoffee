@@ -1,28 +1,32 @@
 {
-	"image": {
-		"tileset-1": {
-			"lua": true,
-			"path": "assets/images/tileset-1.png"
+	"image":	{
+		"tileset-1":	{
+			"path":	"assets/images/tileset-1.png",
+			"lua":	true
 		},
-		"tileset": {
-			"lua": true,
-			"path": "assets/images/tileset.png"
+		"tileset":	{
+			"path":	"assets/images/tileset.png",
+			"lua":	true
 		}
 	},
-	"tileset": {
-		"forest": {
-			"lua": true,
-			"path": "assets/tilesets/tileset.json"
+	"tileset":	{
+		"forest":	{
+			"path":	"assets/tilesets/tileset.json",
+			"lua":	true
 		},
-		"knightvania": {
-			"lua": true,
-			"path": "assets/tilesets/tileset-1.json"
+		"knightvania":	{
+			"path":	"assets/tilesets/tileset-1.json",
+			"lua":	true
 		}
 	},
-	"tilemap": {
-		"teste": {
-			"lua": true,
-			"path": "tilemap.json"
+	"tilemap":	{
+		"forest":	{
+			"path":	"tilemap.json",
+			"lua":	true
+		},
+		"teste":	{
+			"path":	"assets/tilemaps/tilemap.json",
+			"lua":	true
 		}
 	}
 }

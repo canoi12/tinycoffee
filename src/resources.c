@@ -1,5 +1,8 @@
 #include "tico.h"
 
+#define TICO_PLUGIN_IMPLEMENTATION
+#include "plugins/resource.h"
+
 int tic_resources_init(tc_ResourceManager *manager) {
 	// manager->resources = hashmap_create(MAX_RESOURCES);
 	if (Core.lua.L) {
@@ -7,13 +10,32 @@ int tic_resources_init(tc_ResourceManager *manager) {
 		lua_setglobal(Core.lua.L, "__resources");
 	}
 	map_init(&manager->resources);
-	tic_resources_new_type(manager, "image");
-	tic_resources_new_type(manager, "tileset");
-	tic_resources_new_type(manager, "tilemap");
-	tic_resources_new_type(manager, "font");
-	tic_resources_new_type(manager, "sound");
+  map_init(&manager->resource_loaders);
+  map_init(&manager->resource_stores);
+  manager->path[0] = '\0';
+// 	tic_resources_new_type(manager, "image");
+// 	tic_resources_new_type(manager, "tileset");
+// 	tic_resources_new_type(manager, "tilemap");
+// 	tic_resources_new_type(manager, "font");
+// 	tic_resources_new_type(manager, "sound");
 
 	return 1;
+}
+
+int tic_resources_default_loaders(tc_ResourceManager *manager) {
+  map_init(&manager->resource_loaders);
+  map_init(&manager->resource_stores);
+  map_init(&manager->plugins);
+  map_set(&manager->plugins, "image", tic_plugin_resource_image());
+  map_set(&manager->plugins, "tileset", tic_plugin_resource_tileset());
+  map_set(&manager->plugins, "tilemap", tic_plugin_resource_tilemap());
+  // map_set(&manager->resource_loaders, "image", tic_resources_image_loader);
+  // map_set(&manager->resource_loaders, "tileset", tic_resources_tileset_loader);
+  // map_set(&manager->resource_loaders, "tilemap", tic_resources_tilemap_loader);
+
+  // map_set(&manager->resource_stores, "tileset", tic_resources_tileset_store);
+  // map_set(&manager->resource_stores, "tilemap", tic_resources_tilemap_store);
+  TRACELOG("default loaders");
 }
 
 enum {
@@ -23,13 +45,17 @@ enum {
 };
 
 int tic_resources_load(tc_ResourceManager *manager, const char *path) {
-	map_init(&manager->resources);
-	if (Core.lua.L) {
-		lua_newtable(Core.lua.L);
-		lua_setglobal(Core.lua.L, "__resources");
-	}
-	cJSON *json = tic_json_open(path);
+	//if (!tic_resources_init(manager)) return 0;
+  if (Core.lua.L) {
+    lua_newtable(Core.lua.L);
+    lua_setglobal(Core.lua.L, "__resources");
+  }
+  map_init(&manager->resources);
+  // map_init(&manager->plugins);
+  cJSON *json = tic_json_open(path);
 	if (!json) return 0;
+
+	strcpy(manager->path, path);
 
 	cJSON *el = NULL;
 	cJSON *resource = NULL;
@@ -44,19 +70,27 @@ int tic_resources_load(tc_ResourceManager *manager, const char *path) {
 			else if (!strcmp(el->string, "tilemap")) loader = TIC_LOADER_TILEMAP;
 			if (loader == 0) continue;
 
+      ResourceLoader *res_loader = (ResourceLoader*)map_get(&manager->resource_loaders, el->string);
+      tc_ResourcePlugin *plugin = map_get(&manager->plugins, el->string);
+      if (!plugin && !plugin->loader) continue;
 
 			cJSON_ArrayForEach(resource, el) {
 				const char *name = resource->string;
 				// const char *path = tic_json_get_string(image, "path");
 				int is_lua = tic_json_get_boolean(resource, "lua");
 				tc_Resource res;
-				res.type = 0;
+				list_init(&res.deps);
+				strcpy(res.type, el->string);
 				res.deps_count = 0;
-				res.name = NULL;
-				res.path = NULL;
+				res.lua = 0;
+				res.data = NULL;
+				res.changed = tc_false;
+				strcpy(res.name, name);
+				res.path[0] = '\0';
 				res.L = NULL;
 				if (is_lua) {
-					res.type = TIC_RESOURCE_LUA;
+					// res.type = TIC_RESOURCE_LUA;
+					res.lua = 1;
 					res.L = Core.lua.L;
 					lua_settop(res.L, 0);
 					lua_pushstring(res.L, el->string);
@@ -64,8 +98,8 @@ int tic_resources_load(tc_ResourceManager *manager, const char *path) {
 				}
 
 				// TRACELOG("%s %s", el->string, name);
-
-				switch(loader) {
+        tc_Resource reso = (plugin->loader)(manager, &res, resource);
+				/*switch(loader) {
 					case TIC_LOADER_IMAGE:
 						tic_resources_image_loader(manager, &res, resource);
 						break;
@@ -77,10 +111,10 @@ int tic_resources_load(tc_ResourceManager *manager, const char *path) {
 						break;
 					default:
 						printf("No loader found for %s\n", name);
-				}
+            }*/
 				// if (loader == TIC_LOADER_IMAGE) tic_resources_image_loader(manager, &res, resource);
-
-				tic_resources_add(manager, el->string, name, res);
+        // TRACELOG("%s", res.name);
+				tic_resources_add(manager, el->string, name, &res);
 			}
 		}
 	}
@@ -108,10 +142,65 @@ int tic_resources_load(tc_ResourceManager *manager, const char *path) {
 	return 1;
 }
 
+void tic_resources_store(tc_ResourceManager *manager) {
+	const char *key;
+	map_iter_t iter = map_iter(&manager->resources);
+	cJSON *res_json = tic_json_create();
+	while((key = map_next(&manager->resources, &iter))) {
+		tc_Resource *res = map_get(&manager->resources, key);
+		// TRACELOG("%d %s", res->type & TIC_RESOURCE_IMAGE, key);
+		cJSON *category = tic_json_get_object(res_json, res->type);
+		if (!category) category = tic_json_set_object(res_json, res->type, NULL);
+
+		cJSON *jres = tic_json_create();
+		tic_json_set_string(jres, "path", res->path);
+		tic_json_set_boolean(jres, "lua", res->lua);
+		tic_json_set_object(category, res->name, jres);
+
+		// if (!strcmp(res->type, "image")) {
+		// 	cJSON *image = tic_json_get_object(res_json, "image");
+		// 	if (!image) image = tic_json_set_object(res_json, "image", NULL);
+
+		// 	cJSON *jres = tic_json_create();
+		// 	tic_json_set_string(jres, "path", res->path);
+		// 	tic_json_set_boolean(jres, "lua", res->type & TIC_RESOURCE_LUA);
+		// 	tic_json_set_object(image, res->name, jres);
+		// 	// if (tic_json_is_object(json, char *name))
+		// } else if (res->type & TIC_RESOURCE_TILESET) {
+		// 	cJSON *tileset = tic_json_get_object(res_json, "tileset");
+		// 	if (!tileset) tileset = tic_json_set_object(res_json, "tileset", NULL);
+
+		// 	cJSON *jres = tic_json_create();
+		// 	tic_json_set_string(jres, "path", res->path);
+		// 	tic_json_set_boolean(jres, "lua", res->type & TIC_RESOURCE_LUA);
+		// 	tic_json_set_object(tileset, res->name, jres);
+		// } else if (res->type & TIC_RESOURCE_TILEMAP) {
+		// 	cJSON *tilemap = tic_json_get_object(res_json, "tilemap");
+		// 	if (!tilemap) tilemap = tic_json_set_object(res_json, "tilemap", NULL);
+
+		// 	cJSON *jres = tic_json_create();
+		// 	tic_json_set_string(jres, "path", res->path);
+		// 	tic_json_set_boolean(jres, "lua", res->type & TIC_RESOURCE_LUA);
+		// 	tic_json_set_object(tilemap, res->name, jres);
+		// }
+	}
+
+	tic_json_save(manager->path, res_json);
+	tic_json_delete(res_json);
+}
+
+// Push a loader
+void tic_resources_push_loader(tc_ResourceManager *manager, const char *type, ResourceLoader loader) {
+  map_set(&manager->resource_loaders, type, loader);
+}
+
+void tic_resources_push_storer(tc_ResourceManager *manager, const char *type) {
+}
+
 void tic_resources_new_type(tc_ResourceManager *manager, const char *type) {
-	map_resource_t res;
-	map_init(&res);
-	map_set(&manager->resources, type, res);
+// 	map_resource_t res;
+// 	map_init(&res);
+// 	map_set(&manager->resources, type, res);
 	if (Core.lua.L) {
 		// TRACELOG("%s", type);
 		lua_getglobal(Core.lua.L, "__resources");
@@ -123,7 +212,7 @@ void tic_resources_new_type(tc_ResourceManager *manager, const char *type) {
 	}
 }
 
-tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const char *name, tc_Resource resource) {
+tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const char *name, tc_Resource *resource) {
 	// hashmap_item *item = hashmap_get(manager->resources, type);
 	// if (item && item->data) {
 	// 	hashmap *map = (hashmap*)item->data;
@@ -132,77 +221,117 @@ tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const c
 	// 	// else hashmap_set()
 	// }
 	// tc_Resource *resource = map_get()
-	map_resource_t *res = map_get(&manager->resources, type);
-	if (!res) return 0;
+	// TRACELOG("%s %s", type, name);
+// 	map_resource_t *res = map_get(&manager->resources, type);
+  int size = strlen(type) + strlen(name) + 2;
+  char nm[size];
+  sprintf(nm, "%s##%s", type, name);
+  tc_Resource *res = map_get(&manager->resources, type);
+	if (res) return 0;
 
-	if (!resource.name) {
-		resource.name = calloc(strlen(name), 1);
-		strcpy(resource.name, name);
+	// TRACELOG("%s %s", resource->name, name);
+	if (!resource->name[0]) {
+		// resource->name = calloc(strlen(name), 1);
+		strcpy(resource->name, name);
 	}
-	map_set(res, name, resource);
-	if (resource.type & TIC_RESOURCE_LUA) {
-		int top = lua_gettop(resource.L);
+// 	map_set(res, name, *resource);
+//   int size = strlen(type) + strlen(name) + 2;
+//   char nm[size];
+//   sprintf(nm, "%s##%s", type, name);
+//   TRACELOG("%s", nm);
+  map_set(&manager->resources, nm, *resource);
+	if (resource->lua) {
+		int top = lua_gettop(resource->L);
 		// tc_Image *image = lua_touserdata(resource.L, 3);
 		// if (image) TRACELOG("userdata %d", top);
 		// TRACELOG("%s %s %d", type, name, top);
-		lua_getglobal(resource.L, "__resources");
-		lua_getfield(resource.L, -1, type);
+		lua_getglobal(resource->L, "__resources");
+		lua_getfield(resource->L, -1, type);
 		// top = lua_gettop(resource.L);
 		// TRACELOG("%d", top);
-		if (!lua_isnil(resource.L, -1)) {
+		if (!lua_isnil(resource->L, -1)) {
 			// TRACELOG("%s %s %d", type, name, top);
-			lua_pushvalue(resource.L, top);
-			lua_setfield(resource.L, -2, name);
+			lua_pushvalue(resource->L, top);
+			lua_setfield(resource->L, -2, name);
 		}
 	}
-	
+
 	return 1;
 }
 
 tc_Resource* tic_resources_get(tc_ResourceManager *manager, const char *type, const char *name) {
 	tc_Resource *res = NULL;
-	map_resource_t *res_type = map_get(&manager->resources, type);
-	if (res_type) {
-		res = map_get(res_type, name);
-		if (res->type & TIC_RESOURCE_LUA) {
-			lua_getglobal(res->L, "__resources");
-			lua_getfield(res->L, -1, type);
-			if (!lua_isnil(res->L, -1)) {
-				lua_getfield(res->L, -1, name);
-				lua_pushvalue(res->L, -1);
-			} else lua_pushnil(res->L);
-		}
-		// TRACELOG("%s %s", type, res->name);
-	}
+// 	map_resource_t *res_type = map_get(&manager->resources, type);
+// 	if (res_type) {
+// 		res = map_get(res_type, name);
+// 		if (res->type & TIC_RESOURCE_LUA) {
+// 			lua_getglobal(res->L, "__resources");
+// 			lua_getfield(res->L, -1, type);
+// 			if (!lua_isnil(res->L, -1)) {
+// 				lua_getfield(res->L, -1, name);
+// 				lua_pushvalue(res->L, -1);
+// 			} else lua_pushnil(res->L);
+// 		}
+// 	}
+  int size = strlen(type) + strlen(name) + 2;
+  char nm[size];
+  sprintf(nm, "%s##%s", type, name);
+  res = map_get(&manager->resources, nm);
+  // TRACELOG("%s %p", nm, res);
+  if (!res) return NULL;
+
+  if (res->lua) {
+    lua_getglobal(res->L, "__resources");
+    lua_getfield(res->L, -1, type);
+    if (!lua_isnil(res->L, -1)) {
+      lua_getfield(res->L, -1, name);
+      lua_pushvalue(res->L, -1);
+    } else lua_pushnil(res->L);
+  }
 
 	return res;
 }
 
-static tc_Image* tic_lua_image_loader(lua_State *L, const char *path) {
-	
+tc_ResourceDep tic_resources_new_dep(const char *name, tc_Resource *res) {
+	tc_ResourceDep dep = {0};
+	// dep.name = malloc(strlen(name));
+	strcpy(dep.name, name);
+	dep.res = res;
+	return dep;
 }
 
-tc_Image *tic_resources_image_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
+TIC_API void tic_resources_push_dep(tc_Resource *res, const char *name, const char *resource_name) {
+
+}
+
+TIC_API void tic_resources_change_dep(tc_ResourceManager *manager, const char *name, const char *res_name);
+
+static tc_Image* tic_lua_image_loader(lua_State *L, const char *path) {
+
+}
+
+tc_Resource tic_resources_image_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
 	tc_Image *image = NULL;
 	const char *path = tic_json_get_string(json, "path");
-	if (res->type & TIC_RESOURCE_LUA)	{
+	if (!strcmp(res->type, "image"))	{
 		image = lua_newuserdata(res->L, sizeof(*image));
 		luaL_setmetatable(res->L, LUA_CLASS(tc_Image));
 	}
 	else image = malloc(sizeof(*image));
 
 	if (image) {
-		res->path = malloc(strlen(path));
+		// res->path = malloc(strlen(path));
 		strcpy(res->path, path);
 		*image = tic_image_load(path);
-		res->image = image;
-		res->type |= TIC_RESOURCE_IMAGE;
+		res->data = image;
+		// res->type |= TIC_RESOURCE_IMAGE;
+		strcpy(res->type, "image");
 	}
 
-	return image;
+	return *res;
 }
 
-tc_Tileset *tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
+tc_Resource tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
 	tc_Tileset *tileset = NULL;
 	const char *path = tic_json_get_string(json, "path");
 	// const char *image_name = tic_json_get_string(json, "image");
@@ -227,20 +356,26 @@ tc_Tileset *tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resourc
 	if (!resource) {
 		ERRLOG("Failed to load %s, image %s not found", path, image_name);
 		tic_json_delete(root);
-		return NULL;
+		return *res;
 	}
 
-	if (res->type & TIC_RESOURCE_LUA) {
+	if (res->lua) {
 		tileset = lua_newuserdata(res->L, sizeof(*tileset));
 		luaL_setmetatable(res->L, LUA_CLASS(tc_Tileset));
 	} else tileset = malloc(sizeof(*tileset));
 
 	if (tileset) {
 		// TRACELOG("teste");
-		res->path = malloc(strlen(path));
+		// res->path = malloc(strlen(path));
 		strcpy(res->path, path);
-		res->deps[res->deps_count++] = resource;
-		*tileset = tic_tileset_create(*resource->image, tilew, tileh);
+
+		// res->deps[res->deps_count++] = resource;
+		tc_ResourceDep dep = tic_resources_new_dep("image", resource);
+		// dep.next = NULL;
+		list_push(&res->deps, dep);
+		// TRACELOG("%s %s", dep.name, dep.res->name);
+		tc_Image *image = resource->data;
+		*tileset = tic_tileset_create(image, tilew, tileh);
 		cJSON *bitmask = tic_json_get_array(root, "bitmasks");
 		cJSON *el;
 		int i = 0;
@@ -254,14 +389,15 @@ tc_Tileset *tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resourc
 		}
 
 		tic_json_delete(root);
-		res->tileset = tileset;
-		res->type |= TIC_RESOURCE_TILESET;
+		res->data = tileset;
+		// res->type |= TIC_RESOURCE_TILESET;
+		strcpy(res->type, "tileset");
 	}
 
-	return tileset;
+	return *res;
 }
 
-tc_Tilemap *tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
+tc_Resource tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json) {
 	tc_Tilemap *tilemap = NULL;
 	const char *path = tic_json_get_string(json, "path");
 
@@ -276,20 +412,24 @@ tc_Tilemap *tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resourc
 	if (!resource) {
 		ERRLOG("Failed to load %s, tileset %s not found", path, tileset_name);
 		tic_json_delete(root);
-		return NULL;
+		return (tc_Resource){0};
 	}
 
-	if (res->type & TIC_RESOURCE_LUA) {
+	if (res->lua) {
 		tilemap = lua_newuserdata(res->L, sizeof(*tilemap));
 		luaL_setmetatable(res->L, LUA_CLASS(tc_Tilemap));
 	} else tilemap = malloc(sizeof(*tilemap));
 
 	if (tilemap) {
 		// TRACELOG("teste");
-		res->path = malloc(strlen(path));
+		// res->path = malloc(strlen(path));
+		// strcpy(res->name, root->string);
 		strcpy(res->path, path);
-		res->deps[res->deps_count++] = resource;
-		*tilemap = tic_tilemap_create(resource->tileset, width, height);
+		tc_ResourceDep dep = tic_resources_new_dep("tileset", resource);
+		list_push(&res->deps, dep);
+		// res->deps[res->deps_count++] = resource;
+		tc_Tileset *tileset = resource->data;
+		*tilemap = tic_tilemap_create(tileset, width, height);
 		cJSON *data = tic_json_get_array(root, "data");
 		cJSON *el;
 		int i = 0;
@@ -301,37 +441,47 @@ tc_Tilemap *tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resourc
 		}
 
 		tic_json_delete(root);
-		res->tilemap = tilemap;
-		res->type |= TIC_RESOURCE_TILEMAP;
+		res->data = tilemap;
+		strcpy(res->type, "tilemap");
 	}
 
-	return tilemap;
+	return *res;
 }
 
-void tic_resources_tileset_store(tc_ResourceManager *manager, const char *name) {
+cJSON* tic_resources_tileset_store(tc_ResourceManager *manager, tc_Resource *res) {
 	// TRACELOG("%s", name);
-	map_resource_t *res = map_get(&manager->resources, "tileset");
-	if (!res) return;
+// 	map_resource_t *res = map_get(&manager->resources, "tileset");
+// 	if (!res) return;
 
-	tc_Resource *resource = map_get(res, name);
-	if (!resource) return;
+  int size = strlen("tileset##") + strlen(res->name);
+  char nm[size];
+  sprintf(nm, "tileset##%s", res->name);
+
+	// tc_Resource *resource = map_get(&manager->resources, nm);
+	if (!res) return NULL;
 
 	cJSON *root = NULL;
-	if (resource->path) root = tic_json_open(resource->path);
+	if (res->path[0]) root = tic_json_open(res->path);
 	else root = tic_json_create();
 
-	tc_Tileset *tileset = resource->tileset;
-	int deps_count = resource->deps_count;
+	tc_Tileset *tileset = res->data;
+	int deps_count = res->deps_count;
 	tic_json_set_number(root, "tilewidth", tileset->tilesize.x);
 	tic_json_set_number(root, "tileheight", tileset->tilesize.y);
-	tic_json_set_number(root, "imagewidth", tileset->image.width);
-	tic_json_set_number(root, "imageheight", tileset->image.height);
+	tic_json_set_number(root, "imagewidth", tileset->image->width);
+	tic_json_set_number(root, "imageheight", tileset->image->height);
 	// if (editor->image_name) tic_json_set_string(root, "image", editor->image_name);
 	tic_json_set_number(root, "columns", tileset->columns);
 	tic_json_set_number(root, "tilecount", tileset->tilecount);
 
-	if (deps_count > 0) {
-		tic_json_set_string(root, "image", resource->deps[0]->name);
+	// if (deps_count > 0) {
+	// 	tic_json_set_string(root, "image", resource->deps[0]->name);
+	// }
+
+	list_iter_t iter = list_iter(&res->deps);
+	tc_ResourceDep *dep;
+	while((dep = list_next(&iter))) {
+		tic_json_set_string(root, dep->name, dep->res->name);
 	}
 
 	// cJSON *bitmask = tic_json_create_array();
@@ -354,29 +504,36 @@ void tic_resources_tileset_store(tc_ResourceManager *manager, const char *name) 
 	// char val[25];
 	// memset(val, 0, 25);
 	// TRACELOG("%d", tileset->tilecount);
-	if (!resource->path) {
-		resource->path = malloc(strlen("tileset.json"));
-		strcpy(resource->path, "tileset.json");
+	if (!res->path[0]) {
+		// resource->path = malloc(strlen("tileset.json"));
+		strcpy(res->path, "tileset_");
+		strcat(res->path, res->name);
+		strcat(res->path, ".json");
 	}
 
-	tic_json_save(resource->path, root);
-	tic_json_delete(root);
+	tic_json_save(res->path, root);
+	// tic_json_delete(root);
+	return root;
 }
 
-void tic_resources_tilemap_store(tc_ResourceManager *manager, const char *name) {
-	TRACELOG("%s", name);
-	map_resource_t *res = map_get(&manager->resources, "tilemap");
-	if (!res) return;
+cJSON* tic_resources_tilemap_store(tc_ResourceManager *manager, tc_Resource *resource) {
+// 	map_resource_t *res = map_get(&manager->resources, "tilemap");
+// 	if (!res) return;
 
-	tc_Resource *resource = map_get(res, name);
-	if (!resource) return;
+	int size = strlen("tilemap##") + strlen(resource->name);
+  char nm[size];
+  sprintf(nm, "tilemap##%s", resource->name);
+	// TRACELOG("%s", nm);
+
+	// tc_Resource *resource = map_get(&manager->resources, nm);
+	if (!resource) return NULL;
 
 
-	cJSON *root = NULL;
-	if (resource->path) root = tic_json_open(resource->path);
-	else root = tic_json_create();
+	cJSON *root = tic_json_create();
+	// if (resource->path[0]) root = tic_json_open(resource->path);
+	// else root = tic_json_create();
 
-	tc_Tilemap *tilemap = resource->tilemap;
+	tc_Tilemap *tilemap = resource->data;
 	int deps_count = resource->deps_count;
 	tic_json_set_number(root, "width", tilemap->width);
 	tic_json_set_number(root, "height", tilemap->height);
@@ -386,8 +543,14 @@ void tic_resources_tilemap_store(tc_ResourceManager *manager, const char *name) 
 	tic_json_set_number(root, "tileheight", tilemap->grid.y);
 	// tic_json_set_number(root, "tilecount", tileset->tilecount);
 
-	if (deps_count > 0) {
-		tic_json_set_string(root, "tileset", resource->deps[0]->name);
+	// if (deps_count > 0) {
+	// 	tic_json_set_string(root, "tileset", resource->deps[0]->name);
+	// }
+
+	list_iter_t iter = list_iter(&resource->deps);
+	tc_ResourceDep *dep;
+	while((dep = list_next(&iter))) {
+		tic_json_set_string(root, dep->name, dep->res->name);
 	}
 
 	// cJSON *bitmask = tic_json_create_array();
@@ -410,35 +573,41 @@ void tic_resources_tilemap_store(tc_ResourceManager *manager, const char *name) 
 	// char val[25];
 	// memset(val, 0, 25);
 	// TRACELOG("%d", tileset->tilecount);
-	if (!resource->path) {
-		resource->path = malloc(strlen("tilemap.json"));
+	if (!resource->path[0]) {
+		// resource->path = malloc(strlen("tilemap.json"));
 		strcpy(resource->path, "tilemap.json");
 	}
 
 	tic_json_save(resource->path, root);
-	tic_json_delete(root);
+	
+	return root;
+}
+
+void tic_resources_save(tc_ResourceManager *manager) {
+  
 }
 
 tc_bool tic_resources_add_image(tc_ResourceManager *manager, const char *name, tc_Image *image) {
 	tc_Resource res = {0};
-	res.image = image;
-	res.type |= TIC_RESOURCE_IMAGE;
+	res.data = image;
+	// res.type |= TIC_RESOURCE_IMAGE;
+	strcpy(res.type, "image");
 
-	return tic_resources_add(manager, "image", name, res);
+	return tic_resources_add(manager, "image", name, &res);
 }
 
 tc_Image* tic_resources_get_image(tc_ResourceManager *manager, const char *name) {
 	tc_Resource *res = tic_resources_get(manager, "image", name);
-	if (res) return res->image;
+	if (res) return res->data;
 
 	return NULL;
 }
 
 void tic_resource_remove_image(tc_ResourceManager *manager, const char * name) {
 	tc_Resource *res = tic_resources_get(manager, "image", name);
-	map_resource_t *type = map_get(&manager->resources, "image");
+// 	map_resource_t *type = map_get(&manager->resources, "image");
 	if (!res) return;
-	map_remove(type, name);
-	tc_Image *image = res->image;
+// 	map_remove(type, name);
+	tc_Image *image = res->data;
 	tic_image_destroy(image);
 }

@@ -52,13 +52,13 @@ command.add(nil, {
   ["project:run-linux"] = function()
     core.log "running for linux.."
     console.run {
-      command = "./bin/tico examples/metroidvania"
+      command = "./bin/tico examples/level"
     }
   end,
   ["project:run-windows"] = function()
     core.log "running for windows.."
     console.run {
-      command = "wine ./bin/tico.exe examples/metroidvania"
+      command = "wine ./bin/tico.exe examples/level"
     }
   end
 })

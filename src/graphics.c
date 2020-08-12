@@ -8,28 +8,50 @@
  *********************/
 
 void tic_graphics_push() {
-  tic_batch_next_drawcall(&Core.render.batch, tc_false);
-  Core.render.state.camera = tic_batch_get_transform(&Core.render.batch);
-}
-void tic_graphics_translate(float x, float y) {
-  float yy = y + 0.1f;
-  tic_matrix_translate_in_place(Core.render.state.camera, x, yy, 0);
-}
-
-void tic_graphics_scale(float x, float y) {
-  tic_matrix_scale_aniso(Core.render.state.camera, *Core.render.state.camera, x, y, 1);
-}
-
-void tic_graphics_rotate(float angle) {
-  tic_matrix_rotate_z(Core.render.state.camera, *Core.render.state.camera, angle);
+  // tic_batch_next_drawcall(&Core.render.batch, tc_false);
+  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
+  tic_batch_set_transform(&Core.render.batch, matrix);
+  stack_arr_push(&Core.render.state.matrixStack, matrix);
+  matrix = stack_arr_top(&Core.render.state.matrixStack);
 }
 
 void tic_graphics_pop() {
-  tc_Matrix i;
-  tic_matrix_identity(&i);
+  stack_arr_pop(&Core.render.state.matrixStack);
+  tc_Matrix i = stack_arr_top(&Core.render.state.matrixStack);
   tic_batch_set_transform(&Core.render.batch, i);
   Core.render.state.camera = NULL;
 }
+
+void tic_graphics_origin() {
+  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
+  tic_matrix_identity(&matrix);
+  stack_arr_set(&Core.render.state.matrixStack, matrix);
+  tic_batch_set_transform(&Core.render.batch, matrix);
+}
+
+void tic_graphics_translate(float x, float y) {
+  float yy = y + 0.1f;
+  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
+  tic_matrix_translate_in_place(&matrix, x, yy, 0);
+  stack_arr_set(&Core.render.state.matrixStack, matrix);
+  tic_batch_set_transform(&Core.render.batch, matrix);
+}
+
+void tic_graphics_scale(float x, float y) {
+  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
+  tic_matrix_scale_aniso(&matrix, matrix, x, y, 1);
+  stack_arr_set(&Core.render.state.matrixStack, matrix);
+  tic_batch_set_transform(&Core.render.batch, matrix);
+}
+
+void tic_graphics_rotate(float angle) {
+  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
+  tic_matrix_rotate_z(&matrix, matrix, angle);
+  stack_arr_set(&Core.render.state.matrixStack, matrix);
+  tic_batch_set_transform(&Core.render.batch, matrix);
+}
+
+
 
 void tic_graphics_scissor(int x, int y, int w, int h) {
   tic_batch_set_clip(&Core.render.batch, tic_rect(x, y, w, h));
@@ -634,8 +656,8 @@ tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
                                "}\n";
 
   tc_Shader shader = {0};
-  *vertexShader = tic_shader_compile(vertexSource, GL_VERTEX_SHADER);
-  *fragmentShader = tic_shader_compile(fragmentSource, GL_FRAGMENT_SHADER);
+  *vertexShader = tic_shader_compile((const char*)vertexSource, GL_VERTEX_SHADER);
+  *fragmentShader = tic_shader_compile((const char*)fragmentSource, GL_FRAGMENT_SHADER);
 
   shader.program = tic_shader_load_program(*vertexShader, *fragmentShader);
   TRACELOG("Default shader created");
@@ -681,6 +703,7 @@ void tic_shader_send_count(tc_Shader shader, const char *name, int count, void *
 }
 
 void tic_shader_destroy(tc_Shader *shader) {
+  // TRACELOG("%d", shader->program);
   glDeleteProgram(shader->program);
 }
 
@@ -764,7 +787,9 @@ void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_
 void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
   // tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
-  tc_Rectf part = tic_rectf(rect.x, rect.h, rect.w, rect.y-rect.h);
+  // TRACELOG("%f %f %f %f", dest.x, dest.y, dest.w, dest.h);
+  tc_Rectf part = tic_rectf(rect.x, canvas.height - rect.y, rect.w, -rect.h);
+  // TRACELOG("%f %f %f %f", part.x, part.y, part.w, part.h);
   // tc_Rectf part = tic_rectf(rect.x, rect.y, rect.w, rect.h);
   // TRACELOG("%f %f", dest.x, dest.y);
   tic_texture_draw(canvas.texture, dest, part, color);
@@ -773,7 +798,7 @@ void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, 
   int offy = (rect.h-cy)*sy;
   // tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*-sy);
   tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
-  tc_Rectf part = tic_rectf(rect.x, rect.h, rect.w, rect.y-rect.h);
+  tc_Rectf part = tic_rectf(rect.x, canvas.height - rect.h, rect.w, -rect.h);
   // tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, rect.h-cy, color);
   tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, cy, color);
 }

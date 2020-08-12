@@ -58,6 +58,8 @@
 
 #define TICO_VERSION "0.2.0"
 
+#include "utils.h"
+
 #ifndef TIC_API
   #if defined(_WIN32)
     #if defined(BUILD_SHARED)
@@ -752,6 +754,10 @@ typedef struct {
   tc_Texture currentTexture;
 } tc_Batch;
 
+typedef stack_arr_t(tc_Canvas, CANVAS_STACK_SIZE) stack_canvas_t;
+typedef stack_arr_t(tc_Shader, SHADER_STACK_SIZE) stack_shader_t;
+typedef stack_arr_t(tc_Matrix, MATRIX_STACK_SIZE) stack_matrix_t;
+
 typedef struct tc_Render {
   tc_Batch batch;
   struct {
@@ -760,8 +766,11 @@ typedef struct tc_Render {
 
     int canvasIndex;
     int shaderIndex;
-    tc_Shader shaderStack[SHADER_STACK_SIZE];
-    tc_Canvas canvasStack[CANVAS_STACK_SIZE];
+    // tc_Shader shaderStack[SHADER_STACK_SIZE];
+    // tc_Canvas canvasStack[CANVAS_STACK_SIZE];
+    stack_canvas_t canvasStack;
+    stack_shader_t shaderStack;
+    stack_matrix_t matrixStack;
 
     int vertexShaders[32];
     int fragmentShaders[32];
@@ -781,7 +790,7 @@ typedef struct tc_Render {
 
     tc_Matrix *camera;
 
-    tc_Matrix matrixStack[MATRIX_STACK_SIZE];
+    // tc_Matrix matrixStack[MATRIX_STACK_SIZE];
     int currentMatrix;
 
     void (*backToDefaultCanvas)(void);
@@ -842,7 +851,7 @@ typedef struct {
   tc_Font font;
   struct {
     tc_Texture tex;
-    tc_Rect rect[4];
+    tc_Rect rect[9];
   } icons;
   struct {
     int *animation;
@@ -866,7 +875,7 @@ typedef struct tc_Config {
 } tc_Config;
 
 typedef struct tc_Tileset {
-  tc_Image image;
+  tc_Image *image;
   tc_Vec2 tilesize;
   int tilecount;
   int columns;
@@ -883,63 +892,69 @@ typedef struct tc_Tilemap {
   int *data;
 } tc_Tilemap;
 
-typedef struct tc_TilesetEditor {
-  tc_Canvas canvas;
-  tc_Tileset *tileset;
-  void (*draw_panel)(void*);
-  char *name;
-  char *filename;
-  char *image_name;
-  int cell;
-  float scale;
-  int mask[9];
-  void *cnt;
-} tc_TilesetEditor;
-
-typedef struct tc_TilemapEditor {
-  tc_Canvas canvas;
-  tc_Canvas bg;
-  tc_Tilemap *map;
-  void (*draw_panel)(void*);
-  char *name;
-  char *filename;
-  char *tileset_name;
-  int cell;
-  float scale;
+typedef struct tc_Camera {
+  tc_Rectf area;
   tc_Vec2 size;
-  void *cnt;
-} tc_TilemapEditor;
+  tc_Vec2 offset;
+  float angle;
+} tc_Camera;
 
-// typedef map_t(mu_Container*) map_container_t;
+// typedef map_t()
 
-typedef struct tc_Editor {
-  tc_TilesetEditor tileset_editor;
-  tc_TilemapEditor tilemap_editor;
-  tc_Canvas bg;
-  tc_Canvas game_canvas;
-  int sidebar_width;
-  void *game_cnt;
-} tc_Editor;
+typedef struct tc_Animation {
+  int length;
+  char name[64];
+  int *frames;
+} tc_Animation;
+
+typedef map_t(tc_Animation) map_anim_t;
+
+typedef struct tc_Sprite {
+  char animation[64];
+  int frame;
+  tc_Image *image;
+  int width;
+  int height;
+  int count;
+  map_anim_t animations;
+} tc_Sprite;
 
 #define MAX_RESOURCES_DEPS 32
 
 typedef struct tc_Resource tc_Resource;
+typedef struct tc_ResourceDep tc_ResourceDep;
+typedef struct tc_ResourcePlugin tc_ResourcePlugin;
+
+struct tc_ResourceDep {
+  char name[256];
+  tc_Resource *res;
+  // tc_ResourceDep *next;
+};
+
+typedef list_t(tc_ResourceDep) list_resdep_t;
+
+#define RES_UUID_SIZE 8
 
 struct tc_Resource {
   int deps_count;
   int id;
-  int type;
-  char *name;
-  char *path;
-  tc_Image *image;
-  tc_Tileset *tileset;
-  tc_Tilemap *tilemap;
-  tc_Sound *sound;
+  // int type;
+  int changed;
+  int lua;
+  char type[64];
+  char uuid[RES_UUID_SIZE+1];
+  char name[256];
+  char path[256];
+  // tc_Image *image;
+  // tc_Tileset *tileset;
+  // tc_Tilemap *tilemap;
+  // tc_Sound *sound;
+  void *data;
   lua_State *L;
 #ifdef WREN_LANG
   WrenVM *vm;
 #endif
-  tc_Resource *deps[MAX_RESOURCES_DEPS];
+  list_resdep_t deps;
 };
 
 // typedef struct tc_Resource {
@@ -949,15 +964,132 @@ struct tc_Resource {
 //   TIC_RESOURCE_TYPE type;
 // } tc_Resource;
 
-typedef map_t(tc_Resource) map_resource_t;
-typedef map_t(map_resource_t) map_res_manager_t;
+// typedef map_t(tc_Resource) map_resource_t;
+// typedef map_t(map_resource_t) map_res_manager_t;
+typedef struct tc_ResourceManager tc_ResourceManager;
 
-typedef struct tc_ResourceManager {
+typedef tc_Resource(*ResourceLoader)(tc_ResourceManager*, tc_Resource*, cJSON*);
+typedef cJSON*(*ResourceStore)(tc_ResourceManager*, tc_Resource*);
+
+#include "plugins/resource.h"
+
+typedef map_t(tc_Resource) map_resource_t;
+typedef map_t(ResourceLoader) map_resloader_t;
+typedef map_t(ResourceStore) map_resstore_t;
+typedef map_t(tc_ResourcePlugin) map_resplugin_t;
+
+
+struct tc_ResourceManager {
   tc_Resource textures;
   tc_Resource fonts;
   tc_Resource sounds;
-  map_res_manager_t resources;
-} tc_ResourceManager;
+//   map_res_manager_t resources;
+  char path[256];
+  map_resource_t resources;
+  map_resloader_t resource_loaders;
+  map_resstore_t resource_stores;
+  map_resplugin_t plugins;
+};
+
+
+
+
+#define TOOL_UUID_SIZE 8
+
+typedef struct tc_EditorPlugin tc_EditorPlugin;
+typedef struct tc_Tool tc_Tool;
+
+#include "plugins/editor.h"
+
+struct tc_Tool {
+  tc_Canvas canvas;
+  tc_Resource *res;
+  char uuid[TOOL_UUID_SIZE+1];
+  int open;
+  tc_Rect win_rect;
+  float scale;
+  int fullscreen;
+  int flags;
+  char name[64];
+  char filename[512];
+  void *cnt;
+  void *editor;
+  // void (*init)(void*, tc_Tool *tool);
+  // void (*update)(void*);
+  // void (*draw)(void*);
+  // void (*draw_panel)(void*);
+  EditorPluginCreate create;
+  EditorPluginInit init;
+  EditorPluginUpdate update;
+  EditorPluginDraw draw;
+  EditorPluginDrawPanel draw_panel;
+
+  // void (*begin_update)(void*);
+  // void (*end_update)(void*);
+  // void (*begin_draw)(void*);
+  // void (*end_draw)(void*);
+  
+
+  // tc_Resource *res;
+};
+
+// struct tc_EditorPlugin {
+//   void *editor;
+//   int size;
+//   int (*create)(void*);
+//   void (*init)(void*, tc_Tool *tool);
+//   void (*update)(void*);
+//   void (*draw)(void*);
+//   void (*draw_panel)(void*);
+// };
+
+// typedef struct tc_TilemapEditor {
+//   tc_Tool *tool;
+//   tc_Canvas canvas;
+//   tc_Canvas bg;
+//   tc_Tilemap *map;
+//   void (*draw_panel)(void*);
+//   char *name;
+//   char *filename;
+//   char *tileset_name;
+//   int cell;
+//   float scale;
+//   tc_Vec2 size;
+//   void *cnt;
+// } tc_TilemapEditor;
+
+typedef struct tc_SpriteTool {
+  tc_Tool *tool;
+  int cell;
+  float scale;
+  tc_Image *image;
+  tc_Vec2 size;
+} tc_SpriteTool;
+
+// typedef map_t(mu_Container*) map_container_t;
+
+#define MAX_TOOLS 32
+
+typedef list_t(tc_Tool*) list_tool_t;
+typedef map_t(tc_Tool*) map_tool_t;
+typedef map_t(tc_EditorPlugin) map_plugin_t;
+
+typedef struct tc_Editor {
+  // char active_tab[64];
+  tc_Tool *active_tool;
+  int fullscreen_window;
+  tc_TilesetEditor tileset_editor;
+  tc_TilemapEditor tilemap_editor;
+  tc_Canvas bg;
+  tc_Canvas game_canvas;
+  tc_Resource res_create;
+  int sidebar_width;
+  void *game_cnt;
+  map_plugin_t plugins;
+  // tc_Tool tools[MAX_TOOLS];
+  tc_Tool *game_tool;
+  map_tool_t tool;
+} tc_Editor;
 
 typedef struct tc_Core {
   tc_Window window;
@@ -1141,6 +1273,7 @@ TIC_API float tic_angle(float x0, float y0, float x1, float y1);
 
 TIC_API void tic_graphics_push();
 TIC_API void tic_graphics_pop();
+TIC_API void tic_graphics_origin();
 TIC_API void tic_graphics_translate(float x, float y);
 TIC_API void tic_graphics_scale(float x, float y);
 TIC_API void tic_graphics_rotate(float angle);
@@ -1500,7 +1633,9 @@ TIC_API void* tic_resource_get(tc_Resource *resource, const char *name);
 TIC_API tc_bool tic_resource_is_full(tc_Resource *resource);
 
 TIC_API tc_bool tic_resources_init(tc_ResourceManager *manager);
+TIC_API int tic_resources_default_loaders(tc_ResourceManager *manager);
 TIC_API tc_bool tic_resources_load(tc_ResourceManager *manager, const char *path);
+TIC_API void tic_resources_store(tc_ResourceManager *manager);
 TIC_API tc_bool tic_resources_destroy(tc_ResourceManager *manager);
 
 TIC_API tc_bool tic_resources_add_texture(const char *name, tc_Texture *texture);
@@ -1512,17 +1647,22 @@ TIC_API tc_Texture* tic_resources_get_texture(const char *name);
 // TIC_API tc_bool tic_resources_add_font(const char *name, tc_Font* sound);
 // TIC_API tc_Font* tic_resources_get_font(const char *name);
 
+TIC_API tc_ResourceDep tic_resources_new_dep(const char *name, tc_Resource *res);
+TIC_API void tic_resources_push_dep(tc_Resource *res, const char *name, const char *resource_name);
+TIC_API void tic_resources_change_dep(tc_ResourceManager *manager, const char *name, const char *res_name);
 TIC_API void tic_resources_new_type(tc_ResourceManager *manager, const char *type);
 
-TIC_API tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const char *name, tc_Resource resource);
+TIC_API void tic_resources_update_resource(tc_Resource *resource);
+
+TIC_API tc_bool tic_resources_add(tc_ResourceManager *manager, const char *type, const char *name, tc_Resource *resource);
 TIC_API tc_Resource* tic_resources_get(tc_ResourceManager *manager, const char *type, const char *name);
 
-TIC_API tc_Image *tic_resources_image_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
-TIC_API tc_Tileset *tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
-TIC_API tc_Tilemap *tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+TIC_API tc_Resource tic_resources_image_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+TIC_API tc_Resource tic_resources_tileset_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
+TIC_API tc_Resource tic_resources_tilemap_loader(tc_ResourceManager *manager, tc_Resource *res, cJSON *json);
 
-TIC_API void tic_resources_tileset_store(tc_ResourceManager *manager, const char *name);
-TIC_API void tic_resources_tilemap_store(tc_ResourceManager *manager, const char *name);
+TIC_API cJSON* tic_resources_tileset_store(tc_ResourceManager *manager, tc_Resource *res);
+TIC_API cJSON* tic_resources_tilemap_store(tc_ResourceManager *manager, tc_Resource *res);
 
 TIC_API tc_bool tic_resources_add_image(tc_ResourceManager *manager, const char *name, tc_Image *image);
 TIC_API tc_Image* tic_resources_get_image(tc_ResourceManager *manager, const char *name);
@@ -1592,6 +1732,9 @@ TIC_API void tic_ui_mouse_scroll_callback(double xoff, double yoff);
 TIC_API void tic_ui_key_callback(int key, int action);
 TIC_API void tic_ui_text_callback(int codepoint);
 
+TIC_API void tic_ui_indent();
+TIC_API void tic_ui_unindent();
+
 TIC_API int tic_ui_text_width(mu_Font font, const char *text, int len);
 TIC_API int tic_ui_text_height(mu_Font font);
 
@@ -1603,8 +1746,8 @@ TIC_API int tic_ui_text_height(mu_Font font);
  * Tileset
  **********************/
 
-TIC_API tc_Tileset tic_tileset_create(tc_Image image, int w, int h);
-TIC_API tc_Tileset tic_tileset_load(const char *path, tc_Image image);
+TIC_API tc_Tileset tic_tileset_create(tc_Image *image, int w, int h);
+TIC_API tc_Tileset tic_tileset_load(const char *path, tc_Image *image);
 TIC_API void tic_tileset_destroy(tc_Tileset *tileset);
 
 TIC_API void tic_tileset_set_bitmask(tc_Tileset *tileset, int index, int bitmask);
@@ -1615,6 +1758,7 @@ TIC_API int tic_tileset_calc_mask(tc_Tileset tileset, int *bitmask_array);
 TIC_API void tic_tileset_draw(tc_Tileset tileset, int index, int x, int y, tc_Color color);
 
 TIC_API tc_Rectf tic_tileset_get_rect(tc_Tileset tileset, int index);
+  //TIC_API tc_Rectf tic_tileset_get_rect_from_bitmask(tc_Tileset tileset, int bitmask);
 TIC_API int tic_tileset_get_from_bitmask(tc_Tileset tileset, int bitmask);
 
 /**********************
@@ -1631,6 +1775,7 @@ TIC_API int tic_tilemap_has_tile(tc_Tilemap map, int x, int y);
 TIC_API void tic_tilemap_draw(tc_Tilemap map);
 TIC_API void tic_tilemap_draw_part(tc_Tilemap map, tc_Rect part, int x, int y);
 
+TIC_API void tic_tilemap_update(tc_Tilemap *map);
 TIC_API int tic_tilemap_autotile(tc_Tilemap tilemap, int index);
 TIC_API int tic_tilemap_autotile_pos(tc_Tilemap tilemap, int x, int y);
 
@@ -1641,12 +1786,40 @@ TIC_API void tic_tilemap_insert_pos(tc_Tilemap *map, int index);
 TIC_API int tic_tilemap_get_index(tc_Tilemap map, int x, int y);
 TIC_API void tic_tilemap_get_position(tc_Tilemap map, int index, tc_Vec2 *v);
 
+/***********************
+ * Camera
+ ***********************/
+
+TIC_API tc_Camera tic_camera_create(float x, float y, float w, float h);
+TIC_API void tic_camera_destroy(tc_Camera *camera);
+
+TIC_API void tic_camera_attach(tc_Camera camera);
+TIC_API void tic_camera_detach();
+
+TIC_API void tic_camera_set_pos(tc_Camera *camera, tc_Vec2 pos);
+TIC_API void tic_camera_set_scale(tc_Camera *camera, tc_Vec2 scale);
+TIC_API void tic_camera_set_size(tc_Camera *camera, tc_Vec2 size);
+
+TIC_API void tic_camera_get_pos(tc_Camera camera, tc_Vec2 *pos);
+TIC_API void tic_camera_get_scale(tc_Camera camera, tc_Vec2 *scale);
+TIC_API void tic_camera_get_size(tc_Camera camera, tc_Vec2 *size);
+
+
 /*======================
  * Editor
  *======================*/
 
 TIC_API void tic_editor_load(tc_Editor *editor);
 TIC_API void tic_editor_destroy(tc_Editor *editor);
+
+TIC_API void tic_editor_default(tc_Editor *editor);
+TIC_API void tic_editor_open(tc_Editor *editor, const char *type, const char *name);
+TIC_API void tic_editor_add_plugin(tc_Editor *editor, const char *type, tc_EditorPlugin *plugin);
+
+TIC_API void tic_editor_load_state(tc_Editor *editor);
+TIC_API void tic_editor_save_state(tc_Editor *editor);
+
+TIC_API tc_Resource* tic_editor_resource_viewer(tc_Editor *editor);
 
 TIC_API void tic_editor_set_tileset(tc_Editor *editor, const char *name, tc_Tileset *tileset);
 TIC_API void tic_editor_set_tilemap(tc_Editor *editor, const char *name, tc_Tilemap *tilemap);
@@ -1659,11 +1832,29 @@ TIC_API void tic_editor_draw(tc_Editor *editor);
 TIC_API int tic_editor_begin_draw(tc_Editor *editor);
 TIC_API void tic_editor_end_draw(tc_Editor *editor);
 
+TIC_API void tic_editor_set_game_canvas(tc_Editor *editor, tc_Canvas *canvas);
+TIC_API int tic_editor_is_game_open(tc_Editor *editor);
+TIC_API void tic_editor_set_game_open(tc_Editor *editor, int open);
+
+TIC_API void tic_editor_init_tool(tc_Tool *tool, tc_EditorPlugin *plugin);
+TIC_API void tic_editor_destroy_tool(tc_Tool *tool);
+TIC_API void tic_editor_draw_tool_panel(tc_Tool *tool);
+
+/*******************
+ * Game
+ *******************/
+
+TIC_API void tic_editor_game_init(tc_GameEditor *editor, tc_Tool *tool);
+TIC_API void tic_editor_game_destroy(tc_GameEditor *editor);
+
+TIC_API int tic_editor_game_draw(tc_GameEditor *editor);
+TIC_API int tic_editor_game_panel(tc_GameEditor *editor);
+
 /*********************
  * Tileset
  *********************/
 
-TIC_API void tic_editor_tileset_init(tc_TilesetEditor *editor);
+TIC_API void tic_editor_tileset_init(tc_TilesetEditor *editor, tc_Tool *tool);
 TIC_API void tic_editor_tileset_destroy(tc_TilesetEditor *editor);
 
 TIC_API void tic_editor_tileset_change(tc_TilesetEditor *editor, tc_Tileset *tileset);
@@ -1675,7 +1866,8 @@ TIC_API void tic_editor_tileset_save(tc_TilesetEditor *editor);
  * Tilemap
  **********************/
 
-TIC_API void tic_editor_tilemap_init(tc_TilemapEditor *editor);
+TIC_API void* tic_editor_tilemap_create(tc_Resource *editor);
+TIC_API void tic_editor_tilemap_init(tc_TilemapEditor *editor, tc_Tool *tool);
 TIC_API void tic_editor_tilemap_destroy(tc_TilemapEditor *editor);
 
 TIC_API void tic_editor_tilemap_change(tc_TilemapEditor *editor, tc_Tilemap *tilemap);

@@ -1,11 +1,11 @@
 #include "tico.h"
 
-tc_Tileset tic_tileset_create(tc_Image image, int w, int h) {
+tc_Tileset tic_tileset_create(tc_Image *image, int w, int h) {
 	tc_Tileset tileset = {0};
 	tileset.tilesize = tic_vec2_new(w, h);
 	tileset.image = image;
-	int sx = tileset.image.width / w;
-	int sy = tileset.image.height / h;
+	int sx = tileset.image->width / w;
+	int sy = tileset.image->height / h;
 	tileset.tilecount = sx * sy;
 
 	tileset.columns = sx;
@@ -15,7 +15,7 @@ tc_Tileset tic_tileset_create(tc_Image image, int w, int h) {
 	return tileset;
 }
 
-tc_Tileset tic_tileset_load(const char *path, tc_Image image) {
+tc_Tileset tic_tileset_load(const char *path, tc_Image *image) {
 	tc_Tileset tileset = {0};
 
 	cJSON *root = tic_json_open(path);
@@ -53,7 +53,7 @@ void tic_tileset_draw(tc_Tileset tileset, int index, int x, int y, tc_Color colo
 
 	tc_Rectf rect = tic_rectf(xx, yy, tileset.tilesize.x, tileset.tilesize.y);
 
-	tic_image_draw_part(tileset.image, rect, x, y, color);
+	tic_image_draw_part(*tileset.image, rect, x, y, color);
 }
 
 void tic_tileset_calc_mask_array(tc_Tileset tileset, int bitmask, int *bitmask_array) {
@@ -206,9 +206,17 @@ int tic_tilemap_has_tile(tc_Tilemap map, int x, int y) {
 	return map.data[index] >= 0;
 }
 
+void tic_tilemap_update(tc_Tilemap *map) {
+	for (int i = 0; i < map->count; i++) {
+		int tile = tic_tilemap_autotile(*map, i);
+		if (map->data[i] >= 0) map->data[i] = tile;
+	}
+}
+
 int tic_tilemap_autotile(tc_Tilemap map, int index) {
 	if (index < 0 || index > (map.width*map.height)) return -1;
 	// if (map.data[index] < 0) return -1;
+
 	tc_Vec2 pos;
 	tic_tilemap_get_position(map, index, &pos);
 	int sides[4] = {0, 0, 0, 0};
@@ -237,7 +245,9 @@ int tic_tilemap_autotile(tc_Tilemap map, int index) {
 
 void tic_tilemap_insert(tc_Tilemap *map, int index) {
 	if (index < 0 || index >= map->width*map->height) return;
+	map->data[index] = 1;
 	map->data[index] = tic_tilemap_autotile(*map, index);
+	// TRACELOG("%d", index);
 	// TRACELOG("%d", map->data[index]);
 
 	tc_Vec2 pos;
@@ -304,4 +314,47 @@ int tic_tilemap_get_index(tc_Tilemap map, int x, int y) {
 	}
 
 	return index;
+}
+
+/**************************
+ * Camera
+ **************************/
+
+tc_Camera tic_camera_create(float x, float y, float w, float h) {
+	tc_Camera camera = {0};
+	camera.area = tic_rectf(x, y, w, h);
+	camera.size = (tc_Vec2){1, 1};
+	camera.offset = (tc_Vec2){0, 0};
+	camera.angle = 0;
+
+	return camera;
+}
+
+void tic_camera_attach(tc_Camera camera) {
+	tic_graphics_push();
+	tic_graphics_translate(camera.offset.x, camera.offset.y);
+	tic_graphics_scale(camera.size.x, camera.size.y);
+	tic_graphics_rotate(camera.angle);
+	tic_graphics_translate(camera.area.x, camera.area.y);
+	// TRACELOG("%f %f", camera.area.x, camera.area.y);
+	tic_graphics_scissor(0, 0, camera.area.w, camera.area.h);
+}
+
+void tic_camera_detach() {
+	tic_graphics_pop();
+	tc_Canvas canvas = Core.render.state.currentCanvas;
+	if (canvas.id != 0) tic_graphics_scissor(0, 0, canvas.width, canvas.height);
+	else tic_graphics_scissor(0, 0, Core.window.width, Core.window.height);
+}
+
+// void tic_camera_set_scale(tc_Camera *camera, float x, float y) {}
+
+// void tic_camera_set_size(tc_Camera *camera, float w, float h) {}
+
+/******************
+ * Sprite
+ ******************/
+
+tc_Sprite tic_sprite_create(tc_Image *image, int w, int h) {
+	tc_Sprite spr = {0};
 }

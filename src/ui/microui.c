@@ -937,16 +937,34 @@ int mu_image_grid_ex(mu_Context *ctx, const char *label, tc_Texture tex, tc_Rect
     x = (i % size.x) * tw;
     r.x = rx + x;
     r.y = ry + y;
-    // mu_draw_box(ctx, r, WHITE);
-
-    if (i == *cell_selected) {
-      mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
-      mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
-    }
+    // tc_Rect rec = tic_rect(r.x + 2, r.y + 2, tw - 4, th - 4);
+    // mu_draw_rect(ctx, rec, ctx->style->colors[MU_COLOR_BUTTON]);
+    // TRACELOG("%s", label);
     if (i == mouse_cell) {
       mu_draw_rect(ctx, r, tic_color(189, 31, 63, 125));
       mu_draw_box(ctx, r, tic_color(189, 31, 63, 175));
     }
+    if (opt & MU_OPT_GRIDMULTI) {
+      if (1 == cell_selected[i]) {
+        mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+        mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+      }
+    } else {
+      if (i == cell_selected[0]) {
+        mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+        mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+      }
+    }
+    // mu_draw_box(ctx, r, WHITE);
+
+    // if (i == *cell_selected) {
+    //   mu_draw_rect(ctx, r, tic_color(64, 184, 179, 125));
+    //   mu_draw_box(ctx, r, tic_color(64, 184, 179, 175));
+    // }
+    // if (i == mouse_cell) {
+    //   mu_draw_rect(ctx, r, tic_color(189, 31, 63, 125));
+    //   mu_draw_box(ctx, r, tic_color(189, 31, 63, 175));
+    // }
   }
 
   // if (mouse_cell >= 0 && mouse_cell < tw*th) {
@@ -963,6 +981,19 @@ int mu_image_grid_ex(mu_Context *ctx, const char *label, tc_Texture tex, tc_Rect
 
 int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
   int res = 0;
+  int sz = 0;
+  if (label) sz = strlen(label);
+  char name[sz];
+  if (label) strcpy(name, label);
+  int i = sz - 1;
+  if (label && strstr(label, "##")) {
+    i = 0;
+    for (char *c = (char*)label; *c != '#'; c++) {
+      i += 1;
+    }
+    name[i] = '\0';
+  }
+  
   mu_Id id = label ? mu_get_id(ctx, label, strlen(label))
                    : mu_get_id(ctx, &icon, sizeof(icon));
   tc_Rect r = mu_layout_next(ctx);
@@ -974,8 +1005,14 @@ int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt) {
   }
   /* draw */
   mu_draw_control_frame(ctx, id, r, MU_COLOR_BUTTON, opt);
-  if (label) { mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, opt); }
-  if (icon) { mu_draw_icon(ctx, icon, r, ctx->style->colors[MU_COLOR_TEXT]); }
+  if (label) { mu_draw_control_text(ctx, name, r, MU_COLOR_TEXT, opt); }
+  if (icon) {
+    if (opt & MU_OPT_ALIGNCENTER) {
+      r.x += r.w / 2 - 8;
+      r.y += r.h / 2 - 8;
+    }
+    mu_draw_icon(ctx, icon, r, ctx->style->colors[MU_COLOR_TEXT]); 
+  }
   return res;
 }
 
@@ -995,6 +1032,8 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
   /* draw */
   mu_draw_control_frame(ctx, id, box, MU_COLOR_BASE, 0);
   if (*state) {
+    box.x += 2;
+    box.y += 2;
     mu_draw_icon(ctx, MU_ICON_CHECK, box, ctx->style->colors[MU_COLOR_TEXT]);
   }
   r = mu_rect(r.x + box.w, r.y, r.w - box.w, r.h);
@@ -1025,6 +1064,8 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
       res |= MU_RES_CHANGE;
     }
 
+    // TRACELOG("%s %s", buf, ctx->input_text);
+
     if (ctx->key_pressed == KEY_LEFT) {
       ctx->text_cursor -= 1;
     } else if (ctx->key_pressed == KEY_RIGHT) {
@@ -1052,7 +1093,8 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, tc_Rect r,
   if (ctx->focus == id) {
     tc_Color color = ctx->style->colors[MU_COLOR_TEXT];
     mu_Font font = ctx->style->font;
-    int textw = ctx->text_width(font, buf, ctx->text_cursor);
+    int textw = ctx->text_width(font, buf, strlen(buf));
+    // TRACELOG("%s", buf);
     // int textw_t = ctx->text_width(font, buf, ctx->text_cursor);
     int texth = ctx->text_height(font);
     int ofx = r.w - ctx->style->padding - textw - 1;
@@ -1175,6 +1217,24 @@ int mu_number_ex(mu_Context *ctx, char *label, mu_Real *value, mu_Real step,
 static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
   tc_Rect r;
   int active, expanded;
+  // int sz = strlen(label);
+  // char name[sz];
+  // strcpy(name, label);
+  // if (strstr(name, "##")) {
+  //   int i = 0;
+  //   for (char *c = name; *c != '#'; c++) {
+  //     i++;
+  //   }
+  //   name[i] = '\0';
+  // }
+  int sz = 0;
+  char *strp = strstr(label, "##");
+  if (strp) sz = strp - label;
+  else sz = strlen(label);
+  char name[sz+1];
+  memcpy(name, label, sz);
+  name[sz] = '\0';
+
   mu_Id id = mu_get_id(ctx, label, strlen(label));
   int idx = mu_pool_get(ctx, ctx->treenode_pool, MU_TREENODEPOOL_SIZE, id);
   int width = -1;
@@ -1206,10 +1266,10 @@ static int header(mu_Context *ctx, const char *label, int istreenode, int opt) {
   }
   mu_draw_icon(
     ctx, expanded ? MU_ICON_EXPANDED : MU_ICON_COLLAPSED,
-    mu_rect(r.x, r.y, r.h, r.h), ctx->style->colors[MU_COLOR_TEXT]);
+    mu_rect(r.x + 2, r.y + 2, r.h, r.h), ctx->style->colors[MU_COLOR_TEXT]);
   r.x += r.h - ctx->style->padding;
   r.w -= r.h - ctx->style->padding;
-  mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, 0);
+  mu_draw_control_text(ctx, name, r, MU_COLOR_TEXT, 0);
 
   return expanded ? MU_RES_ACTIVE : 0;
 }
@@ -1335,6 +1395,7 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
   tc_Rect body;
   mu_Id id = mu_get_id(ctx, title, strlen(title));
   mu_Container *cnt = get_container(ctx, id, opt);
+  // TRACELOG("%s %d", title, opt);
   if (!cnt || !cnt->open) { return 0; }
   push(ctx->id_stack, id);
 
@@ -1356,8 +1417,16 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
     /* do title text */
     if (~opt & MU_OPT_NOTITLE) {
       mu_Id id = mu_get_id(ctx, "!title", 6);
+      int sz = 0;
+      char *strp = strstr(title, "##");
+      if (strp) sz = strp - title;
+      else sz = strlen(title);
+      char nm[sz+1];
+      memcpy(nm, title, sz);
+      nm[sz] = '\0';
+      // TRACELOG("%s %d", nm, sz);
       mu_update_control(ctx, id, tr, opt);
-      mu_draw_control_text(ctx, title, tr, MU_COLOR_TITLETEXT, opt);
+      mu_draw_control_text(ctx, nm, tr, MU_COLOR_TITLETEXT, opt);
       if (id == ctx->focus && ctx->mouse_down == MU_MOUSE_LEFT) {
         cnt->rect.x += ctx->mouse_delta.x;
         cnt->rect.y += ctx->mouse_delta.y;
@@ -1369,7 +1438,7 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, tc_Rect rect, int opt
     /* do `close` button */
     if (~opt & MU_OPT_NOCLOSE) {
       mu_Id id = mu_get_id(ctx, "!close", 6);
-      tc_Rect r = mu_rect(tr.x + tr.w - tr.h, tr.y, tr.h, tr.h);
+      tc_Rect r = mu_rect(tr.x + tr.w - tr.h + 4, tr.y+2, tr.h, tr.h);
       tr.w -= r.w;
       mu_draw_icon(ctx, MU_ICON_CLOSE, r, ctx->style->colors[MU_COLOR_TITLETEXT]);
       mu_update_control(ctx, id, r, opt);

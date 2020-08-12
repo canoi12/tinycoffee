@@ -3,23 +3,23 @@
 
 #include "tico.h"
 
-typedef struct tc_Window {
-  GLFWwindow *handle;
+// typedef struct tc_Window {
+//   GLFWwindow *handle;
 
-  char title[256];
-  int x;
-  int y;
-  int width;
-  int height;
+//   char title[256];
+//   int x;
+//   int y;
+//   int width;
+//   int height;
 
-  tc_Rect bkpPos;
+//   tc_Rect bkpPos;
 
-  struct {
-    tc_bool fullscreen;
-    tc_bool resizable;
-    tc_bool vsync;
-  } state;
-} tc_Window;
+//   struct {
+//     tc_bool fullscreen;
+//     tc_bool resizable;
+//     tc_bool vsync;
+//   } state;
+// } tc_Window;
 
 #if defined(__cplusplus)
 extern "C" {
