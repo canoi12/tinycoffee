@@ -7,7 +7,7 @@ structure:
 data.pack
  |
  	- main.lua
- 	- config.json (optional)
+ 	- project.tico (optional)
  	- other game stuff
 ```
 

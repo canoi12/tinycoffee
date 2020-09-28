@@ -1,0 +1,16 @@
+{
+	"width":	16,
+	"height":	16,
+	"animations":	[{
+			"name":	"idle",
+			"from":	1,
+			"to":	4
+		}, {
+			"name":	"walk",
+			"from":	5,
+			"to":	11
+		}],
+	"dependencies":	{
+		"image":	"image//lizard"
+	}
+}

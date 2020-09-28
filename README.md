@@ -2,12 +2,11 @@
 
 # Tiny Coffee
 
-[![Join the chat at https://gitter.im/tinycoffee/tinycoffee](https://badges.gitter.im/tinycoffee/tinycoffee.svg)](https://gitter.im/tinycoffee/tinycoffee?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/canoi12/tinycoffee.svg?branch=master)](https://travis-ci.org/canoi12/tinycoffee)
+[![Join the chat at https://gitter.im/tinycoffee/tinycoffee](https://badges.gitter.im/tinycoffee/tinycoffee.svg)](https://gitter.im/tinycoffee/tinycoffee?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Build Status](https://travis-ci.org/canoi12/tinycoffee.svg?branch=master)](https://travis-ci.org/canoi12/tinycoffee)
 
 Tiny Coffee is a framework to develop simple games 2d games using opengl 3.
 
-For now it is far to be complete, it is better for you to use other game engine or framework if you working on a commercial project.
+**For now it is far to be complete, it is better for you to use other game engine or framework if you working on a commercial project.
 
 The main idea is to have all the dependencies static compiled in the executable, so there is no need of external dynamic libs other than platform specifics.
 
@@ -18,12 +17,12 @@ I'm using in this project:
 - [lua](https://www.lua.org/)
 - [wren](http://wren.io/)
 - [miniaudio](https://github.com/dr-soft/miniaudio/) (include dr_flac, dr_mp3 and dr_wav)
-- [stblibs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
+- [stb libs](https://github.com/nothings/stb) (stb_image, stb_vorbis and stb_truetype)
 - [cJSON](https://github.com/DaveGamble/cJSON)
 - [zip](https://github.com/kuba--/zip) (wrap for [miniz](https://github.com/richgel999/miniz))
 - ~[freetype](https://www.freetype.org/)~ (changed to `stb_truetype`, but maybe give the option to use it in the future (?))
-- ~[cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)~ (maybe in the future, as a C++ compiler is needed, and i want to maintain all in C)
-- [microui](https://github.com/rxi/microui)
+- [cimgui](https://github.com/cimgui/cimgui/) / [imgui](https://github.com/ocornut/imgui/)
+- [rxi libs](https://github.com/rxi) (map, vec)
 
 ## TODO:
 
@@ -37,11 +36,10 @@ I'm using in this project:
 - [ ] autopack textures on the fly
 - [x] joystick support (initial stage)
 - [ ] pollish the main engine modules (graphics, filesystem, audio, math, input)
-- [ ] make specific game modules like camera, tilemap, physics, etc.
+- [ ] make specific game types like camera, sprite, tileset..
 - [ ] fuse game executable with zip (like love2d)
-- [ ] make simple editors (animations, tilemap, scene..)
+- [ ] make simple editors (sprite, tileset, scene..)
 - [x] user custom shaders (like love2d and gms, with default variables for attributes and uniforms)
-- [ ] default custom shaders (palette swap, limit palette colors, palette based shadows)
 - [ ] support for more audio types
 - [x] struct with options to init engine (need to add more options)
 - [ ] load audio static (decode in memory)
@@ -49,43 +47,50 @@ I'm using in this project:
 - [x] drawing canvas
 - [x] custom glsl shaders (but the shaders need to implement some attribute variables and uniforms)
 - [x] keyboard and mouse input
-- [ ] resource manager
+- [ ] plugins system (in progress)
+  - [ ] resource manager
+    - [ ] audio
+    - [x] image
+    - [ ] font
+    - [ ] shader
+    - [ ] sprite
+    - [ ] tilemap / scene
+    - [x] tileset
+  - [ ] editor
+    - [x] tileset
+    - [ ] tilemap / scene
+  - [ ] lua
+  - [ ] wren
 
 ## usage
 
-if you want to use your own game loop using TICO static lib, use:
+if you want to use your own game loop using Tico static lib, use:
 
 ```c
 // main.c
-#define TICO_NO_INCLUDE
 #include "tico.h"
 
 int main(int argc, char ** argv) {
-  tc_Config config = tic_config_init("title", 640, 380, argc, argv);
-  tc_bool success = tic_init(&config);
+  // tc_Config config = tic_config_init("title", 640, 380, argc, argv);
+  tc_Config config = tico_config_init("title", 640, 380, argc, argv);
+  tc_bool success = tico_init(&config);
 
-  tc_Image image = tic_image_load(filename);
+  tc_Image image = tico_image_load(filename);
 
-  Core.state.load(); // optional, use if you want scripting support
+  while (!tico_window_should_close()) { // main loop
+    tico_update(); // update inputs, timers, ...
 
-  while (!tic_window_should_close()) { // main loop
-    tic_update(); // update inputs, timers, ...
+    tico_graphics_clear(color3(75, 90, 90)); // clear screen with color
 
-    tic_graphics_clear(color3(75, 90, 90)); // clear screen with color
+    tico_begin_draw(); // begin batch render
 
-    tic_begin_draw(); // begin batch render
+    tico_image_draw(tex, 0, 0, WHITE); // draw texture
+    tico_image_draw_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
 
-    Core.state.step(tic_timer_delta()); // optional, use if you want scripting support
-
-    tic_image_draw(tex, 0, 0, WHITE); // draw texture
-    tic_image_draw_scale(tex, 64, 0, 4, 4, WHITE); // draw scaled texture
-
-    
-
-    tic_end_draw(); // finish batch render
+    tico_end_draw(); // finish batch render
   }
 
-  tic_terminate();
+  tico_terminate();
 
   return 0;
 }
@@ -125,29 +130,27 @@ end
     - gcc
     - gcc-mingw-w64-x86-64 (to build for Windows)
     - make
+    - cmake
   - **`Windows`**
-    - use `mingw`
+    - cmake
+    - mingw
 
 for now i'm developing on linux, so is easier to compile on it. 
 
-By default tico will use LuaJIT as default, you can compile using Lua 5.4 by just adding
-`NOJIT=true` to the make command, eg: `make tico NOJIT=true`
-
 #### Linux
 
-`make tico`
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
-use
-
-`make tico MODE=Release` to compile with -O3
-
-to build for windows in Linux use
-
-`make tico PLATFORM=Windows`
+use `cmake .. -DWIN32` to compile for Windows using mingw gcc
 
 #### Windows
 
-`make tico PLATFORM=Windows`
+don't tested yet, but you need to use cmake and probably install mingw
 
 
 ## distribution

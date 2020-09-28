@@ -1,1 +1,0 @@
-std="love+luajit"

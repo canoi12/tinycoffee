@@ -12,9 +12,11 @@ addons:
       - xorg-dev
       - gcc
       - gcc-mingw-w64-x86-64
+      - cmake
       - make
 
 script:
-  - make tico
-  - make clean
-  - make tico PLATFORM=Windows
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make

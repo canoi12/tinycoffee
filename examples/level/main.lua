@@ -1,51 +1,42 @@
 function tico.load()
-  tico.resources.default()
-	tico.resources.load("resources.json")
-	-- tico.resources.default()
-	tilemap = tico.resources.get("tilemap", "teste")
-	-- tileset = tico.resources.get("tileset", "forest")
-	camera = tico.engine.newCamera(0, 0, 320, 190)
-	canvas = tico.graphics.newCanvas(320, 190)
-	-- camera:move(150, 0)
-	tico.editor.load()
-	tico.editor.default()
-	-- tico.editor.set_tilemap("teste")
-	-- tico.editor.set_tileset("knightvania")
-	-- tico.editor.set_tileset("forest")
-	-- map = tico.resources.get("tilemap", "teste")
-	-- tico.editor.open("tilemap", "teste")
-	-- tico.editor.open("tilemap", "forest")
-	-- tico.editor.open("tileset", "knightvania")
-	tico.editor.game_canvas(canvas)
-	rect = tico.graphics.newRectangle(0, 0, canvas:getWidth()-64, canvas:getHeight()-128)
+	img = tico.resources.get("image", "tileset")
+	player = tico.resources.get("image", "player")
+	spr = tico.engine.newSprite(player, 16, 16)
+	spr:add("idle", 0, 3)
+	spr:add("walk", 4, 11)
+	spr:play("idle")
+
+	canvas = tico.graphics.newCanvas(160, 95)
+	camera = tico.engine.newCamera(0, 0, 160, 95)
+
+	map = tico.resources.get("tilemap", "forest")
 end
 
 local x = 0
 
-function tico.update(dt)
-	if tico.editor.game_open() then
-		if tico.input.isDown("left") then x = x - 100 * dt end
-		if tico.input.isDown("right") then x = x + 100 * dt end
-		camera:move(-x)
+function tico.editor_update(dt)
+	if tico.input.keyDown("right") then
+		x = x + 100 * dt
+		spr:play("walk")
+	elseif tico.input.keyDown("left") then
+		x = x - 100 * dt
+		spr:play("walk")
+	else
+		spr:play("idle")
 	end
+	spr:update(dt)
+	camera:move(-x+80, 46)
 end
 
-function tico.draw()
-	if tico.editor.game_open() then
-		canvas:attach()
-		tico.graphics.clear()
-		camera:attach()
-		tilemap:draw()
-		camera:detach()
-		canvas:detach()
-	end
-	-- print(rect:height())
-	-- canvas:draw()
-	-- canvas:auto()
-	-- if tico.editor.begin_draw() then
-		
-	-- 	-- canvas:draw(0, 0, 0, 2, 2)
-	-- 	tico.editor.end_draw()
-	-- end
-	tico.editor.draw()
+function tico.editor_draw()
+	canvas:attach()
+	tico.graphics.clear({75, 90, 90})
+	camera:attach()
+	map:draw()
+	spr:draw(x, 0, 0, 1, 1, 8, 8)
+	camera:detach()
+	canvas:detach()
+
+	canvas:draw(0, 0, 0, 4, 4)
+	-- tico.graphics.print(tico.timer.fps(), 0, 0, {0, 0, 0})
 end

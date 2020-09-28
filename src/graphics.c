@@ -1,157 +1,381 @@
 #include "tico.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb/stb_truetype.h"
+
 #define STB_IMAGE_IMPLEMENTATION
-#include "external/stb_image.h"
+#include "stb/stb_image.h"
 
-/*********************
- * Graphics
- *********************/
+int tico_graphics_init(tc_Graphics* graphics) {
+	stack_arr_init(&graphics->canvas_stack, CANVAS_STACK_SIZE);
+	stack_arr_init(&graphics->shader_stack, SHADER_STACK_SIZE);
+	stack_arr_init(&graphics->matrix_stack, MATRIX_STACK_SIZE);
 
-void tic_graphics_push() {
-  // tic_batch_next_drawcall(&Core.render.batch, tc_false);
-  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
-  tic_batch_set_transform(&Core.render.batch, matrix);
-  stack_arr_push(&Core.render.state.matrixStack, matrix);
-  matrix = stack_arr_top(&Core.render.state.matrixStack);
+	if (!tico_render_init(&graphics->render)) return 0;
+
+	graphics->default_font = tico_font_load_default();
+	graphics->default_shader = tico_shader_load_default(&graphics->default_vertex, &graphics->default_fragment);
+  graphics->default_texture = tico_texture_create(WHITE.data, 1, 1, GL_RGBA);
+
+	LOG("Graphics Module initiated");
+	return 1;
 }
 
-void tic_graphics_pop() {
-  stack_arr_pop(&Core.render.state.matrixStack);
-  tc_Matrix i = stack_arr_top(&Core.render.state.matrixStack);
-  tic_batch_set_transform(&Core.render.batch, i);
-  Core.render.state.camera = NULL;
+void tico_graphics_terminate(tc_Graphics *graphics) {
+	// stack_arr_destroy(&graphics->canvas_stack);
+	// stack_arr_destroy(&graphics->shader_stack);
+	// stack_arr_destroy(&graphics->matrix_stack);
+	tico_render_terminate(&graphics->render);
+	LOG("Graphics Module terminated");
 }
 
-void tic_graphics_origin() {
-  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
-  tic_matrix_identity(&matrix);
-  stack_arr_set(&Core.render.state.matrixStack, matrix);
-  tic_batch_set_transform(&Core.render.batch, matrix);
+TIC_API void INTERNAL_API(tico_graphics_begin, tc_Graphics* graphics) {
+  int width, height;
+  tico_window_get_size(&width, &height);
+
+  tc_Canvas canvas = {0};
+  canvas.id = 0;
+  canvas.width = width;
+  canvas.height = height;
+
+  tico_render_begin(&graphics->render);
+  glEnable(GL_BLEND);
+  glEnable(GL_SCISSOR_TEST);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBlendEquation(GL_FUNC_ADD);
+
+  glScissor(0, 0, width, height);
+
+  glViewport(0, 0, width, height);
+  tico_shader_attach(tico_graphics_default_shader());
+  tico_canvas_attach(canvas);
+  tico_graphics_push();
+  tico_graphics_origin();
+
+  tico_graphics_clear(BG);
+}
+TIC_API void INTERNAL_API(tico_graphics_end, tc_Graphics *graphics) {
+  tico_graphics_pop();
+  tico_canvas_detach();
+  tico_shader_detach();
+
+  tico_render_flush(&graphics->render);
+  tico_render_draw(&graphics->render);
 }
 
-void tic_graphics_translate(float x, float y) {
+void tico_graphics_draw_internal(tc_Graphics *graphics, tc_Texture texture, tc_Rectf dest, tc_Rectf source, tc_Color color) {
+	tico_render_set_texture(&graphics->render, texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tico_render_reset_if_full(&graphics->render, 4);
+  tico_render_add_rect(&graphics->render, dest, source, color);
+}
+
+void tico_graphics_draw_ex_internal(tc_Graphics *graphics, tc_Texture tex, tc_Rectf dest, tc_Rectf src, float angle, tc_Vec2 origin, tc_Color color) {
+  tico_render_set_texture(&graphics->render, tex);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tico_render_reset_if_full(&graphics->render, 4);
+  tc_Rectf fdest = tico_rectf(dest.x, dest.y, dest.w, dest.h);
+  tico_render_add_rect_ex(&graphics->render, dest, src, angle, origin, color);
+}
+
+void tico_graphics_clear(tc_Color color) {
+	tc_Rectf c;
+	for (int i = 0; i < 4; i++) c.data[i] = (float)color.data[i] / 255.f;
+	glClearColor(c.x, c.y, c.w, c.h);
+
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void tico_graphics_push_internal(tc_Graphics *graphics) {
+  // tico_batch_next_drawcall(&Core.render.batch, tc_false);
+  tc_Matrix matrix = stack_arr_top(&graphics->matrix_stack);
+  // tico_batch_set_transform(&Core.render.batch, matrix);
+  tico_render_set_transform(&graphics->render, matrix);
+  stack_arr_push(&graphics->matrix_stack, matrix);
+  matrix = stack_arr_top(&graphics->matrix_stack);
+}
+
+void tico_graphics_pop_internal(tc_Graphics *graphics) {
+  stack_arr_pop(&graphics->matrix_stack);
+  tc_Matrix i = stack_arr_top(&graphics->matrix_stack);
+  tico_render_set_transform(&graphics->render, i);
+  // Core.render.state.camera = NULL;
+}
+
+void tico_graphics_origin_internal(tc_Graphics *graphics) {
+  tc_Matrix matrix = stack_arr_top(&graphics->matrix_stack);
+  tico_matrix_identity(&matrix);
+  stack_arr_set(&graphics->matrix_stack, matrix);
+  tico_render_set_transform(&graphics->render, matrix);
+}
+
+void tico_graphics_translate_internal(tc_Graphics *graphics, float x, float y) {
   float yy = y + 0.1f;
-  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
-  tic_matrix_translate_in_place(&matrix, x, yy, 0);
-  stack_arr_set(&Core.render.state.matrixStack, matrix);
-  tic_batch_set_transform(&Core.render.batch, matrix);
+  tc_Matrix matrix = stack_arr_top(&graphics->matrix_stack);
+  tico_matrix_translate_in_place(&matrix, x, yy, 0);
+  stack_arr_set(&graphics->matrix_stack, matrix);
+  tico_render_set_transform(&graphics->render, matrix);
 }
 
-void tic_graphics_scale(float x, float y) {
-  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
-  tic_matrix_scale_aniso(&matrix, matrix, x, y, 1);
-  stack_arr_set(&Core.render.state.matrixStack, matrix);
-  tic_batch_set_transform(&Core.render.batch, matrix);
+void tico_graphics_scale_internal(tc_Graphics *graphics, float x, float y) {
+  tc_Matrix matrix = stack_arr_top(&graphics->matrix_stack);
+  tico_matrix_scale_aniso(&matrix, matrix, x, y, 1);
+  stack_arr_set(&graphics->matrix_stack, matrix);
+  tico_render_set_transform(&graphics->render, matrix);
 }
 
-void tic_graphics_rotate(float angle) {
-  tc_Matrix matrix = stack_arr_top(&Core.render.state.matrixStack);
-  tic_matrix_rotate_z(&matrix, matrix, angle);
-  stack_arr_set(&Core.render.state.matrixStack, matrix);
-  tic_batch_set_transform(&Core.render.batch, matrix);
+void tico_graphics_rotate_internal(tc_Graphics *graphics, float angle) {
+  tc_Matrix matrix = stack_arr_top(&graphics->matrix_stack);
+  tico_matrix_rotate_z(&matrix, matrix, angle);
+  stack_arr_set(&graphics->matrix_stack, matrix);
+  tico_render_set_transform(&graphics->render, matrix);
 }
 
 
 
-void tic_graphics_scissor(int x, int y, int w, int h) {
-  tic_batch_set_clip(&Core.render.batch, tic_rect(x, y, w, h));
+void tico_graphics_scissor_internal(tc_Graphics *graphics, int x, int y, int w, int h) {
+  tico_render_set_clip(&graphics->render, tico_rect(x, y, w, h));
   // TRACELOG("%d %d", w, h);
 }
 
-void tic_graphics_clear(tc_Color color) {
-  glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
-  glClear(GL_COLOR_BUFFER_BIT);
+void tico_graphics_send_internal(tc_Graphics *graphics, const char *name, void *data, TIC_SHADER_UNIFORM_ type) {
+	tc_Shader shader = stack_arr_top(&graphics->shader_stack);
+	tico_shader_send(shader, name, data, type);
 }
+void tico_graphics_send_count_internal(tc_Graphics *graphics, const char *name, int count, void *data, TIC_SHADER_UNIFORM_ type) {
+	tc_Shader shader = stack_arr_top(&graphics->shader_stack);
+	tico_shader_send_count(shader, name, count, data, type);
+}
+
+int tico_graphics_default_vertex_shader_internal(tc_Graphics *graphics) {
+	return graphics->default_vertex;
+}
+
+int tico_graphics_default_fragment_shader_internal(tc_Graphics *graphics) {
+	return graphics->default_fragment;
+}
+
+tc_Shader tico_graphics_default_shader_internal(tc_Graphics *graphics) {
+	 return graphics->default_shader;
+}
+
+void tico_graphics_push_shader_internal(tc_Graphics *graphics, tc_Shader shader) {
+	stack_arr_push(&graphics->shader_stack, shader);
+  tico_render_draw_reset(&graphics->render);
+  glUseProgram(shader.program);
+  // Core.render.state.currentShader = shader;
+  tico_shader_send_world(shader);
+}
+void tico_graphics_pop_shader_internal(tc_Graphics *graphics) {
+	stack_arr_pop(&graphics->shader_stack);
+  tc_Shader shader = stack_arr_top(&graphics->shader_stack);
+  // tc_Shader shader = *sv;
+
+  tico_render_draw_reset(&graphics->render);
+  glUseProgram(shader.program);
+  // Core.render.state.currentShader = shader;
+  tico_shader_send_world(shader);
+}
+void tico_graphics_push_canvas_internal(tc_Graphics *graphics, tc_Canvas canvas) {
+	stack_arr_push(&graphics->canvas_stack, canvas);
+
+  if (!tico_render_is_empty(&graphics->render)) tico_render_draw_reset(&graphics->render);
+  tico_render_set_clip(&graphics->render, tico_rect(0, 0, canvas.width, canvas.height));
+  glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
+  glViewport(0, 0, canvas.width, canvas.height);
+  // tic_shader_send_world(Core.render.state.currentShader);
+  tc_Shader top_shader = stack_arr_top(&graphics->shader_stack);
+  tico_shader_send_world(top_shader);
+  // Core.render.state.currentCanvas = canvas;
+  // graphics->curr
+}
+void tico_graphics_pop_canvas_internal(tc_Graphics *graphics) {
+	stack_arr_pop(&graphics->canvas_stack);
+  tc_Canvas canvas = stack_arr_top(&graphics->canvas_stack);
+  // TRACEERR("%d", graphics->canvas_stack.top);
+
+  if (!tico_render_is_empty(&graphics->render)) tico_render_draw_reset(&graphics->render);
+  tico_render_set_clip(&graphics->render, tico_rect(0, 0, canvas.width, canvas.height));
+  glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
+  glViewport(0, 0, canvas.width, canvas.height);
+  tc_Shader shader = stack_arr_top(&graphics->shader_stack);
+  tico_shader_send_world(shader);
+  // Core.render.state.currentCanvas = canvas;
+}
+tc_Canvas INTERNAL_API(tico_graphics_top_canvas, tc_Graphics *graphics) {
+  ASSERT(graphics != NULL);
+  tc_Canvas canvas = stack_arr_top(&graphics->canvas_stack);
+
+  return canvas;
+}
+
+void tico_graphics_push_matrix_internal(tc_Graphics *graphics, tc_Matrix matrix) {}
+void tico_graphics_pop_matrix_internal(tc_Graphics *graphics) {}
+
+// void tico_graphics_clear(tc_Color color) {
+//   glClearColor(color.r/255.f, color.g/255.f, color.b/255.f, color.a/255.f);
+//   glClear(GL_COLOR_BUFFER_BIT);
+// }
 
 /**********************
  * Shapes
  **********************/
 
-void tic_graphics_draw_rectangle(float x, float y, int width, int height, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_LINES);
-  tic_batch_reset_if_full(&Core.render.batch, 8);
-  tic_batch_add_rect(&Core.render.batch, tic_rectf(x, y, width, height), tic_rectf(0, 0, 1, 1), color);
-  // tic_batch_add_line_rect(&Core.render.batch, tic_rectf(x, y, width, height), tic_rectf(0, 0, 1, 1), color);
+void tico_graphics_draw_rectangle_internal(tc_Graphics *graphics, float x, float y, int width, int height, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_LINES);
+  tico_render_reset_if_full(&graphics->render, 8);
+  tico_render_add_rect(&graphics->render, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
+  // tico_batch_add_line_rect(&Core.render.batch, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
 }
 
-void tic_graphics_fill_rectangle(float x, float y, float width, float height, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tic_batch_reset_if_full(&Core.render.batch, 4);
-  tic_batch_add_rect(&Core.render.batch, tic_rectf(x, y, width, height), tic_rectf(0, 0, 1, 1), color);
+void tico_graphics_fill_rectangle_internal(tc_Graphics *graphics, float x, float y, float width, float height, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tico_render_reset_if_full(&graphics->render, 4);
+  tico_render_add_rect(&graphics->render, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
 }
-void tic_graphics_draw_rect(tc_Rect rect, tc_Color color) {
-  tic_graphics_draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
-}
+// void tico_graphics_draw_rect(tc_Rect rect, tc_Color color) {
+//   tico_graphics_draw_rectangle(rect.x, rect.y, rect.w, rect.h, color);
+// }
 
-void tic_graphics_fill_rect(tc_Rect rect, tc_Color color) {
-  tic_graphics_fill_rectangle(rect.x, rect.y, rect.w, rect.h, color);
-}
+// void tico_graphics_fill_rect(tc_Rect rect, tc_Color color) {
+//   tico_graphics_fill_rectangle(rect.x, rect.y, rect.w, rect.h, color);
+// }
 
 
 // equation to calc points: shorturl.at/bwxE8
-void tic_graphics_draw_circle(int x, int y, float radius, tc_Color color) {
+void tico_graphics_draw_circle_internal(tc_Graphics *graphics, int x, int y, float radius, tc_Color color) {
   float err = 0.5f;
   float val = (1-err/radius)*(1-err/radius);
   float eq = rad2deg(acos(2 * val - 1));
   int points = ceil(360 / eq);
   points += points%2;
 //   TRACELOG("%f %f %d", radius, eq, points);
-  tic_graphics_draw_circle_ex(x, y, radius, points, color);
+  tico_graphics_draw_circle_ex_internal(graphics, x, y, radius, points, color);
 }
-void tic_graphics_fill_circle(int x, int y, float radius, tc_Color color) {
+void tico_graphics_fill_circle_internal(tc_Graphics *graphics, int x, int y, float radius, tc_Color color) {
   float err = 0.5f;
   float val = (1-err/radius)*(1-err/radius);
   float eq = rad2deg(acos(2 * val - 1));
   int points = ceil(360 / eq);
   points *= points;
-  tic_graphics_fill_circle_ex(x, y, radius, points, color);
+  tico_graphics_fill_circle_ex_internal(graphics, x, y, radius, points, color);
 }
-void tic_graphics_draw_circle_ex(int x, int y, float radius, int sides, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_LINES);
-  tic_batch_reset_if_full(&Core.render.batch, sides * 2);
-  tic_batch_add_circle(&Core.render.batch, x, y, radius, sides, color);
-}
-
-void tic_graphics_fill_circle_ex(int x, int y, float radius, int sides, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tic_batch_reset_if_full(&Core.render.batch, sides * 2);
-  tic_batch_add_circle(&Core.render.batch, x, y, radius, sides, color);
+void tico_graphics_draw_circle_ex_internal(tc_Graphics *graphics, int x, int y, float radius, int sides, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_LINES);
+  tico_render_reset_if_full(&graphics->render, sides * 2);
+  tico_render_add_circle(&graphics->render, (tc_Vec2){x, y}, radius, sides, color);
 }
 
-void tic_graphics_draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_LINES);
-  tic_batch_reset_if_full(&Core.render.batch, 8);
-  tic_batch_add_triangle(&Core.render.batch, x0, y0, x1, y1, x2, y2, color);
-}
-void tic_graphics_fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tic_batch_reset_if_full(&Core.render.batch, 8);
-  tic_batch_add_triangle(&Core.render.batch, x0, y0, x1, y1, x2, y2, color);
-}
-void tic_graphics_draw_trianglev(tc_Vec2 p0, tc_Vec2 p1, tc_Vec2 p2, tc_Color color) {
-  tic_graphics_draw_triangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, color);
-}
-void tic_graphics_fill_trianglev(tc_Vec2 p0, tc_Vec2 p1, tc_Vec2 p2, tc_Color color) {
-  tic_graphics_fill_triangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, color);
+void tico_graphics_fill_circle_ex_internal(tc_Graphics *graphics, int x, int y, float radius, int sides, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tico_render_reset_if_full(&graphics->render, sides * 2);
+  tico_render_add_circle(&graphics->render, (tc_Vec2){x, y}, radius, sides, color);
 }
 
-void tic_graphics_draw_line(int x0, int y0, int x1, int y1, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, Core.render.state.shapeTexture);
-  tic_batch_reset_if_full(&Core.render.batch, 2);
-  tic_batch_add_line(&Core.render.batch, x0, y0, x1, y1, color);
+void tico_graphics_draw_triangle_internal(tc_Graphics *graphics, int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_LINES);
+  tico_render_reset_if_full(&graphics->render, 8);
+  tc_Vec2 p0 = tico_vec2(x0, y0);
+  tc_Vec2 p1 = tico_vec2(x1, y1);
+  tc_Vec2 p2 = tico_vec2(x2, y2);
+  tico_render_add_triangle(&graphics->render, p0, p1, p2, color);
 }
+void tico_graphics_fill_triangle_internal(tc_Graphics *graphics, int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tico_render_reset_if_full(&graphics->render, 8);
+  tc_Vec2 p0 = tico_vec2(x0, y0);
+  tc_Vec2 p1 = tico_vec2(x1, y1);
+  tc_Vec2 p2 = tico_vec2(x2, y2);
+  tico_render_add_triangle(&graphics->render, p0, p1, p2, color);
+}
+// void tico_graphics_draw_trianglev(tc_Vec2 p0, tc_Vec2 p1, tc_Vec2 p2, tc_Color color) {
+//   tico_graphics_draw_triangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, color);
+// }
+// void tico_graphics_fill_trianglev(tc_Vec2 p0, tc_Vec2 p1, tc_Vec2 p2, tc_Color color) {
+//   tico_graphics_fill_triangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, color);
+// }
+
+void tico_graphics_draw_line_internal(tc_Graphics *graphics, int x0, int y0, int x1, int y1, tc_Color color) {
+  tico_render_set_texture(&graphics->render, graphics->default_texture);
+  tico_render_reset_if_full(&graphics->render, 2);
+  tico_render_add_line(&graphics->render, (tc_Vec2){x0, y0}, (tc_Vec2){x1, y1}, color);
+}
+
+/***********************
+ * Text
+ ***********************/
+
+void tico_graphics_draw_text_internal(tc_Graphics *graphics, const char *text, int x, int y, tc_Color color) {
+  tico_graphics_draw_text_scale_internal(graphics, text, x, y, 1, 1, color);
+}
+
+void tico_graphics_draw_text_width_internal(tc_Graphics *graphics, const char *text, int x, int y, int width, tc_Color color) {
+  tico_graphics_draw_text_font_scale_width_internal(graphics, graphics->default_font, text, x, y, width, 1, 1, color);
+}
+
+void tico_graphics_draw_text_scale_internal(tc_Graphics *graphics, const char *text, int x, int y, float sx, float sy, tc_Color color) {
+  tico_graphics_draw_text_font_scale_internal(graphics, graphics->default_font, text, x, y, sx, sy, color);
+}
+void tico_graphics_draw_text_ex_internal(tc_Graphics *graphics, const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {}
+
+void tico_graphics_draw_text_font_internal(tc_Graphics *graphics, tc_Font font, const char *text, int x, int y, tc_Color color) {
+  tico_graphics_draw_text_font_scale_internal(graphics, font, text, x, y, 1, 1, color);
+}
+
+void tico_graphics_draw_text_font_scale_internal(tc_Graphics *graphics, tc_Font font, const char *text, int x, int y, float sx, float sy, tc_Color color) {
+  tico_render_set_texture(&graphics->render, font.texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  int len = strlen(text);
+  tico_render_reset_if_full(&graphics->render, 4 * len);
+  tc_Texture tex = font.texture;
+  unsigned char *p = (unsigned char*)text;
+  float x0 = 0;
+  float y0 = 0;
+  while (*p) {
+    tc_Vec2 pos;
+    tc_Rectf rect;
+    int codepoint;
+    p = tico_utf8_codepoint(p, &codepoint);
+    tico_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy, 0);
+    tico_render_add_rect(&graphics->render, tico_rectf(x + pos.x, y + pos.y, rect.w*sx, rect.h*sy), rect, color);
+  }
+}
+
+void tico_graphics_draw_text_font_ex_internal(tc_Graphics *graphics, tc_Font font, const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {}
+
+void tico_graphics_draw_text_font_scale_width_internal(tc_Graphics *graphics, tc_Font font, const char *text, int x, int y, int width, float sx, float sy, tc_Color color) {
+  tico_render_set_texture(&graphics->render, font.texture);
+  tico_render_set_draw_mode(&graphics->render, TIC_TRIANGLES);
+  tc_Texture tex = font.texture;
+  unsigned char *p = (unsigned char*)text;
+  float x0 = 0;
+  float y0 = 0;
+  while (*p) {
+    tc_Vec2 pos;
+    tc_Rectf rect;
+    int codepoint;
+    p = tico_utf8_codepoint(p, &codepoint);
+    tico_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy, width);
+    tico_render_reset_if_full(&graphics->render, 4);
+    tico_render_add_rect(&graphics->render, tico_rectf(x + pos.x, y + pos.y, rect.w*sx, rect.h*sy), rect, color);
+  }
+}
+
+/*========================*
+ *         Types          *
+ *========================*/
 
 /*********************
  * Texture
  *********************/
 
-tc_Texture tic_texture_create(void *data, int width, int height, int mode) {
+tc_Texture tico_texture_create(void *data, int width, int height, int mode) {
   tc_Texture texData = {0};
   glGenTextures(1, &texData.id);
   glBindTexture(GL_TEXTURE_2D, texData.id);
@@ -173,57 +397,32 @@ tc_Texture tic_texture_create(void *data, int width, int height, int mode) {
   glTexImage2D(GL_TEXTURE_2D, 0, mode, width, height, GL_FALSE, mode, GL_UNSIGNED_BYTE, data);
   glBindTexture(GL_TEXTURE_2D, 0);
 
-  // tc_Texture tex = tic_resources_add_texture(data, tc_Texture *texture)
+  // tc_Texture tex = tico_resources_add_texture(data, tc_Texture *texture)
 
   return texData;
 }
 
-tc_Texture tic_texture_create_named(const char *name, void *data, int width, int height, int mode) {
- // tc_Texture *tex = tic_resources_get_texture(name);
- // if (tex) {
- //   TRACELOG("Same texture for %s", name);
- //   return *tex;
- // }
-
- // tex = malloc(sizeof(tc_Texture));
- tc_Texture tex = tic_texture_create(data, width, height, mode);
- // tex->refs = 1;
-//  tex.refs = 0;
- if (tex.id == 0) {
-  TRACELOG("Failed to load texture '%s'", name);
-  // free(tex);
-  return (tc_Texture){0};
- }
- // tic_resources_add_texture(name, tex);
-
- return tex;
-}
-
-tc_Texture tic_texture_load(const char *filename) {
+tc_Texture tico_texture_load(const char *filename) {
 
  size_t size;
- // tc_Texture *tex = tic_resources_get_texture(filename);
- // if (tex) {
- //   // TRACELOG("Same texture for %s", filename);
- //   return *tex;
- // }
-
- // tc_Texture *tex = NULL;
  tc_Texture tex = {0};
  tex.id = 0;
- tc_uint8* buffer = tic_filesystem_read_file((tc_uint8*)filename, &size);
+ // TRACELOG("%s", filename);
+ unsigned char* buffer = tico_filesystem_read_file((unsigned char*)filename, &size);
+ // unsigned char *buffer = "uopa";
+
 
  // tex = malloc(sizeof(tc_Texture));
- tex = tic_texture_from_memory(buffer, size);
+ tex = tico_texture_from_memory(buffer, size);
  // tex->refs = 1;
 //  tex.refs = 0;
- // tc_Texture tex = tic_texture_from_memory(buffer, size);
+ // tc_Texture tex = tico_texture_from_memory(buffer, size);
  if (tex.id == 0) {
   TRACELOG("Failed to load texture '%s'", filename);
   // free(tex);
   return (tc_Texture){0};
  }
- // tic_resources_add_texture(filename, tex);
+ // tico_resources_add_texture(filename, tex);
 
  free(buffer);
 
@@ -231,11 +430,11 @@ tc_Texture tic_texture_load(const char *filename) {
 }
 
 
-tc_Texture tic_texture_from_memory(void *data, int bufSize) {
+tc_Texture tico_texture_from_memory(void *data, int bufSize) {
   tc_Texture tex = {0};
   int width, height, channels;
 
-  tc_uint8 *imgData = stbi_load_from_memory(data, bufSize, &width, &height, &channels, 0);
+  unsigned char *imgData = stbi_load_from_memory(data, bufSize, &width, &height, &channels, 0);
 
   if (!imgData) return tex;
 
@@ -271,7 +470,7 @@ tc_Texture tic_texture_from_memory(void *data, int bufSize) {
   return tex;
 }
 
-void tic_texture_set_filter(tc_Texture *tex, int filter_min, int filter_mag) {
+void tico_texture_set_filter(tc_Texture *tex, int filter_min, int filter_mag) {
   tex->filter[0] = filter_min;
   tex->filter[1] = filter_mag;
 
@@ -283,12 +482,12 @@ void tic_texture_set_filter(tc_Texture *tex, int filter_min, int filter_mag) {
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void tic_texture_get_filter(tc_Texture tex, int *filter_min, int *filter_mag) {
+void tico_texture_get_filter(tc_Texture tex, int *filter_min, int *filter_mag) {
   if (filter_min) *filter_min = tex.filter[0];
   if (filter_mag) *filter_mag = tex.filter[1];
 }
 
-void tic_texture_set_wrap(tc_Texture *tex, int wrap_min, int wrap_mag) {
+void tico_texture_set_wrap(tc_Texture *tex, int wrap_min, int wrap_mag) {
   tex->wrap[0] = wrap_min;
   tex->wrap[1] = wrap_mag;
 
@@ -300,37 +499,30 @@ void tic_texture_set_wrap(tc_Texture *tex, int wrap_min, int wrap_mag) {
   glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void tic_texture_get_wrap(tc_Texture tex, int *wrap_min, int *wrap_mag) {
+void tico_texture_get_wrap(tc_Texture tex, int *wrap_min, int *wrap_mag) {
   if (wrap_min) *wrap_min = tex.wrap[0];
   if (wrap_mag) *wrap_mag = tex.wrap[1];
 }
 
-void tic_texture_destroy(tc_Texture *tex) {
+void tico_texture_destroy(tc_Texture *tex) {
   glDeleteTextures(1, &tex->id);
 }
 
-void tic_texture_draw(tc_Texture tex, tc_Rectf dest, tc_Rectf src, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, tex);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tic_batch_reset_if_full(&Core.render.batch, 4);
-  tic_batch_add_rect(&Core.render.batch, dest, src, color);
+void tico_texture_draw(tc_Texture tex, tc_Rectf dest, tc_Rectf src, tc_Color color) {
+  tico_graphics_draw(tex, dest, src, color);
 }
 
-void tic_texture_draw_ex(tc_Texture tex, tc_Rectf dest, tc_Rectf src, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, tex);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tic_batch_reset_if_full(&Core.render.batch, 4);
-  tc_Rectf fdest = tic_rectf(dest.x, dest.y, dest.w * sx, dest.h * sy);
-  tic_batch_add_rect_ex(&Core.render.batch, dest, src, angle, cx, cy, color);
+void tico_texture_draw_ex(tc_Texture tex, tc_Rectf dest, tc_Rectf src, float angle, tc_Vec2 origin, tc_Color color) {
+  tico_graphics_draw_ex(tex, dest, src, angle, origin, color);
 }
 
 /*********************
  * Image
  *********************/
 
-tc_Image tic_image_create(void *data, int width, int height, int mode) {
+tc_Image tico_image_create(void *data, int width, int height, int mode) {
   tc_Image image = {0};
-  image.texture = tic_texture_create(data, width, height, mode);
+  image.texture = tico_texture_create(data, width, height, mode);
   if (image.texture.id == 0) return image;
 
   image.width = width;
@@ -338,13 +530,13 @@ tc_Image tic_image_create(void *data, int width, int height, int mode) {
 
   return image;
 }
-tc_Image tic_image_load(const char *filename) {
+tc_Image tico_image_load(const char *filename) {
   tc_Image image = {0};
-//   tc_Image *image = tic_resources_get_image(filename);
+//   tc_Image *image = tico_resources_get_image(filename);
 //   if (image) return *image;
 
 //   image = malloc(sizeof(*image));
-  image.texture = tic_texture_load(filename);
+  image.texture = tico_texture_load(filename);
   if (image.texture.id == 0) {
 //     free(image);
 //     tc_Image img = {0};
@@ -352,12 +544,12 @@ tc_Image tic_image_load(const char *filename) {
   }
   image.width = image.texture.width;
   image.height = image.texture.height;
-//   tic_resources_add_image(filename, image);
+//   tico_resources_add_image(filename, image);
   return image;
 }
-tc_Image tic_image_from_memory(void *data, int bufSize) {
+tc_Image tico_image_from_memory(void *data, int bufSize) {
   tc_Image image = {0};
-  image.texture = tic_texture_from_memory(data, bufSize);
+  image.texture = tico_texture_from_memory(data, bufSize);
   if (image.texture.id == 0) {
     TRACEERR("Failed to load image");
     return image;
@@ -367,124 +559,66 @@ tc_Image tic_image_from_memory(void *data, int bufSize) {
 
   return image;
 }
-void tic_image_destroy(tc_Image *image) {
-  tic_texture_destroy(&image->texture);
+void tico_image_destroy(tc_Image *image) {
+  tico_texture_destroy(&image->texture);
 }
 
-void tic_image_draw(tc_Image image, float x, float y, tc_Color color) {
-  tic_image_draw_scale(image, x, y, 1, 1, color);
+void tico_image_draw(tc_Image image, float x, float y, tc_Color color) {
+  tico_image_draw_scale(image, x, y, 1, 1, color);
 }
-void tic_image_draw_scale(tc_Image image, float x, float y, float sx, float sy, tc_Color color) {
-  tc_Rectf dest = tic_rectf(x, y, image.width*sx, image.height*sy);
-  tc_Rectf src = tic_rectf(0, 0, image.width, image.height);
-  tic_texture_draw(image.texture, dest, src, color);
+void tico_image_draw_scale(tc_Image image, float x, float y, float sx, float sy, tc_Color color) {
+  tc_Rectf dest = tico_rectf(x, y, image.width*sx, image.height*sy);
+  tc_Rectf src = tico_rectf(0, 0, image.width, image.height);
+  tico_texture_draw(image.texture, dest, src, color);
 }
-void tic_image_draw_ex(tc_Image image, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
-  tc_Rectf dest = tic_rectf(x, y, image.width*sx, image.height*sy);
-  tc_Rectf src = tic_rectf(0, 0, image.width, image.height);
-  tic_texture_draw_ex(image.texture, dest, src, angle, sx, sy, cx, cy, color);
+void tico_image_draw_ex(tc_Image image, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
+  tc_Rectf dest = tico_rectf(x, y, image.width*sx, image.height*sy);
+  tc_Rectf src = tico_rectf(0, 0, image.width, image.height);
+  tico_texture_draw_ex(image.texture, dest, src, angle, tico_vec2(cx, cy), color);
 }
-void tic_image_draw_part(tc_Image image, tc_Rectf rect, float x, float y, tc_Color color) {
-  tic_image_draw_part_scale(image, rect, x, y, 1, 1, color);
+void tico_image_draw_part(tc_Image image, tc_Rectf rect, float x, float y, tc_Color color) {
+  tico_image_draw_part_scale(image, rect, x, y, 1, 1, color);
 }
-void tic_image_draw_part_scale(tc_Image image, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
-  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
+void tico_image_draw_part_scale(tc_Image image, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
+  tc_Rectf dest = tico_rectf(x, y, rect.w*sx, rect.h*sy);
 //   tc_Rectf src = tc_rectf(0, 0, image.width, image.height);
-  tic_texture_draw(image.texture, dest, rect, color);
+  tico_texture_draw(image.texture, dest, rect, color);
 }
-void tic_image_draw_part_ex(tc_Image image, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
-  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
-  tic_texture_draw_ex(image.texture, dest, rect, angle, sx, sy, cx, cy, color);
-}
-
-/***********************
- * Text
- ***********************/
-
-void tic_graphics_draw_text(const char *text, int x, int y, tc_Color color) {
-  tic_graphics_draw_text_scale(text, x, y, 1, 1, color);
+void tico_image_draw_part_ex(tc_Image image, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
+  tc_Rectf dest = tico_rectf(x, y, rect.w*sx, rect.h*sy);
+  tico_texture_draw_ex(image.texture, dest, rect, angle, (tc_Vec2){cx, cy}, color);
 }
 
-void tic_graphics_draw_text_width(const char *text, int x, int y, int width, tc_Color color) {
-  tic_graphics_draw_text_font_scale_width(Core.defaultFont, text, x, y, width, 1, 1, color);
-}
-
-void tic_graphics_draw_text_scale(const char *text, int x, int y, float sx, float sy, tc_Color color) {
-  tic_graphics_draw_text_font_scale(Core.defaultFont, text, x, y, sx, sy, color);
-}
-void tic_graphics_draw_text_ex(const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {}
-
-void tic_graphics_draw_text_font(tc_Font font, const char *text, int x, int y, tc_Color color) {
-  tic_graphics_draw_text_font_scale(font, text, x, y, 1, 1, color);
-}
-
-void tic_graphics_draw_text_font_scale(tc_Font font, const char *text, int x, int y, float sx, float sy, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, font.texture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  int len = strlen(text);
-  tic_batch_reset_if_full(&Core.render.batch, 4 * len);
-  tc_Texture tex = font.texture;
-  tc_uint8 *p = (tc_uint8*)text;
-  float x0 = 0;
-  float y0 = 0;
-  while (*p) {
-    tc_Vec2 pos;
-    tc_Rectf rect;
-    int codepoint;
-    p = tic_utf8_codepoint(p, &codepoint);
-    tic_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy, 0);
-    tic_batch_add_rect(&Core.render.batch, tic_rectf(x + pos.x, y + pos.y, rect.w*sx, rect.h*sy), rect, color);
-  }
-}
-
-void tic_graphics_draw_text_font_scale_width(tc_Font font, const char *text, int x, int y, int width, float sx, float sy, tc_Color color) {
-  tic_batch_set_texture(&Core.render.batch, font.texture);
-  tic_batch_set_draw_mode(&Core.render.batch, TIC_TRIANGLES);
-  tc_Texture tex = font.texture;
-  tc_uint8 *p = (tc_uint8*)text;
-  float x0 = 0;
-  float y0 = 0;
-  while (*p) {
-    tc_Vec2 pos;
-    tc_Rectf rect;
-    int codepoint;
-    p = tic_utf8_codepoint(p, &codepoint);
-    tic_font_get_rect_scale(font, codepoint, &x0, &y0, &pos, &rect, sx, sy, width);
-    tic_batch_reset_if_full(&Core.render.batch, 4);
-    tic_batch_add_rect(&Core.render.batch, tic_rectf(x + pos.x, y + pos.y, rect.w*sx, rect.h*sy), rect, color);
-  }
-}
-
-// void tic_graphics_draw_text_font_ex(tc_Font font, const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {}
+// void tico_graphics_draw_text_font_ex(tc_Font font, const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {}
 
 /*********************
  * Shader
  *********************/
 
-#include "shaders/gba.frag.h"
-#include "shaders/outline.frag.h"
+// #include "shaders/gba.frag.h"
+// #include "shaders/outline.frag.h"
 
-void tic_shader_init_shaders() {
-  Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER] = tic_shader_compile(gba_frag, GL_FRAGMENT_SHADER);
-  Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER] = tic_shader_compile(outline_frag, GL_FRAGMENT_SHADER);
+void tico_shader_init_shaders() {
+  // Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER] = tico_shader_compile(gba_frag, GL_FRAGMENT_SHADER);
+  // Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER] = tico_shader_compile(outline_frag, GL_FRAGMENT_SHADER);
 }
 
-tc_Shader tic_shader_create(int vertexShader, int fragmentShader) {
+tc_Shader tico_shader_create(int vertexShader, int fragmentShader) {
   tc_Shader shader = {0};
-  // unsigned int vertexShader = tic_shader_compile(vertexSource, GL_VERTEX_SHADER);
-  // unsigned int fragmentShader = tic_shader_compile(fragmentSource, GL_FRAGMENT_SHADER);
+  // unsigned int vertexShader = tico_shader_compile(vertexSource, GL_VERTEX_SHADER);
+  // unsigned int fragmentShader = tico_shader_compile(fragmentSource, GL_FRAGMENT_SHADER);
 
-  shader.program = tic_shader_load_program(vertexShader, fragmentShader);
+  shader.program = tico_shader_load_program(vertexShader, fragmentShader);
 
   return shader;
 }
 
-tc_Shader tic_shader_create_from_string(const char *vertexSource, const char *fragmentSource) {
+tc_Shader tico_shader_create_from_string(const char *vertexSource, const char *fragmentSource) {
   tc_Shader shader = {0};
-  unsigned int vertexShader = tic_shader_compile(vertexSource, GL_VERTEX_SHADER);
-  unsigned int fragmentShader = tic_shader_compile(fragmentSource, GL_FRAGMENT_SHADER);
+  unsigned int vertexShader = tico_shader_compile(vertexSource, GL_VERTEX_SHADER);
+  unsigned int fragmentShader = tico_shader_compile(fragmentSource, GL_FRAGMENT_SHADER);
 
-  shader.program = tic_shader_load_program(vertexShader, fragmentShader);
+  shader.program = tico_shader_load_program(vertexShader, fragmentShader);
 
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
@@ -492,8 +626,8 @@ tc_Shader tic_shader_create_from_string(const char *vertexSource, const char *fr
   return shader;
 }
 
-tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEffect) {
-    const tc_uint8 *vertexSource = (const tc_uint8*)"layout (location = 0) in vec2 in_Pos;\n"
+tc_Shader tico_shader_create_effect(const char * vertEffect, const char * fragEffect) {
+    const unsigned char *vertexSource = (const unsigned char*)"layout (location = 0) in vec2 in_Pos;\n"
                              "layout (location = 1) in vec4 in_Color;\n"
                              "layout (location = 2) in vec2 in_Texcoord;\n"
                              "varying vec4 v_Color;\n"
@@ -509,7 +643,7 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
                              "  v_Color = in_Color;\n"
                              "  v_Texcoord = in_Texcoord;\n"
                              "}\n";
-    const tc_uint8 *fragmentSource = (const tc_uint8*)"out vec4 FragColor;\n"
+    const unsigned char *fragmentSource = (const unsigned char*)"out vec4 FragColor;\n"
                              "varying vec4 v_Color;\n"
                              "varying vec2 v_Texcoord;\n"
                              "uniform sampler2D gm_BaseTexture;\n"
@@ -524,28 +658,29 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
     int usingDefaultVert = tc_true;
     int usingDefaultFrag = tc_true;
 
-    int vertShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+    int vertShader = tico_graphics_default_vertex_shader();
     if (vertEffect) {
-      size_t len = strlen(vertexSource) + strlen(vertEffect);
+      size_t len = strlen((const char *)vertexSource) + strlen(vertEffect);
       char vertSource[len];
-      sprintf(vertSource, vertexSource, vertEffect);
+      sprintf(vertSource, (const char *)vertexSource, vertEffect);
 
-      vertShader = tic_shader_compile(vertSource, GL_VERTEX_SHADER);
+      vertShader = tico_shader_compile(vertSource, GL_VERTEX_SHADER);
       usingDefaultVert = tc_false;
     }
 
-    int fragShader = Core.render.state.fragmentShaders[TIC_DEFAULT_FRAGMENT];
+    // int fragShader = Core.render.state.fragmentShaders[TIC_DEFAULT_FRAGMENT];
+    int fragShader = tico_graphics_default_fragment_shader();
     if (fragEffect) {
       size_t len = strlen(fragmentSource) + strlen(fragEffect);
       char fragSource[len];
       sprintf(fragSource, fragmentSource, fragEffect);
-      fragShader = tic_shader_compile(fragSource, GL_FRAGMENT_SHADER);
+      fragShader = tico_shader_compile(fragSource, GL_FRAGMENT_SHADER);
       usingDefaultFrag = tc_false;
     }
     
 
     tc_Shader shader = {0};
-    shader.program = tic_shader_load_program(vertShader, fragShader);
+    shader.program = tico_shader_load_program(vertShader, fragShader);
 
     if (!usingDefaultVert) glDeleteShader(vertShader);
     if (!usingDefaultFrag) glDeleteShader(fragShader);
@@ -553,26 +688,26 @@ tc_Shader tic_shader_create_effect(const char * vertEffect, const char * fragEff
     return shader;
 }
 
-void tic_shader_new_gba(tc_Shader *shader) {
+// void tico_shader_new_gba(tc_Shader *shader) {
 
-  int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
-  int fragmentShader = Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER];
+//   int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+//   int fragmentShader = Core.render.state.fragmentShaders[TIC_GBA_FRAG_SHADER];
 
-  shader->program = tic_shader_load_program(vertexShader, fragmentShader);
-}
+//   shader->program = tico_shader_load_program(vertexShader, fragmentShader);
+// }
 
-void tic_shader_new_outline(tc_Shader *shader) {
-  int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
-  int fragmentShader = Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER];
+// void tico_shader_new_outline(tc_Shader *shader) {
+//   int vertexShader = Core.render.state.vertexShaders[TIC_DEFAULT_VERTEX];
+//   int fragmentShader = Core.render.state.fragmentShaders[TIC_OUTLINE_FRAG_SHADER];
 
-  shader->program = tic_shader_load_program(vertexShader, fragmentShader);
-}
+//   shader->program = tico_shader_load_program(vertexShader, fragmentShader);
+// }
 
 
-int tic_shader_compile(const char *source, int type) {
+int tico_shader_compile(const char *source, int type) {
   unsigned int shader = glCreateShader(type);
 
-  const tc_uint8 *shaderType = (tc_uint8*)(type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT");
+  const unsigned char *shaderType = (unsigned char*)(type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT");
   char shaderDefine[128];
   sprintf(shaderDefine, "#version 330\n#define %s_SHADER\n", shaderType);
 
@@ -595,7 +730,7 @@ int tic_shader_compile(const char *source, int type) {
   return shader;
 }
 
-int tic_shader_load_program(int vertexShader, int fragmentShader) {
+int tico_shader_load_program(int vertexShader, int fragmentShader) {
   int success;
   char infoLog[512];
 
@@ -614,24 +749,25 @@ int tic_shader_load_program(int vertexShader, int fragmentShader) {
   return shaderProgram;
 }
 
-void tic_shader_attach(tc_Shader shader) {
-  // tic_batch_draw_reset(&Core.render.batch);
+void tico_shader_attach(tc_Shader shader) {
+  // tico_batch_draw_reset(&Core.render.batch);
   // glUseProgram(shader.program);
   // Core.render.state.currentShader = shader;
-  // tic_shader_send_world(shader);
-  tic_render_push_shader(shader);
+  // tico_shader_send_world(shader);
+  tico_graphics_push_shader(shader);
 }
 
-void tic_shader_detach(void) {
-  // tic_batch_draw_reset(&Core.render.batch);
+void tico_shader_detach(void) {
+  // tico_batch_draw_reset(&Core.render.batch);
   // glUseProgram(Core.render.state.defaultShader.program);
   // Core.render.state.currentShader = Core.render.state.defaultShader;
-  // tic_shader_send_world(Core.render.state.currentShader);
-  tic_render_pop_shader();
+  // tico_shader_send_world(Core.render.state.currentShader);
+  // tico_render_pop_shader();
+  tico_graphics_pop_shader();
 }
 
-tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
-  const tc_uint8 *vertexSource = (const tc_uint8*)"layout (location = 0) in vec2 in_Pos;\n"
+tc_Shader tico_shader_load_default(int *vertexShader, int *fragmentShader) {
+  const unsigned char *vertexSource = (const unsigned char*)"layout (location = 0) in vec2 in_Pos;\n"
                              "layout (location = 1) in vec4 in_Color;\n"
                              "layout (location = 2) in vec2 in_Texcoord;\n"
                              "varying vec4 v_Color;\n"
@@ -646,7 +782,7 @@ tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
                              "  v_Texcoord = in_Texcoord;\n"
                              "}\n";
 
-  const tc_uint8 *fragmentSource = (const tc_uint8*)"out vec4 FragColor;\n"
+  const unsigned char *fragmentSource = (const unsigned char*)"out vec4 FragColor;\n"
                                "varying vec4 v_Color;\n"
                                "varying vec2 v_Texcoord;\n"
                                "uniform sampler2D gm_BaseTexture;\n"
@@ -656,28 +792,28 @@ tc_Shader tic_shader_load_default(int *vertexShader, int *fragmentShader) {
                                "}\n";
 
   tc_Shader shader = {0};
-  *vertexShader = tic_shader_compile((const char*)vertexSource, GL_VERTEX_SHADER);
-  *fragmentShader = tic_shader_compile((const char*)fragmentSource, GL_FRAGMENT_SHADER);
+  *vertexShader = tico_shader_compile((const char*)vertexSource, GL_VERTEX_SHADER);
+  *fragmentShader = tico_shader_compile((const char*)fragmentSource, GL_FRAGMENT_SHADER);
 
-  shader.program = tic_shader_load_program(*vertexShader, *fragmentShader);
+  shader.program = tico_shader_load_program(*vertexShader, *fragmentShader);
   TRACELOG("Default shader created");
   return shader;
 }
 
-void tic_shader_send_world(tc_Shader shader) {
+void tico_shader_send_world(tc_Shader shader) {
   tc_Matrix world;
   GLint view[4];
   glGetIntegerv(GL_VIEWPORT, view);
-  tic_matrix_ortho(&world, 0, view[2], view[3], 0, 0, 1);
+  tico_matrix_ortho(&world, 0, view[2], view[3], 0, 0, 1);
 
-  tic_shader_send(shader, "world", world.data, TIC_UNIFORM_MATRIX);
+  tico_shader_send(shader, "world", world.data, TIC_UNIFORM_MATRIX);
 }
 
-void tic_shader_send(tc_Shader shader, const char *name, void *value, TIC_SHADER_UNIFORM_ type) {
-  tic_shader_send_count(shader, name, 1, value, type);
+void tico_shader_send(tc_Shader shader, const char *name, void *value, TIC_SHADER_UNIFORM_ type) {
+  tico_shader_send_count(shader, name, 1, value, type);
 }
 
-void tic_shader_send_count(tc_Shader shader, const char *name, int count, void *value, TIC_SHADER_UNIFORM_ type) {
+void tico_shader_send_count(tc_Shader shader, const char *name, int count, void *value, TIC_SHADER_UNIFORM_ type) {
   GLuint uniform = glGetUniformLocation(shader.program, (const GLchar*)name);
   float *val = (float *)value;
   switch (type)
@@ -702,7 +838,7 @@ void tic_shader_send_count(tc_Shader shader, const char *name, int count, void *
   }
 }
 
-void tic_shader_destroy(tc_Shader *shader) {
+void tico_shader_destroy(tc_Shader *shader) {
   // TRACELOG("%d", shader->program);
   glDeleteProgram(shader->program);
 }
@@ -711,7 +847,7 @@ void tic_shader_destroy(tc_Shader *shader) {
  * Canvas
  **********************/
 
-tc_Canvas tic_canvas_create(int width, int height) {
+tc_Canvas tico_canvas_create(int width, int height) {
   tc_Canvas canvas = {0};
   ASSERT(width > 0);
   ASSERT(height > 0);
@@ -721,94 +857,307 @@ tc_Canvas tic_canvas_create(int width, int height) {
   glGenFramebuffers(1, &canvas.id);
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
 
-  canvas.texture = tic_texture_create(NULL, width, height, GL_RGBA);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.texture.id, 0);
+  canvas.tex = tico_texture_create(NULL, width, height, GL_RGBA);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, canvas.tex.id, 0);
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   return canvas;
 }
 
-void tic_canvas_destroy(tc_Canvas *canvas) {
-  tic_texture_destroy(&canvas->texture);
+void tico_canvas_destroy(tc_Canvas *canvas) {
+  tico_texture_destroy(&canvas->tex);
   glDeleteFramebuffers(1, &canvas->id);
 }
 
-void tic_canvas_attach(tc_Canvas canvas) {
+void tico_canvas_attach(tc_Canvas canvas) {
 //   Core.render.state.currentCanvas = canvas;
-  // if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+  // if (!tico_batch_is_empty(Core.render.batch)) tico_batch_draw_reset(&Core.render.batch);
   // glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
   // glViewport(0, 0, canvas.width, canvas.height);
-  // tic_shader_send_world(Core.render.state.currentShader);
+  // tico_shader_send_world(Core.render.state.currentShader);
   // Core.render.state.currentCanvas = canvas;
-  tic_render_push_canvas(canvas);
+  // tico_render_push_canvas(canvas);
+  tico_graphics_push_canvas(canvas);
 }
-void tic_canvas_detach(void) {
-//   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+void tico_canvas_detach(void) {
+//   if (!tico_batch_is_empty(Core.render.batch)) tico_batch_draw_reset(&Core.render.batch);
 //   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 // //   Core.render.state.backToDefaultCanvas();
 //   glViewport(0, 0, Core.window.width, Core.window.height);
-//   tic_shader_send_world(Core.render.state.currentShader);
+//   tico_shader_send_world(Core.render.state.currentShader);
 //   Core.render.state.currentCanvas.id = 0;
-  tic_render_pop_canvas();
+  tico_graphics_pop_canvas();
 }
 
-void tic_canvas_disable(void) {
-//   if (!tic_batch_is_empty(Core.render.batch)) tic_batch_draw_reset(&Core.render.batch);
+void tico_canvas_disable(void) {
+//   if (!tico_batch_is_empty(Core.render.batch)) tico_batch_draw_reset(&Core.render.batch);
 //   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 // //   Core.render.state.backToDefaultCanvas();
 //   glViewport(0, 0, Core.window.width, Core.window.height);
-//   tic_shader_send_world(Core.render.state.currentShader);
+//   tico_shader_send_world(Core.render.state.currentShader);
 //   Core.render.state.currentCanvas.id = 0;
 }
 
-void tic_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color) {
-  tic_canvas_draw_scale(canvas, x, y, 1, 1, color);
+void tico_canvas_draw(tc_Canvas canvas, float x, float y, tc_Color color) {
+  tico_canvas_draw_scale(canvas, x, y, 1, 1, color);
 }
 
-void tic_canvas_draw_scale(tc_Canvas canvas, float x, float y, float sx, float sy, tc_Color color) {
-  // tc_Rectf d = tic_rectf(x, y + canvas.texture.height*sy, canvas.texture.width*sx, canvas.texture.height*-sy);
-  // tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
-  // tic_texture_draw(canvas.texture, d, s, color);
-  tc_Rectf part = tic_rectf(0, 0, canvas.width, canvas.height);
-  tic_canvas_draw_part(canvas, part, x, y, color);
+void tico_canvas_draw_scale(tc_Canvas canvas, float x, float y, float sx, float sy, tc_Color color) {
+  // tc_Rectf d = tico_rectf(x, y + canvas.texture.height*sy, canvas.texture.width*sx, canvas.texture.height*-sy);
+  // tc_Rectf s = tico_rectf(0, 0, canvas.texture.width, canvas.texture.height);
+  // tico_texture_draw(canvas.texture, d, s, color);
+  tc_Rectf part = tico_rectf(0, 0, canvas.width, canvas.height);
+  tico_canvas_draw_part_scale(canvas, part, x, y, sx, sy, color);
 }
 
-void tic_canvas_draw_ex(tc_Canvas canvas, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
-  // tc_Rectf d = tic_rectf(x, y, canvas.texture.width*sx, canvas.texture.height*-sy);
-  // tc_Rectf s = tic_rectf(0, 0, canvas.texture.width, canvas.texture.height);
-  // tic_texture_draw_ex(canvas.texture, d, s, angle, sx, sy, cx, cy, color);
-  tc_Rectf part = tic_rectf(0, 0, canvas.width, canvas.height);
-  tic_canvas_draw_part_ex(canvas, part, x, y, angle, sx, sy, cx, cy, color);
+void tico_canvas_draw_ex(tc_Canvas canvas, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
+  // tc_Rectf d = tico_rectf(x, y, canvas.texture.width*sx, canvas.texture.height*-sy);
+  // tc_Rectf s = tico_rectf(0, 0, canvas.texture.width, canvas.texture.height);
+  // tico_texture_draw_ex(canvas.texture, d, s, angle, sx, sy, cx, cy, color);
+  tc_Rectf part = tico_rectf(0, 0, canvas.width, canvas.height);
+  tico_canvas_draw_part_ex(canvas, part, x, y, angle, sx, sy, cx, cy, color);
 }
 
-void tic_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_Color color) {
-  tic_canvas_draw_part_scale(canvas, rect, x, y, 1, 1, color);
+void tico_canvas_draw_part(tc_Canvas canvas, tc_Rectf rect, float x, float y, tc_Color color) {
+  tico_canvas_draw_part_scale(canvas, rect, x, y, 1, 1, color);
 }
-void tic_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
-  // tc_Rectf dest = tic_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
-  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
+void tico_canvas_draw_part_scale(tc_Canvas canvas, tc_Rectf rect, float x, float y, float sx, float sy, tc_Color color) {
+  // tc_Rectf dest = tico_rectf(x, y + (rect.h*sy), rect.w*sx, rect.h*-sy);
+  tc_Rectf dest = tico_rectf(x, y, rect.w*sx, rect.h*sy);
   // TRACELOG("%f %f %f %f", dest.x, dest.y, dest.w, dest.h);
-  tc_Rectf part = tic_rectf(rect.x, canvas.height - rect.y, rect.w, -rect.h);
+  tc_Rectf part = tico_rectf(rect.x, canvas.height - rect.y, rect.w, -rect.h);
   // TRACELOG("%f %f %f %f", part.x, part.y, part.w, part.h);
-  // tc_Rectf part = tic_rectf(rect.x, rect.y, rect.w, rect.h);
+  // tc_Rectf part = tico_rectf(rect.x, rect.y, rect.w, rect.h);
   // TRACELOG("%f %f", dest.x, dest.y);
-  tic_texture_draw(canvas.texture, dest, part, color);
+  tico_texture_draw(canvas.tex, dest, part, color);
 }
-void tic_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
+void tico_canvas_draw_part_ex(tc_Canvas canvas, tc_Rectf rect, float x, float y, float angle, float sx, float sy, float cx, float cy, tc_Color color) {
   int offy = (rect.h-cy)*sy;
-  // tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*-sy);
-  tc_Rectf dest = tic_rectf(x, y, rect.w*sx, rect.h*sy);
-  tc_Rectf part = tic_rectf(rect.x, canvas.height - rect.h, rect.w, -rect.h);
-  // tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, rect.h-cy, color);
-  tic_texture_draw_ex(canvas.texture, dest, part, angle, sx, sy, cx, cy, color);
+  // tc_Rectf dest = tico_rectf(x, y, rect.w*sx, rect.h*-sy);
+  tc_Rectf dest = tico_rectf(x, y, rect.w*sx, rect.h*sy);
+  tc_Rectf part = tico_rectf(rect.x, canvas.height - rect.y, rect.w, -rect.h);
+  // tico_texture_draw_ex(canvas.tex, dest, part, angle, sx, sy, cx, rect.h-cy, color);
+  // dest.w *= sx;
+  // dest.h *= sy;
+  tico_texture_draw_ex(canvas.tex, dest, part, angle, (tc_Vec2){cx, cy}, color);
 }
 
-void tic_canvas_draw_auto(tc_Canvas canvas) {
-  float ratio = tic_min(Core.window.width/(float)canvas.width, Core.window.height/(float)canvas.height);
-  int wCenterX = Core.window.width/2;
-  int wCenterY = Core.window.height/2;
+void tico_canvas_draw_auto(tc_Canvas canvas) {
+  int width = tico_window_get_width();
+  int height = tico_window_get_height();
+  float ratio = tico_min(width/(float)canvas.width, height/(float)canvas.height);
+  int wCenterX = width/2;
+  int wCenterY = height/2;
   int cCenterX = canvas.width/2;
   int cCenterY = canvas.height/2;
 
-  tic_canvas_draw_ex(canvas, wCenterX, wCenterY-(ratio/2), 0, ratio, ratio, cCenterX, cCenterY, WHITE);
+  tico_canvas_draw_ex(canvas, wCenterX, wCenterY-(ratio/2), 0, ratio, ratio, cCenterX, cCenterY, WHITE);
+}
+
+
+/***************
+ * Font
+ ***************/
+
+#include "font_data.h"
+
+tc_Font tico_font_load_default(void) {
+  tc_Font font = tico_font_load_from_memory(font_data[0].data, font_data[0].size, 16);
+  return font;
+}
+
+void tico_font_init(tc_Font *font, const void *data, size_t bufSize, int fontSize) {
+  font->data = malloc(bufSize);
+  memcpy(font->data, data, bufSize);
+
+  if (!stbtt_InitFont(&font->info, font->data, 0)) {
+    TRACEERR("failed to init font");
+    return;
+  }
+
+  int ascent, descent, lineGap;
+  font->size = fontSize;
+  float fsize = fontSize;
+  font->scale = stbtt_ScaleForMappingEmToPixels(&font->info, fsize);
+  stbtt_GetFontVMetrics(&font->info, (int*)&ascent, (int*)&descent, (int*)&lineGap);
+  font->baseline = ascent * font->scale;
+
+  int tw = 0;
+  int th = 0;
+
+  for (int i = 0; i < MAXFONTCHAR; i++) {
+    int ax;
+    int bl;
+    int x0, y0, x1, y1;
+    int w;
+    int h;
+
+    stbtt_GetCodepointHMetrics(&font->info, i, &ax, &bl);
+    stbtt_GetCodepointBitmapBox(&font->info, i, font->scale, font->scale, &x0, &y0, &x1, &y1);
+    w = x1-x0;
+    h = y1-y0;
+
+    font->c[i].ax = ax * font->scale;
+    font->c[i].ay = 0;
+    font->c[i].bl = bl * font->scale;
+    font->c[i].bw = w;
+    font->c[i].bh = h;
+    font->c[i].bt = font->baseline + y0;
+
+    tw += w;
+    th = tico_max(th, h);
+  }
+
+  font->texture = tico_texture_create(NULL, tw, th, GL_RGBA);
+  // tico_texture_set_wrap(&font->texture, GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER);
+
+  glBindTexture(GL_TEXTURE_2D, font->texture.id);
+  int x = 0;
+  for (int i = 0; i < MAXFONTCHAR; i++) {
+    int ww = font->c[i].bw;
+    int hh = font->c[i].bh;
+    int ssize = ww * hh * 4;
+    int ox, oy;
+
+    unsigned char *bitmap = stbtt_GetCodepointBitmap(&font->info, 0, font->scale, i, NULL, NULL, &ox, &oy);
+
+    unsigned char pixels[ssize];
+    for (int j = 0; j < ssize; j += 4) {
+      int ii = j / 4;
+      pixels[j] = 255;
+      pixels[j + 1] = 255;
+      pixels[j + 2] = 255;
+      pixels[j + 3] = bitmap[ii];
+    }
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, 0, ww, hh, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    font->c[i].tx = (float)x / tw;
+
+    x += font->c[i].bw;
+  }
+
+  glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+tc_Font tico_font_load(const char *filename, int size) {
+  // tc_Font *font = tico_resources_get_font(filename);
+  // if (font) {
+  //   return *font;
+  // }
+  size_t bufSize;
+  unsigned char *buffer = tico_filesystem_read_file(filename, &bufSize);
+  // unsigned char *buffer = "uopaaa";
+  // font = malloc(sizeof(tc_Font));
+  tc_Font font = tico_font_load_from_memory(buffer, bufSize, size);
+  if (font.size == 0) {
+    // free(font);
+    TRACEERR("Failed to load font '%s'", filename);
+    return (tc_Font){0};
+  }
+  // tico_resources_add_font(filename, font);
+  free(buffer);
+
+  // TRACELOG("%s", filename);
+  return font;
+}
+
+tc_Font tico_font_load_internal(const char *filename, unsigned char fontSize) {
+  size_t size;
+  unsigned char *buffer = tico_filesystem_read_internal_file(filename, &size);
+  // unsigned char *buffer = filename;
+
+  return tico_font_load_from_memory(buffer, size, fontSize);
+}
+tc_Font tico_font_load_external(const char *filename, unsigned char fontSize) {
+  size_t size;
+  unsigned char *buffer = tico_filesystem_read_external_file(filename, &size);
+  // unsigned char *buffer = filename;
+
+
+  return tico_font_load_from_memory(buffer, size, fontSize);
+}
+
+tc_Font tico_font_load_from_memory(const void *data, size_t bufSize, int fontSize) {
+  tc_Font font = {0};
+
+  tico_font_init(&font, data, bufSize, fontSize);
+  return font;
+}
+
+void tico_font_destroy(tc_Font *font) {
+  tico_texture_destroy(&font->texture);
+  free(font->data);
+}
+
+void tico_font_get_rect(tc_Font font, const int c, float *x, float *y, tc_Vec2 *outPos, tc_Rectf *rect, int width) {
+  tico_font_get_rect_scale(font, c, x, y, outPos, rect, 1, 1, width);
+}
+
+void tico_font_get_rect_scale(tc_Font font, const int c, float *x, float *y, tc_Vec2 *outPos, tc_Rectf *rect, float sx, float sy, int width) {
+  // const char *p = c;
+  if (c == '\n') {
+    *x = 0;
+    *y += font.texture.height * sy;
+    return;
+  }
+  if (c == '\t') {
+    *x += font.c[c].bw*2;
+    return;
+  }
+  if (width != 0 && *x + (font.c[c].bl*sx) > width) {
+    *x = 0;
+    *y += font.texture.height * sy;
+  }
+
+  float x2 = *x + (font.c[c].bl*sx);
+  float y2 = *y + (font.c[c].bt*sy);
+  float w = font.c[c].bw;
+  float h = font.c[c].bh;
+
+  float s0 = font.c[c].tx * font.texture.width;
+  float t0 = 0;
+  int s1 = font.c[c].bw;
+  int t1 = font.c[c].bh;
+
+  *x += font.c[c].ax * sx;
+  *y += font.c[c].ay * sy;
+  // if (!w || !h)
+  //  continue;
+  if (outPos) {
+    outPos->x = x2;
+    outPos->y = y2;
+  }
+  if (rect) *rect = (tc_Rectf){s0, t0, s1, t1};
+
+  return;
+}
+
+int tico_font_get_text_width(tc_Font font, const char *text, int len) {
+  unsigned char *p = (unsigned char*)text;
+  int width = 0;
+  int max_width = 0;
+  while (*p && len--) {
+    if (*p != '\n') {
+      int codepoint;
+      p = tico_utf8_codepoint(p, &codepoint);
+      width += font.c[codepoint].ax;
+    } else {
+      max_width = tico_max(width, max_width);
+      width = 0;
+      p++;
+    }
+  }
+  max_width = tico_max(width, max_width);
+
+  return max_width;
+}
+
+int tico_font_get_text_height(tc_Font font, const char *text, int len) {
+  unsigned char *p = (unsigned char*)text;
+  int height = font.texture.height;
+  while (*p) {
+    if (*p == '\n') height += font.texture.height;
+  }
+
+  return height;
 }

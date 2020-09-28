@@ -1,0 +1,34 @@
+{
+	"window": {
+		"width": 640,
+		"height": 380
+	},
+	"plugins": [
+		"lua",
+		"resources",
+		"editor"
+	],
+	"resources": {
+		"image": {
+			"tileset": {
+				"path": "assets/images/tileset.png"
+			},
+			"player": {
+				"path": "assets/images/player.png"
+			}
+		},
+		"tileset": {
+			"tileset": {
+				"path": "assets/tileset.json"
+			},
+			"forest": {
+				"path": "assets/tilesets/tileset.json"
+			}
+		},
+		"tilemap": {
+			"forest": {
+				"path": "assets/tilemaps/tilemap.json"
+			}
+		}
+	}
+}

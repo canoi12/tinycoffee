@@ -1,70 +1,65 @@
 #include "tico.h"
 
-#define HASHMAP_IMPLEMENTATION
-#include "external/hashmap.h"
-
 #define TICO_UTILS_IMPLEMENTATION
 #include "utils.h"
 
+#define TICO_IMGUI_IMPLEMENTATION
+#include "tico_imgui.h"
+
 tc_Core Core;
 
-static void tic_window_move_callback(GLFWwindow *window, int x, int y) {
-  Core.window.x = x;
-  Core.window.y = y;
-  tic_lua_callback("moved");
+static void tico_window_move_callback(GLFWwindow *window, int x, int y) {
+  tc_Core *core = glfwGetWindowUserPointer(window);
+  // core->window.x = x;
+  // core->window.y = y;
+  tico_window_set_pos(x, y);
 }
 
-static void tic_window_resize_callback(GLFWwindow *window, int width, int height) {
-  // glViewport(0, 0, width, height);
-}
-
-static void tic_framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+static void tico_framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
-  Core.window.width = width;
-  Core.window.height = height;
-  tic_lua_callback("resized");
+  // tc_Core *core = glfwGetWindowUserPointer(window);
+  // core->window.width = width;
+  // core->window.height = height;
+  // TRACELOG("%d %d", width, height);
+  tico_window_set_size(width, height);
 }
 
-static void tic_window_character_callback(GLFWwindow *window, unsigned int codepoint) {
-  tic_ui_text_callback(codepoint);
-  tic_lua_callback("textinput");
+static void tico_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+  tc_Core *core = glfwGetWindowUserPointer(window);
+  // core->input.keyState.down[key] = tico_clamp(action, 0, 1);
+  // tico_ui_key_callback(key, action);
+  tico_input_update_key(key, action);
+
+  // tico_lua_callback("keypressed");
 }
 
-static void tic_window_key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-  // if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-  //   glfwSetWindowShouldClose(window, 1);
-
-  Core.input.keyState.down[key] = tic_clamp(action, 0, 1);
-  tic_ui_key_callback(key, action);
-
-  tic_lua_callback("keypressed");
+static void tico_mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+  tc_Core *core = glfwGetWindowUserPointer(window);
+  tico_input_update_mouse_button(button, action);
+  // int fbutton = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  // core->input.mouseState.down[fbutton] = action;
+  // tico_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
 }
 
-static void tic_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
+static void tico_mouse_pos_callback(GLFWwindow *window, double posX, double posY) {
+  tc_Core *core = glfwGetWindowUserPointer(window);
+  tico_input_update_mouse_pos(posX, posY);
+  // core->input.mouseState.x = posX;
+  // core->input.mouseState.y = posY;
+  // tic_lua_callback("mousemoved");
+
+  // tic_ui_mouse_pos_callback(posX, posY);
+}
+
+static void tico_window_focus_callback(GLFWwindow *window, int focused)
 {
-  int fbutton = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  Core.input.mouseState.down[fbutton] = action;
-  tic_ui_mouse_btn_callback(button, Core.input.mouseState.x, Core.input.mouseState.y, action);
+  // if (focused == 1)
+  //   tico_audio_start_device();
+  // else
+  //   tico_audio_stop_device();
 }
 
-static void tic_mouse_pos_callback(GLFWwindow *window, double posX, double posY)
-{
-  Core.input.mouseState.x = posX;
-  Core.input.mouseState.y = posY;
-  tic_lua_callback("mousemoved");
-
-  tic_ui_mouse_pos_callback(posX, posY);
-}
-
-static void tic_window_focus_callback(GLFWwindow *window, int focused)
-{
-  if (focused == 1)
-    tic_audio_start_device();
-  else
-    tic_audio_stop_device();
-}
-
-static void tic_joystick_callback(int jid, int event) {
+static void tico_joystick_callback(int jid, int event) {
   if (event == GLFW_CONNECTED) {
     Core.input.joystickState[jid].active = tc_true;
     const char *name = glfwGetGamepadName(jid);
@@ -76,438 +71,205 @@ static void tic_joystick_callback(int jid, int event) {
   }
 }
 
-static void tic_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-  tic_ui_mouse_scroll_callback(xoffset, yoffset);
+static void tico_mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+  // tico_ui_mouse_scroll_callback(xoffset, yoffset);
   // Core.input.mouseState.scroll_delta.x = (xoffset * -10) - Core.input.mouseState.scroll.x;
   // Core.input.mouseState.scroll_delta.y = (yoffset * -10) - Core.input.mouseState.scroll.y;
-  Core.input.mouseState.scroll.x = xoffset * -10;
-  Core.input.mouseState.scroll.y = yoffset * -10;
-  Core.input.mouseState.scroll_delta.x += xoffset * -10;
-  Core.input.mouseState.scroll_delta.y += yoffset * -10;
+  // tc_Core *core = glfwGetWindowUserPointer(window);
+  // core->input.mouseState.scroll.x = xoffset * -10;
+  // core->input.mouseState.scroll.y = yoffset * -10;
+  // core->input.mouseState.scroll_delta.x += xoffset * -10;
+  // core->input.mouseState.scroll_delta.y += yoffset * -10;
+  tico_input_update_mouse_scroll(xoffset, yoffset);
 
   // TRACELOG("%f %f", Core.input.mouseState.scroll_delta.x, Core.input.mouseState.scroll_delta.y);
 
 
-  tic_lua_callback("mousescroll");
+  // tico_lua_callback("mousescroll");
 }
 
-tc_bool tic_init(tc_Config *config) {
-  if (!glfwInit()) {
-    TRACEERR("Failed to init GLFW");
-    exit(-1);
-  }
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+/*=======================
+ * Core
+ *=======================*/
 
-  Core.config = *config;
-  Core.state.mode = config->mode;
-  if (tic_filesystem_file_exists("data.pack")) tic_filesystem_set_packed(tc_true);
-
-  TRACELOG("packed: %d", Core.fs.packed);
-
-  tic_window_init(&Core.window, config->title, config->width, config->height, config->windowFlags);
-  // Core.packed = tc_false;
-
-  if (gl3wInit()) {
-    TRACEERR("Failed to init gl3w");
-    exit(-1);
-  }
-
-  // Window callbacks
-  glfwSetWindowPosCallback(Core.window.handle, tic_window_move_callback);
-  glfwSetWindowSizeCallback(Core.window.handle, tic_window_resize_callback);
-  glfwSetKeyCallback(Core.window.handle, tic_window_key_callback);
-  glfwSetMouseButtonCallback(Core.window.handle, tic_mouse_button_callback);
-  glfwSetCursorPosCallback(Core.window.handle, tic_mouse_pos_callback);
-  glfwSetWindowFocusCallback(Core.window.handle, tic_window_focus_callback);
-  glfwSetCharCallback(Core.window.handle, tic_window_character_callback);
-  glfwSetScrollCallback(Core.window.handle, tic_mouse_scroll_callback);
-  glfwSetJoystickCallback(tic_joystick_callback);
-  glfwSetFramebufferSizeCallback(Core.window.handle, tic_framebuffer_size_callback);
-  TRACELOG("Setup callbacks");
-
-  Core.lua.L = NULL;
-
-  if (config->lang == TIC_LUA_GAME) tic_lua_init(&Core.config);
-#ifdef WREN_LANG
-  Core.wren.vm = NULL;
-  if (config->lang == TIC_WREN_GAME) tic_wren_init();
-#endif
-  
-
-  tic_input_init(&Core.input, 0);
-
-  tic_render_init(&Core.render);
-  TRACELOG("Render created");
-
-  Core.defaultFont = tic_font_load_default();
-  TRACELOG("Default font loaded");
-
-  tic_audio_init();
-
-  // glViewport(0, 0, Core.window.width, Core.window.height);
-//   tic_lua_load();
-
-  // tic_resources_init(&Core.resources);
-
-  tic_ui_init(Core.defaultFont);
-
-  return tc_true;
-}
-
-void tic_init_config_json(tc_Config *config) {
-  if (!tic_filesystem_file_exists((unsigned char*)"config.json")) return;
-  cJSON *jsonConfig = tic_json_open("config.json");
+tc_Config tico_config_load(const char *filename, int argc, char ** argv) {
+  tc_Config config = tico_config_init(NULL, 640, 380, argc, argv);
+  if (!tico_filesystem_file_exists(filename)) return config;
+  cJSON *jsonConfig = tico_json_open(filename);
   cJSON *window = NULL;
-  const char *name = tic_json_get_opt_string(jsonConfig, "name", (char*)config->title);
-  if (name) {
-    strcpy((char*)config->title, name);
-  }
-  const char *lang = tic_json_get_opt_string(jsonConfig, "lang", "");
-  if (!strcmp(lang, "wren")) {
-    config->lang = TIC_WREN_GAME;
-  }
-  window = tic_json_get_object(jsonConfig, "window");
+
+  // TRACELOG("%s", filename);
+
+  const char *name = tico_json_get_opt_string(jsonConfig, "name", (char*)config.title);
+  if (name) strcpy(config.title, name);
+
+  window = tico_json_get_object(jsonConfig, "window");
   if (window) {
-    config->width = tic_json_get_opt_number(window, "width", config->width);
-    config->height = tic_json_get_opt_number(window, "height", config->height);
-    if (!tic_json_get_opt_boolean(window, "resizable", tc_true)) config->windowFlags ^= TIC_WINDOW_RESIZABLE;
-    if (tic_json_get_opt_boolean(window, "fullscreen", tc_false)) config->windowFlags |= TIC_WINDOW_FULLSCREEN;
-    if (!tic_json_get_opt_boolean(window, "vsync", tc_true)) config->windowFlags ^= TIC_WINDOW_VSYNC;
+    config.width = tico_json_get_opt_number(window, "width", config.width);
+    config.height = tico_json_get_opt_number(window, "height", config.height);
+    if (!tico_json_get_opt_boolean(window, "resizable", tc_true)) config.window_flags ^= TIC_WindowFlags_Resizable;
+    if (tico_json_get_opt_boolean(window, "fullscreen", tc_false)) config.window_flags |= TIC_WindowFlags_FullScreen;
+    if (!tico_json_get_opt_boolean(window, "vsync", tc_true)) config.window_flags ^= TIC_WindowFlags_VSync;
+    // TRACELOG("%d", config.window_flags & TIC_WindowFlags_Resizable);
   }
 
-  tic_json_delete(jsonConfig);
-}
+  cJSON *plugins = NULL;
+  plugins = tico_json_get_array(jsonConfig, "plugins");
+  if (plugins) {
+    cJSON *plugin = NULL;
+    cJSON_ArrayForEach(plugin, plugins) {
+      char *pname = malloc(strlen(plugin->valuestring));
+      strcpy(pname, plugin->valuestring);
+      vec_push(&config.plugins, pname);
+    }
+  }
 
-tc_Config tic_config_init(const char *title, int width, int height, int argc, char ** argv) {
-  tic_filesystem_init(&Core.fs);
-  tc_Config config = {0};
-  config.title[0] = '\0';
-  if (title) sprintf(config.title, "%s", title);
-  else if (!config.title[0]) strcpy((char*)config.title, "tico " TICO_VERSION);
-  config.width = tic_max(width, 10);
-  config.height = tic_max(height, 10);
-  config.windowFlags = 0;
-  config.windowFlags |= TIC_WINDOW_RESIZABLE;
-  config.windowFlags |= TIC_WINDOW_VSYNC;
-  config.flags = 0;
-  config.mode = TIC_MODE_GAME;
-  config.argc = argc;
-  config.argv = argv;
-  config.lang = TIC_LUA_GAME;
+  // int i = 0;
+  // char *pname = vec_first(&config.plugins);
+  // TRACELOG("%s", pname);
 
-
-  if (argc < 2) strcpy(config.path, ".");
-  else strcpy(config.path, argv[1]);
-  tic_filesystem_set_path(config.path);
-
-  tic_init_config_json(&config);
+  tico_json_delete(jsonConfig);
 
   return config;
 }
 
-void tic_update() {
-  tic_timer_update();
-  tic_poll_events();
+tc_Config tico_config_init(const char *title, int width, int height, int argc, char ** argv) {
+  tc_Config config = {0};
+  tico_filesystem_init(&Core.fs);
+  strcpy(config.title, "tico "TICO_VERSION);
+  if (title) strcpy(config.title, title);
+  config.width = tico_max(width, 64);
+  config.height = tico_max(height, 64);
+  config.window_flags = TIC_WindowFlags_Resizable | TIC_WindowFlags_VSync;
+  config.flags = 0;
+  // list_init(&config.plugins);
+  vec_init(&config.plugins);
+
+  config.argc = argc;
+  config.argv = argv;
+
+  config.flags = 0;
+
+  char path[128];
+  if (argc < 2) strcpy(path, ".");
+  else strcpy(path, argv[1]);
+  tico_filesystem_set_path(path);
+
+  return config;
 }
-void tic_poll_events() {
-	tic_input_update(&Core.input);
+
+int tico_init(tc_Config *config) {
+  tc_Config conf = {0};
+  if (config) memcpy(&conf, config, sizeof(*config));
+  else conf = tico_config_init(NULL, 640, 380, 0, NULL);
+
+  if (!glfwInit()) {
+    TRACEERR("Failed to init GLFW");
+    exit(1);
+  }
+
+  // memset(&Core, 0, sizeof(tc_Core));
+  if (!tico_window_init(&Core.window, conf.title, conf.width, conf.height, conf.window_flags)) {
+    TRACEERR("Failed to init tico Window");
+    exit(1);
+  }
+  glfwSetWindowUserPointer(Core.window.handle, &Core);
+  // glfwMakeContextCurrent(Core.window.handle);
+
+  GLFWwindow *window = Core.window.handle;
+  glfwSetWindowPosCallback(window, tico_window_move_callback);
+  glfwSetFramebufferSizeCallback(window, tico_framebuffer_size_callback);
+  glfwSetKeyCallback(window, tico_window_key_callback);
+  glfwSetMouseButtonCallback(window, tico_mouse_button_callback);
+  glfwSetCursorPosCallback(window, tico_mouse_pos_callback);
+  glfwSetWindowFocusCallback(window, tico_window_focus_callback);
+  glfwSetJoystickCallback(tico_joystick_callback);
+  glfwSetScrollCallback(window, tico_mouse_scroll_callback);
+
+  #if !defined(TICO_NO_RENDER_MODULE)
+  if (gl3wInit()) {
+    TRACEERR("Failed to init gl3w");
+    exit(1);
+  }
+  #endif
+
+  // tico_timer_init(&Core.timer);
+
+  #if !defined(TICO_NO_GRAPHICS_MODULE)
+  tico_graphics_init(&Core.graphics);
+  #endif
+
+  #if !defined(TICO_NO_INPUT_MODULE)
+  tico_input_init(&Core.input, 0);
+  #endif
+  tico_audio_init();
+
+  tico_imgui_init(&Core.window);
+
+  #if !defined(TICO_NO_PLUGINS)
+  tico_plugin_module_init_internal(&Core.plugins);
+  char *key;
+  int i;
+  vec_foreach(&config->plugins, key, i) {
+    tico_plugin_enable_plugin(key);
+  }
+  vec_deinit(&config->plugins);
+  #endif
+
+  return 1;
+}
+
+void tico_terminate() {
+  tico_audio_terminate();
+  tico_input_terminate(&Core.input);
+  tico_graphics_terminate(&Core.graphics);
+  tico_window_deinit(&Core.window);
+  glfwTerminate();
+}
+
+void tico_poll_events() {
   glfwPollEvents();
 }
 
-static char *errMsg;
+int tico_update() {
+  tico_timer_update_internal(&Core.timer);
+  tico_input_update(&Core.input);
+  tico_poll_events();
+  tico_imgui_update();
 
-static int tic_error_load() {
+  tico_plugin_module_update_internal(&Core.plugins);
+
+  return 1;
 }
 
-static int tic_error_step() {
-  tic_graphics_draw_text_scale("Error", 32, 32, 2, 2, WHITE);
-  // tic_graphics_draw_text(errMsg, 32, 64, WHITE);
-#ifdef WREN_LANG
-  int y = 64;
-  tc_WrenTraceback *trace = Core.wren.trace;
-  tic_graphics_draw_text(trace->message, 32, y, WHITE);
+int tico_begin_draw() {
+  tico_graphics_begin_internal(&Core.graphics);
 
-  y += 24;
-  tic_graphics_draw_text("Traceback", 32, y, WHITE);
-
-  y += 24;
-  trace = trace->next;
-  while(trace->next) {
-    tic_graphics_draw_text(trace->message, 32, y, WHITE);
-    y += 16;
-    trace = trace->next;
-  }
-#endif
+  tico_plugin_module_begin_draw_internal(&Core.plugins);
+  return 1;
+}
+int tico_end_draw() {
+  tico_plugin_module_end_draw_internal(&Core.plugins);
+  tico_graphics_end_internal(&Core.graphics);
+  tico_imgui_render();
+  tico_window_swap_buffers();
+  return 1;
 }
 
-void tic_error(char *message) {
-  // TRACELOG("%s", message);
-#ifdef WREN_LANG
-  if (!Core.wren.trace) {
-    Core.wren.trace = malloc(sizeof(tc_WrenTraceback));
-    strcpy(Core.wren.trace->message, message);
-    Core.wren.trace->next = NULL;
-  } else {
-    tc_WrenTraceback *trace = Core.wren.trace;
-    while(trace->next) trace = trace->next;
+int tico_main_loop() {
+  int clicked = 0;
+  tico_plugin_module_load_internal(&Core.plugins);
+  while(!tico_window_should_close()) {
+    tico_update();
 
-    tc_WrenTraceback *next = malloc(sizeof(tc_WrenTraceback));
+    tico_begin_draw();
 
-    strcpy(next->message, message);
-    next->next = NULL;
-    trace->next = next;
-  }
-#endif
-//   TRACEERR("%s", message);
-  Core.state.load = tic_error_load;
-  Core.state.step = tic_error_step;
-}
+    tico_plugin_module_draw_internal(&Core.plugins);
 
-void tic_begin_draw() {
-  tc_Canvas canvas;
-  canvas.id = 0;
-  canvas.width = Core.window.width;
-  canvas.height = Core.window.height;
-	tic_batch_begin(&Core.render.batch);
-  glEnable(GL_BLEND);
-  glEnable(GL_SCISSOR_TEST);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  glBlendEquation(GL_FUNC_ADD);
-  tic_ui_begin();
-  // tic_graphics_scissor(0, 0, Core.window.width, Core.window.height);
-  glViewport(0, 0, Core.window.width, Core.window.height);
-  tic_shader_attach(Core.render.state.defaultShader);
-  tic_canvas_attach(canvas);
-  tic_graphics_push();
-  tic_graphics_origin();
-}
-
-void tic_end_draw() {
-  tic_graphics_pop();
-  tic_canvas_detach();
-  tic_shader_detach();
-  // GLint view[4];
-  // glGetIntegerv(GL_VIEWPORT, view);
-  // TRACELOG("%d %d", view[2], view[3]);
-  // tic_canvas_disable();
-  // tic_ui_end();
-  tic_ui_end();
-  tic_batch_flush(&Core.render.batch);
-  tic_batch_draw(&Core.render.batch);
-  // glScissor(0, 0, Core.window.width, Core.window.height);
-  // glDisable(GL_SCISSOR_TEST);
-
-  tic_swap_buffers();
-}
-
-void tic_main_loop() {
-  Core.state.load();
-  while(!tic_window_should_close()) {
-    tic_update();
-
-    tic_begin_draw();
-    tic_graphics_clear(BLACK);
-
-    Core.state.step(tic_timer_get_delta());
-
-    tic_end_draw();
-  }
-}
-
-void tic_swap_buffers() {
-	glfwSwapBuffers(Core.window.handle);
-}
-
-void tic_close() {
-  glfwSetWindowShouldClose(Core.window.handle, 1);
-}
-
-void tic_terminate() {
-  tic_resources_store(&Core.resources);
-	tic_input_destroy(&Core.input);
-	tic_render_destroy(&Core.render);
-  tic_window_destroy(&Core.window);
-  tic_audio_terminate();
-  tic_editor_save_state(&Core.editor);
-  // tic_resources_destroy(&Core.resources);
-  // lua_close(Core.lua.L);
-//   TRACELOG("Lua close");
-  glfwTerminate();
-  TRACELOG("Exiting tico");
-}
-
-/****************
- * Timer
- ****************/
-
-void tic_timer_update() {
-  Core.timer.currentTime = glfwGetTime();
-  Core.timer.delta = Core.timer.currentTime - Core.timer.lastTime;
-  Core.timer.lastTime = Core.timer.currentTime;
-
-  float delta = Core.timer.currentTime - Core.timer.fpsLastTime;
-  Core.timer.frames++;
-  if (delta >= 1) {
-    Core.timer.fps = Core.timer.frames;
-    Core.timer.frames = 0;
-    Core.timer.fpsLastTime = Core.timer.currentTime;
-    // tic_timer_wait(delta);
-  }
-}
-
-float tic_timer_get_time() {
-  return Core.timer.currentTime;
-}
-
-float tic_timer_get_delta() {
-  return Core.timer.delta;
-}
-
-int tic_timer_get_fps() {
-  return Core.timer.fps;
-}
-
-void tic_timer_wait(float ms) {
-	#if defined(_WIN32)
-		Sleep((unsigned int) ms);
-	#elif defined(__linux__)
-		struct timespec req = {0};
-		time_t sec = (int)(ms/1000.f);
-		ms -= (sec * 1000);
-		req.tv_sec = sec;
-		req.tv_nsec = ms * 1000000L;
-
-		while(nanosleep(&req, &req) == -1) continue;
-	#elif defined(__APPLE__)
-			usleep(ms * 1000.f);
-	#endif
-}
-
-/*=======================
- * Utils
- *=======================*/
-
-char *tic_replace_char(char *str, tc_uint8 find, tc_uint8 replace) {
-  char *currentPos = (char*)strchr((const char*)str, find);
-  while(currentPos) {
-    *currentPos = replace;
-    currentPos = (char*)strchr((const char*)currentPos, find);
+    tico_end_draw();
   }
 
-  return str;
-}
-
-#define MAXUNICODE 0x10FFFF
-
-tc_uint8* tic_utf8_codepoint(tc_uint8 *p, int* codepoint) {
-  tc_uint8 *n;
-  tc_uint8 c = p[0];
-  if (c < 0x80) {
-    *codepoint = c;
-    n = p + 1;
-    return n;
-  }
-
-  switch (c & 0xf0) {
-    case 0xf0: {
-      *codepoint = ((p[0] & 0x07) << 18) | ((p[1] & 0x3f) << 12) | ((p[2] & 0x3f) << 6) | ((p[3] & 0x3f));
-      n = p + 4;
-      break;
-    }
-    case 0xe0: {
-      *codepoint = ((p[0] & 0x0f) << 12) | ((p[1] & 0x3f) << 6) | ((p[2] & 0x3f));
-      n = p + 3;
-      break;
-    }
-    case 0xc0:
-    case 0xd0: {
-      *codepoint = ((p[0] & 0x1f) << 6) | ((p[1] & 0x3f));
-      n = p + 2;
-      break;
-    }
-    default:
-    {
-      *codepoint = -1;
-      n = n + 1;
-    }
-  }
-
-  if (*codepoint > MAXUNICODE) *codepoint = -1;
-
-  return n;
-}
-void tic_utf8_encode(tc_uint8* c, int codepoint) {
-  if (codepoint < 0x80) {
-    c[0] = (tc_uint8)codepoint;
-  } else if (codepoint < 0x800) {
-    c[0] = 0xC0 | (codepoint >> 6);
-    c[1] = 0x80 | (codepoint & 0x3f);
-  } else if (codepoint <= 0xffff) {
-    c[0] = 0xe0 | (codepoint >> 12);
-    c[1] = 0x80 | ((codepoint >> 6) & 0x3f);
-    c[2] = 0x80 | (codepoint & 0x3f);
-  } else if (codepoint <= 0x10ffff) {
-    c[0] = 0xf0 | (codepoint >> 18);
-    c[1] = 0x80 | ((codepoint >> 12) & 0x3f);
-    c[2] = 0x80 | ((codepoint >> 6) & 0x3f);
-    c[3] = 0x80 | (codepoint & 0x3f);
-  }
-}
-
-int tic_utf8_decode(const tc_uint8 *p) {
-  static const int limits[] = {0xFF, 0x7F, 0x7FF, 0xFFFF};
-  const tc_uint8 *s = (const tc_uint8 *)p;
-  int c = s[0];
-  int res = 0;  /* final result */
-  if (c < 0x80)  /* ascii? */
-    res = c;
-  else {
-    int count = 0;  /* to count number of continuation bytes */
-    while (c & 0x40) {  /* still have continuation bytes? */
-      int cc = s[++count];  /* read next byte */
-      if ((cc & 0xC0) != 0x80)  /* not a continuation byte? */
-        return -1;  /* invalid byte sequence */
-      res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
-      c <<= 1;  /* to test next bit */
-    }
-    res |= ((c & 0x7F) << (count * 5));  /* add first byte */
-    if (count > 3 || res > MAXUNICODE || res <= limits[count])
-      return -1;  /* invalid byte sequence */
-    s += count;  /* skip continuation bytes read */
-  }
-  return res;
-}
-
-// void tc_scissor(int x, int y, int w, int h) {
-// //   tc_reset_batch(&Core.render);
-// //   GLint view[4];
-// //   glGetIntegerv(GL_VIEWPORT, view);
-// //   glScissor(x, view[3] - (y+h), w, h);
-// }
-
-void tic_write_buffer_header(const char *name, const char *text, size_t size) {
-  size_t ssize = size * 20 + 512;
-  char out[ssize];
-  memset(out, 0, ssize);
-  sprintf(out, "static const char %s[] = {\n", name);
-  for (int i = 0; i < size; i++) {
-    if (text[i] == EOF) break;
-    char c[10];
-    sprintf(c, "%d,", text[i]);
-    sprintf(out, "%s%s", out, c);
-    if (i != 0 && i % 20 == 0) sprintf(out, "%s\n", out);
-  }
-  sprintf(out, "%s0\n};", out);
-  tic_filesystem_write_file("out.txt", out, 0, 0);
-}
-
-void tic_set_clipboard(const char *text) {
-  glfwSetClipboardString(Core.window.handle, text);
-}
-
-const char* tic_get_clipboard() {
-  return glfwGetClipboardString(Core.window.handle);
+  return 1;
 }
 
 /*=======================
@@ -517,19 +279,19 @@ const char* tic_get_clipboard() {
 #include <time.h>
 #include <stdarg.h>
 
-TIC_API void tic_log(int type, const char *fmt, ...) {
+void tic_log(int type, const char *fmt, ...) {
   time_t t = time(NULL);
   struct tm *tm_now;
 
   va_list args;
 
-  tc_uint8 err[15] = "";
+  char err[15] = "";
   if (type == 1) sprintf((char*)err, "ERROR: ");
-  tc_uint8 buffer[1024];
-  tc_uint8 bufmsg[512];
+  char buffer[1024];
+  char bufmsg[512];
 
   tm_now = localtime(&t);
-  tc_uint8 buf[10];
+  char buf[10];
   strftime((char*)buf, sizeof(buf), "%H:%M:%S", tm_now);
   fprintf(stderr, "%s %s", buf, err);
   va_start(args, fmt);
@@ -538,19 +300,19 @@ TIC_API void tic_log(int type, const char *fmt, ...) {
   fprintf(stderr, "\n");
 }
 
-TIC_API void tic_tracelog(int type, const char *file, const char *function, int line, const char *fmt, ...) {
+void tic_tracelog(int type, const char *file, const char *function, int line, const char *fmt, ...) {
   time_t t = time(NULL);
   struct tm *tm_now;
 
   va_list args;
 
-  tc_uint8 err[15] = "";
+  char err[15] = "";
   if (type == 1) sprintf((char*)err, "ERROR in ");
-  tc_uint8 buffer[1024];
-  tc_uint8 bufmsg[512];
+  char buffer[1024];
+  char bufmsg[512];
 
   tm_now = localtime(&t);
-  tc_uint8 buf[10];
+  char buf[10];
   strftime((char*)buf, sizeof(buf), "%H:%M:%S", tm_now);
   fprintf(stderr, "%s %s:%d %s%s(): ", buf, file, line, err, function);
   // sprintf(buffer, "%s %s:%d %s%s(): ", buf, file, line, err, function);
@@ -560,6 +322,450 @@ TIC_API void tic_tracelog(int type, const char *file, const char *function, int 
   // fprintf(stderr, "%s", bufmsg);
   va_end(args);
   fprintf(stderr, "\n");
+  // tico_input_ok_internal
   // strcat(buffer, bufmsg);
   // tc_editor_write_log(buffer);
+}
+
+
+/*===========================*
+ #                           #
+ #        PUBLIC API         #
+ #                           #
+ *===========================*/
+
+/*==============*
+ *    Timer     *
+ *==============*/
+
+void PUBLIC_API(tico_timer_update) {
+  INTERNAL_API(tico_timer_update, &Core.timer);
+}
+float PUBLIC_API(tico_timer_get_time) {
+  return INTERNAL_API(tico_timer_get_time, &Core.timer);
+}
+float PUBLIC_API(tico_timer_get_delta) {
+  return INTERNAL_API(tico_timer_get_delta, &Core.timer);
+}
+int PUBLIC_API(tico_timer_get_fps) {
+  return INTERNAL_API(tico_timer_get_fps, &Core.timer);
+}
+void PUBLIC_API(tico_timer_wait, float ms) {
+  INTERNAL_API(tico_timer_wait, &Core.timer, ms);
+}
+
+/*==============*
+ *  Filesystem  *
+ *==============*/
+
+void PUBLIC_API(tico_filesystem_set_packed, tc_bool packed) {
+  INTERNAL_API(tico_filesystem_set_packed, &Core.fs, packed);
+}
+tc_bool PUBLIC_API(tico_filesystem_is_packed) {
+  return INTERNAL_API(tico_filesystem_is_packed, &Core.fs);
+}
+
+void PUBLIC_API(tico_filesystem_set_path, const char *path) {
+  INTERNAL_API(tico_filesystem_set_path, &Core.fs, path);
+}
+unsigned char* PUBLIC_API(tico_filesystem_get_path) {
+  return INTERNAL_API(tico_filesystem_get_path, &Core.fs);
+}
+void PUBLIC_API(tico_filesystem_resolve_path, char *outName, const char *filename) {
+  INTERNAL_API(tico_filesystem_resolve_path, &Core.fs, outName, filename);
+}
+unsigned char* PUBLIC_API(tico_filesystem_get_exe_path) {
+  return INTERNAL_API(tico_filesystem_get_exe_path, &Core.fs);
+}
+
+unsigned char* PUBLIC_API(tico_filesystem_read_internal_file, const char *filename, size_t *outSize) {
+  return INTERNAL_API(tico_filesystem_read_internal_file, &Core.fs, filename, outSize);
+}
+unsigned char* PUBLIC_API(tico_filesystem_read_external_file, const char *filename, size_t *outSize) {
+  return INTERNAL_API(tico_filesystem_read_external_file, &Core.fs, filename, outSize);
+}
+
+void PUBLIC_API(tico_filesystem_write_internal_file, const char *filename, const char *text, size_t size, TIC_WRITE_MODE_ mode) {
+  INTERNAL_API(tico_filesystem_write_internal_file, &Core.fs, filename, text, size, mode);
+}
+void PUBLIC_API(tico_filesystem_write_external_file, const char *filename, const char* text, size_t size, TIC_WRITE_MODE_ mode) {
+  INTERNAL_API(tico_filesystem_write_external_file, &Core.fs, filename, text, size, mode);
+}
+
+tc_bool PUBLIC_API(tico_filesystem_internal_file_exists, const char *filename) {
+  return INTERNAL_API(tico_filesystem_internal_file_exists, &Core.fs, filename);
+}
+tc_bool PUBLIC_API(tico_filesystem_external_file_exists, const char *filename) {
+  return INTERNAL_API(tico_filesystem_external_file_exists, &Core.fs, filename);
+}
+
+unsigned char* PUBLIC_API(tico_filesystem_read_file, const char *filename, size_t *outSize) {
+  return INTERNAL_API(tico_filesystem_read_file, &Core.fs, filename, outSize);
+}
+void PUBLIC_API(tico_filesystem_write_file, const char *filename, const char *text, size_t size, TIC_WRITE_MODE_ mode) {
+  INTERNAL_API(tico_filesystem_write_file, &Core.fs, filename, text, size, mode);
+}
+void PUBLIC_API(tico_filesystem_delete_file, const char *filename) {
+  INTERNAL_API(tico_filesystem_delete_file, &Core.fs, filename);
+}
+tc_bool PUBLIC_API(tico_filesystem_file_exists, const char *filename) {
+  return INTERNAL_API(tico_filesystem_file_exists, &Core.fs, filename);
+}
+void PUBLIC_API(tico_filesystem_mkdir, const char *path) {
+  INTERNAL_API(tico_filesystem_mkdir, &Core.fs, path);
+}
+void PUBLIC_API(tico_filesystem_rmdir, const char *path) {
+  INTERNAL_API(tico_filesystem_rmdir, &Core.fs, path);
+}
+
+/*==============*
+ *   Graphics   *
+ *==============*/
+
+void PUBLIC_API(tico_graphics_draw, tc_Texture texture, tc_Rectf dest, tc_Rectf source, tc_Color color) {
+  // tico_graphics_draw_internal(&Core.graphics, texture, dest, source, color);
+  INTERNAL_API(tico_graphics_draw, &Core.graphics, texture, dest, source, color);
+}
+
+void PUBLIC_API(tico_graphics_draw_ex, tc_Texture texture, tc_Rectf dest, tc_Rectf source, float angle, tc_Vec2 origin, tc_Color color) {
+  // tico_graphics_draw_ex_internal(&Core.graphics, texture, dest, source, angle, origin, color);
+  INTERNAL_API(tico_graphics_draw_ex, &Core.graphics, texture, dest, source, angle, origin, color);
+}
+
+void PUBLIC_API(tico_graphics_push, void) {
+  // tico_graphics_push_internal(&Core.graphics);
+  INTERNAL_API(tico_graphics_push, &Core.graphics);
+}
+void PUBLIC_API(tico_graphics_pop, void) {
+  // tico_graphics_pop_internal(&Core.graphics);
+  INTERNAL_API(tico_graphics_pop, &Core.graphics);
+}
+
+void PUBLIC_API(tico_graphics_origin, void) {
+  // tico_graphics_origin_internal(&Core.graphics);
+  INTERNAL_API(tico_graphics_origin, &Core.graphics);
+}
+void PUBLIC_API(tico_graphics_translate, float x, float y) {
+  // tico_graphics_translate_internal(&Core.graphics, x, y);
+  INTERNAL_API(tico_graphics_translate, &Core.graphics, x, y);
+}
+void PUBLIC_API(tico_graphics_rotate, float angle) {
+  INTERNAL_API(tico_graphics_rotate, &Core.graphics, angle);
+}
+void PUBLIC_API(tico_graphics_scale, float x, float y) {
+  INTERNAL_API(tico_graphics_scale, &Core.graphics, x, y);
+}
+
+void PUBLIC_API(tico_graphics_scissor, int x, int y, int w, int h) {
+  INTERNAL_API(tico_graphics_scissor, &Core.graphics, x, y, w, h);
+}
+
+void PUBLIC_API(tico_graphics_send, const char *name, void *data, TIC_SHADER_UNIFORM_ type) {
+  INTERNAL_API(tico_graphics_send, &Core.graphics, name, data, type);
+}
+void PUBLIC_API(tico_graphics_send_count, const char *name, int count, void *data, TIC_SHADER_UNIFORM_ type) {
+  INTERNAL_API(tico_graphics_send_count, &Core.graphics, name, count, data, type);
+}
+
+int PUBLIC_API(tico_graphics_default_vertex_shader, void) {
+  return INTERNAL_API(tico_graphics_default_vertex_shader, &Core.graphics);
+}
+int PUBLIC_API(tico_graphics_default_fragment_shader, void) {
+  return INTERNAL_API(tico_graphics_default_fragment_shader, &Core.graphics);
+}
+tc_Shader PUBLIC_API(tico_graphics_default_shader, void) {
+  return INTERNAL_API(tico_graphics_default_shader, &Core.graphics);
+}
+
+void PUBLIC_API(tico_graphics_push_shader, tc_Shader shader) {
+  INTERNAL_API(tico_graphics_push_shader, &Core.graphics, shader);
+}
+void PUBLIC_API(tico_graphics_pop_shader, void) {
+  INTERNAL_API(tico_graphics_pop_shader, &Core.graphics);
+}
+void PUBLIC_API(tico_graphics_push_canvas, tc_Canvas canvas) {
+  INTERNAL_API(tico_graphics_push_canvas, &Core.graphics, canvas);
+}
+void PUBLIC_API(tico_graphics_pop_canvas, void) {
+  INTERNAL_API(tico_graphics_pop_canvas, &Core.graphics);
+}
+tc_Canvas PUBLIC_API(tico_graphics_top_canvas, void) {
+  return INTERNAL_API(tico_graphics_top_canvas, &Core.graphics);
+}
+
+void PUBLIC_API(tico_graphics_push_matrix, tc_Matrix matrix) {}
+void PUBLIC_API(tico_graphics_pop_matrix, void) {}
+
+/*******************
+ * Shapes
+ *******************/
+
+void PUBLIC_API(tico_graphics_draw_rectangle, float x, float y, int width, int height, tc_Color color) {
+  INTERNAL_API(tico_graphics_draw_rectangle, &Core.graphics, x, y, width, height, color);
+}
+void PUBLIC_API(tico_graphics_fill_rectangle, float x, float y, float width, float height, tc_Color color) {
+  INTERNAL_API(tico_graphics_fill_rectangle, &Core.graphics, x, y, width, height, color);
+}
+void PUBLIC_API(tico_graphics_draw_rect, tc_Rect rect, tc_Color color) {
+}
+void PUBLIC_API(tico_graphics_fill_rect, tc_Rect rect, tc_Color color);
+
+void PUBLIC_API(tico_graphics_draw_circle, int x, int y, float radius, tc_Color color) {
+  INTERNAL_API(tico_graphics_draw_circle, &Core.graphics, x, y, radius, color);
+}
+void PUBLIC_API(tico_graphics_fill_circle, int x, int y, float radius, tc_Color color) {
+  INTERNAL_API(tico_graphics_fill_circle, &Core.graphics, x, y, radius, color);
+}
+void PUBLIC_API(tico_graphics_draw_circle_ex, int x, int y, float radius, int sides, tc_Color color) {
+  INTERNAL_API(tico_graphics_draw_circle_ex, &Core.graphics, x, y, radius, sides, color);
+}
+void PUBLIC_API(tico_graphics_fill_circle_ex, int x, int y, float radius, int sides, tc_Color color) {
+  INTERNAL_API(tico_graphics_fill_circle_ex, &Core.graphics, x, y, radius, sides, color);
+}
+
+void PUBLIC_API(tico_graphics_draw_triangle, int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
+  INTERNAL_API(tico_graphics_draw_triangle, &Core.graphics, x0, y0, x1, y1, x2, y2, color);
+}
+void PUBLIC_API(tico_graphics_fill_triangle, int x0, int y0, int x1, int y1, int x2, int y2, tc_Color color) {
+  INTERNAL_API(tico_graphics_fill_triangle, &Core.graphics, x0, y0, x1, y1, x2, y2, color);
+}
+
+void PUBLIC_API(tico_graphics_draw_line, int x0, int y0, int x1, int y1, tc_Color color) {
+  INTERNAL_API(tico_graphics_draw_line, &Core.graphics, x0, y0, x1, y1, color);
+}
+
+/********************
+ * Text
+ ********************/
+
+void tico_graphics_draw_text(const char *text, int x, int y, tc_Color color) {
+  tico_graphics_draw_text_internal(&Core.graphics, text, x, y, color);
+}
+void tico_graphics_draw_text_scale(const char *text, int x, int y, float sx, float sy, tc_Color color) {
+  tico_graphics_draw_text_scale_internal(&Core.graphics, text, x, y, sx, sy, color);
+}
+void tico_graphics_draw_text_ex(const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+  tico_graphics_draw_text_ex_internal(&Core.graphics, text, x, y, angle, sx, sy, cx, cy, color);
+}
+
+void tico_graphics_draw_text_font(tc_Font font, const char *text, int x, int y, tc_Color color) {
+  tico_graphics_draw_text_font_internal(&Core.graphics, font, text, x, y, color);
+}
+void tico_graphics_draw_text_font_scale(tc_Font font, const char *text, int x, int y, float sx, float sy, tc_Color color) {
+  tico_graphics_draw_text_font_scale_internal(&Core.graphics, font, text, x, y, sx, sy, color);
+}
+void tico_graphics_draw_text_font_ex(tc_Font font, const char *text, int x, int y, float angle, float sx, float sy, int cx, int cy, tc_Color color) {
+  tico_graphics_draw_text_font_ex_internal(&Core.graphics, font, text, x, y, angle, sx, sy, cx, cy, color);
+}
+
+void tico_graphics_draw_text_font_scale_width(tc_Font font, const char *text, int x, int y, int width, float sx, float sy, tc_Color color) {
+  tico_graphics_draw_text_font_scale_width_internal(&Core.graphics, font, text, x, y, width, sx, sy, color);
+}
+
+
+/*==================*
+ *      Input       *
+ *==================*/
+
+void PUBLIC_API(tico_input_update_mouse_scroll, float x, float y) {
+  INTERNAL_API(tico_input_update_mouse_scroll, &Core.input, x, y);
+}
+void PUBLIC_API(tico_input_update_key, TIC_KEY_ key, int action) {
+  INTERNAL_API(tico_input_update_key, &Core.input, key, action);
+}
+void PUBLIC_API(tico_input_update_mouse_pos, int x, int y) {
+  INTERNAL_API(tico_input_update_mouse_pos, &Core.input, x, y);
+}
+void PUBLIC_API(tico_input_update_joy_button, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button, int action) {}
+void PUBLIC_API(tico_input_update_mouse_button, TIC_MOUSEBUTTON_ button, int action) {
+  INTERNAL_API(tico_input_update_mouse_button, &Core.input, button, action);
+}
+
+int tico_input_get_key_code(const char *name) {
+  return tico_input_get_key_code_internal(&Core.input, name);
+}
+int tico_input_get_joy_btncode(const char *name) {
+  return tico_input_get_joy_btncode_internal(&Core.input, name);
+}
+int tico_input_get_joy_axiscode(const char *name) {
+  return tico_input_get_joy_axiscode_internal(&Core.input, name);
+}
+int tico_input_get_mouse_code(const char *name) {
+  return tico_input_get_mouse_code_internal(&Core.input, name);
+}
+
+tc_bool tico_input_key_down(TIC_KEY_ key) {
+  return tico_input_key_down_internal(&Core.input, key);
+}
+tc_bool tico_input_key_pressed(TIC_KEY_ key) {
+  return tico_input_key_pressed_internal(&Core.input, key);
+}
+tc_bool tico_input_key_up(TIC_KEY_ key) {
+  return tico_input_key_up_internal(&Core.input, key);
+}
+tc_bool tico_input_key_released(TIC_KEY_ key) {
+  return tico_input_key_released_internal(&Core.input, key);
+}
+
+tc_bool tico_input_mouse_down(TIC_MOUSEBUTTON_ button) {
+  return tico_input_mouse_down_internal(&Core.input, button);
+}
+tc_bool tico_input_mouse_pressed(TIC_MOUSEBUTTON_ button) {
+  return tico_input_mouse_pressed_internal(&Core.input, button);
+}
+tc_bool tico_input_mouse_up(TIC_MOUSEBUTTON_ button) {
+  return tico_input_mouse_up_internal(&Core.input, button);
+}
+tc_bool tico_input_mouse_released(TIC_MOUSEBUTTON_ button) {
+  return tico_input_mouse_released_internal(&Core.input, button);
+}
+void tico_input_mouse_set_cursor(int cursor) {
+}
+
+tc_bool tico_input_joy_down(TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
+  return tico_input_joy_down_internal(&Core.input, jid, button);
+}
+tc_bool tico_input_joy_up(TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
+  return tico_input_joy_up_internal(&Core.input, jid, button);
+}
+tc_bool tico_input_joy_pressed(TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
+  return tico_input_joy_pressed_internal(&Core.input, jid, button);
+}
+tc_bool tico_input_joy_released(TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
+  return tico_input_joy_released_internal(&Core.input, jid, button);
+}
+
+void tico_input_get_mouse_pos(int *x, int *y) {
+  tico_input_get_mouse_pos_internal(&Core.input, x, y);
+}
+void tico_input_fix_mouse() {
+  tico_input_fix_mouse_internal(&Core.input);
+}
+void tico_input_release_mouse() {
+  tico_input_release_mouse_internal(&Core.input);
+}
+void tico_input_get_mouse_delta(int *x, int *y) {
+  tico_input_get_mouse_delta_internal(&Core.input, x, y);
+}
+void tico_input_get_mouse_scroll(float *x, float *y) {
+  tico_input_get_mouse_scroll_internal(&Core.input, x, y);
+}
+void tico_input_get_mouse_scroll_delta(float *x, float *y) {
+  tico_input_get_mouse_scroll_delta_internal(&Core.input, x, y);
+}
+
+
+/*==============*
+ *    Window    *
+ *==============*/
+
+int tico_window_should_close() {
+  return tico_window_should_close_internal(&Core.window);
+}
+
+void tico_window_swap_buffers() {
+  tico_window_swap_buffers_internal(&Core.window);
+}
+
+void tico_window_get_pos(int *x, int *y) {
+  tico_window_get_pos_internal(&Core.window, x, y);
+}
+
+void tico_window_set_pos(int x, int y) {
+  tico_window_set_pos_internal(&Core.window, x, y);
+}
+
+int tico_window_get_width() {
+  return tico_window_get_width_internal(&Core.window);
+}
+
+void tico_window_set_width(int width) {
+  tico_window_set_width_internal(&Core.window, width);
+}
+
+int tico_window_get_height() {
+  return tico_window_get_height_internal(&Core.window);
+}
+void tico_window_set_height(int height) {
+  tico_window_set_height_internal(&Core.window, height);
+}
+
+void tico_window_get_size(int *width, int *height) {
+  tico_window_get_size_internal(&Core.window, width, height);
+}
+void tico_window_set_size(int width, int height) {
+  tico_window_set_size_internal(&Core.window, width, height);
+}
+
+const char* tico_window_get_title() {
+  return tico_window_get_title_internal(&Core.window);
+}
+void tico_window_set_title(const char *title) {
+  tico_window_set_title_internal(&Core.window, title);
+}
+
+tc_bool tico_window_is_fullscreen() {
+  return tico_window_is_fullscreen_internal(&Core.window);
+}
+void tico_window_set_fullscreen(tc_bool fullscreen) {
+  tico_window_set_fullscreen_internal(&Core.window, fullscreen);
+}
+void tico_window_toggle_fullscreen() {
+  tico_window_toggle_fullscreen_internal(&Core.window);
+}
+
+tc_bool tico_window_is_resizable() {
+  return tico_window_is_resizable_internal(&Core.window);
+}
+void tico_window_set_resizable(tc_bool resizable) {
+  tico_window_set_resizable_internal(&Core.window, resizable);
+}
+void tico_window_toggle_resizable() {
+  tico_window_toggle_resizable_internal(&Core.window);
+}
+
+tc_bool tico_window_get_vsync() {
+  return tico_window_get_vsync_internal(&Core.window);
+}
+void tico_window_set_vsync(tc_bool vsync) {
+  tico_window_set_vsync_internal(&Core.window, vsync);
+}
+
+/*===============*
+ *    Plugins    *
+ *===============*/
+
+void PUBLIC_API(tico_plugin_add_plugin, const char *name, tc_Plugin plugin) {
+  INTERNAL_API(tico_plugin_add_plugin, &Core.plugins, name, plugin);
+}
+void PUBLIC_API(tico_plugin_enable_plugin, const char *name) {
+  INTERNAL_API(tico_plugin_enable_plugin, &Core.plugins, name);
+}
+void PUBLIC_API(tico_plugin_disable_plugin, const char *name) {
+  INTERNAL_API(tico_plugin_disable_plugin, &Core.plugins, name);
+}
+tc_bool PUBLIC_API(tico_plugin_is_active, const char *name) {
+  return INTERNAL_API(tico_plugin_is_active, &Core.plugins, name);
+}
+tc_Plugin* PUBLIC_API(tico_plugin_get, const char *name) {
+  return INTERNAL_API(tico_plugin_get, &Core.plugins, name);
+}
+
+int PUBLIC_API(tico_plugin_module_init) {
+  return INTERNAL_API(tico_plugin_module_init, &Core.plugins);
+}
+void PUBLIC_API(tico_plugin_module_terminate) {
+  INTERNAL_API(tico_plugin_module_terminate, &Core.plugins);
+}
+void PUBLIC_API(tico_plugin_module_update) {
+  INTERNAL_API(tico_plugin_module_init, &Core.plugins);
+}
+void PUBLIC_API(tico_plugin_module_begin_draw) {
+  INTERNAL_API(tico_plugin_module_begin_draw, &Core.plugins);
+}
+void PUBLIC_API(tico_plugin_module_draw) {
+  INTERNAL_API(tico_plugin_module_draw, &Core.plugins);
+}
+void PUBLIC_API(tico_plugin_module_end_draw) {
+  INTERNAL_API(tico_plugin_module_end_draw, &Core.plugins);
 }

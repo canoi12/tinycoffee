@@ -1,22 +1,16 @@
 #include "tico.h"
 
-tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
-  input->mouseState.scroll.x = 0;
+tc_bool tico_input_init(tc_Input *input, TIC_INPUT_FLAGS_ flags) {
+	input->mouseState.scroll.x = 0;
   input->mouseState.scroll.y = 0;
   input->mouseState.scroll_delta.x = 0;
   input->mouseState.scroll_delta.y = 0;
-  for (int i = 0; i < 6; i++) {
-    input->mouseState.cursors[i] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR + i);  
-  }
+
   memset(input->keyState.down, 0, sizeof(tc_bool) * KEY_LAST);
   memset(input->keyState.pressed, 0, sizeof(tc_bool) * KEY_LAST);
 
   memset(input->mouseState.down, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
   memset(input->mouseState.pressed, 0, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
-  // input->names.keyNames = hashmap_create(48);
-  // input->names.mouseButtonNames = hashmap_create(3);
-  // input->names.joyButtonNames = hashmap_create(JOY_BUTTON_COUNT);
-  // input->names.joyAxisNames = hashmap_create(JOY_AXIS_COUNT);
   map_init(&input->names.keyNames);
   map_init(&input->names.mouseButtonNames);
   map_init(&input->names.joyButtonNames);
@@ -231,36 +225,51 @@ tc_bool tic_input_init(tc_Input *input, TIC_INPUT_FLAGS flags) {
   };
 
   for (int i = 0; keyNames[i].name != NULL; i++) {
-    // hashmap_set(&input->names.keyNames, keyNames[i].name, keyNames[i].code);
     map_set(&input->names.keyNames, keyNames[i].name, keyNames[i].code);
   }
 
   for (int i = 0; mouseButtonNames[i].name != NULL; i++) {
-    // hashmap_set(&input->names.mouseButtonNames, mouseButtonNames[i].name, mouseButtonNames[i].code);
     map_set(&input->names.mouseButtonNames, mouseButtonNames[i].name, mouseButtonNames[i].code);
   }
 
   for (int i = 0; joyButtonNames[i].name != NULL; i++) {
-    // hashmap_set(&input->names.joyButtonNames, joyButtonNames[i].name, joyButtonNames[i].code);
     map_set(&input->names.joyButtonNames, joyButtonNames[i].name, joyButtonNames[i].code);
   }
   
-  TRACELOG("Input initiated");
+  LOG("Input Module initiated");
   return tc_true;
 }
 
-void tic_input_destroy(tc_Input *input) {
-	// hashmap_clear(&input->names.keyNames);
-	// hashmap_clear(&input->names.mouseButtonNames);
- //  hashmap_clear(&input->names.joyButtonNames);
- //  hashmap_clear(&input->names.joyAxisNames);
-  map_deinit_(&input->names.keyNames.base);
+void tico_input_terminate(tc_Input *input) {
+	map_deinit_(&input->names.keyNames.base);
   map_deinit_(&input->names.mouseButtonNames.base);
   map_deinit_(&input->names.joyButtonNames.base);
-	TRACELOG("Input clear");
+	LOG("Input Module terminated");
 }
 
-void tic_input_update(tc_Input *input) {
+void INTERNAL_API(tico_input_update_mouse_scroll, tc_Input *input, float x, float y) {
+  input->mouseState.scroll.x = x * -10;
+  input->mouseState.scroll.y = y * -10;
+  input->mouseState.scroll_delta.x += x * -10;
+  input->mouseState.scroll_delta.y += y * -10;
+}
+void INTERNAL_API(tico_input_update_key, tc_Input *input, TIC_KEY_ key, int action) {
+  input->keyState.down[key] = tico_clamp(action, 0, 1);
+}
+void INTERNAL_API(tico_input_update_mouse_pos, tc_Input *input, int x, int y) {
+  input->mouseState.x = x;
+  input->mouseState.y = y;
+}
+void INTERNAL_API(tico_input_update_joy_button, tc_Input *input, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button, int action) {
+
+}
+void INTERNAL_API(tico_input_update_mouse_button, tc_Input *input, TIC_MOUSEBUTTON_ button, int action) {
+  button = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  input->mouseState.down[button] = action;
+}
+
+
+int tico_input_update(tc_Input *input) {
   memcpy(input->keyState.pressed, input->keyState.down, sizeof(tc_bool) * KEY_LAST);
   memcpy(input->mouseState.pressed, input->mouseState.down, sizeof(tc_bool) * MOUSE_BUTTON_LAST);
   GLFWgamepadstate state;
@@ -270,45 +279,45 @@ void tic_input_update(tc_Input *input) {
     if (glfwGetGamepadState(i, &state)) {
       memcpy(input->joystickState[i].pressed, input->joystickState[i].down, sizeof(tc_bool) * JOY_BUTTON_COUNT);
       for (int btn = 0; btn < JOY_BUTTON_COUNT; btn++) input->joystickState[i].down[btn] = state.buttons[btn];
-      // memcpy(input->joystickState[i].down, state.buttons, sizeof(tc_bool) * JOY_BUTTON_COUNT);
       memcpy(input->joystickState[i].axis, state.axes, sizeof(tc_bool) * JOY_AXIS_COUNT);
     }
   }
-  input->mouseState.scroll_delta = tic_vec2_new(0, 0);
-  // if (glfwGetGamepadState(TIC_JOY_1, &state)) {
-  //   for (int i = 0; i < JOY_BUTTON_COUNT; i++) input->joystickState[TIC_JOY_1].down[i] = state.buttons[i];
-  // }
+  input->mouseState.scroll_delta = tico_vec2(0, 0);
+  input->mouseState.pos_delta.x = input->mouseState.x;
+  input->mouseState.pos_delta.y = input->mouseState.y;
+
+  return 1;
 }
 
-int tic_input_get_key_code(const char *name) {
+int tico_input_get_key_code_internal(tc_Input *input, const char *name) {
   // hashmap_item *item = hashmap_get(Core.input.names.keyNames, name);
-  int *val = map_get(&Core.input.names.keyNames, name);
+  int *val = map_get(&input->names.keyNames, name);
   int code = -1;
   if (val) code = *val;
 
   return code;
 }
 
-int tic_input_get_mouse_code(const char *name) {
+int tico_input_get_mouse_code_internal(tc_Input *input, const char *name) {
   // hashmap_item *item = hashmap_get(Core.input.names.mouseButtonNames, name);
-  int *val = map_get(&Core.input.names.mouseButtonNames, name);
+  int *val = map_get(&input->names.mouseButtonNames, name);
   int code = -1;
   if (val) code = *val;
 
   return code;
 }
 
-int tic_input_get_joy_btncode(const char *name) {
-  int *val = map_get(&Core.input.names.joyButtonNames, name);
+int tico_input_get_joy_btncode_internal(tc_Input *input, const char *name) {
+  int *val = map_get(&input->names.joyButtonNames, name);
   int code = -1;
   if (val) code = *val;
 
   return code;
 }
 
-int tic_input_get_joy_axiscode(const char *name) {
+int tico_input_get_joy_axiscode_internal(tc_Input *input, const char *name) {
   // hashmap_item *item = hashmap_get(Core.input.names.joyAxisNames, name);
-  int *val = map_get(&Core.input.names.joyAxisNames, name);
+  int *val = map_get(&input->names.joyAxisNames, name);
   int code = -1;
   if (val) code = *val;
 
@@ -316,129 +325,118 @@ int tic_input_get_joy_axiscode(const char *name) {
 }
 
 
-/* key functions */
+/*****************
+ * Key functions
+ *****************/
 
-tc_bool tic_input_key_down(TIC_KEY key) {
+tc_bool tico_input_key_down_internal(tc_Input *input, TIC_KEY_ key) {
   if (key < 0) return tc_false;
-  key = tic_clamp(key, 0, KEY_LAST);
-  return Core.input.keyState.down[key];
+  key = tico_clamp(key, 0, KEY_LAST);
+  return input->keyState.down[key];
 }
 
-tc_bool tic_input_key_pressed(TIC_KEY key) {
-  key = tic_clamp(key, 0, KEY_LAST);
-  return !Core.input.keyState.pressed[key] && Core.input.keyState.down[key];
+tc_bool tico_input_key_pressed_internal(tc_Input *input, TIC_KEY_ key) {
+  key = tico_clamp(key, 0, KEY_LAST);
+  return !input->keyState.pressed[key] && input->keyState.down[key];
 }
 
-tc_bool tic_input_key_up(TIC_KEY key) {
-  key = tic_clamp(key, 0, KEY_LAST);
-  return !Core.input.keyState.down[key];
+tc_bool tico_input_key_up_internal(tc_Input *input, TIC_KEY_ key) {
+  key = tico_clamp(key, 0, KEY_LAST);
+  return !input->keyState.down[key];
 }
 
-tc_bool tic_input_key_released(TIC_KEY key) {
-  key = tic_clamp(key, 0, KEY_LAST);
-  return Core.input.keyState.pressed[key] && !Core.input.keyState.down[key];
+tc_bool tico_input_key_released_internal(tc_Input *input, TIC_KEY_ key) {
+  key = tico_clamp(key, 0, KEY_LAST);
+  return input->keyState.pressed[key] && !input->keyState.down[key];
 }
 
-/* Mouse functions */
+/******************** 
+ * Mouse functions 
+ ********************/
 
-void tic_input_get_mouse_pos(int *x, int *y) {
-  if (x) *x = Core.input.mouseState.x;
-  if (y) *y = Core.input.mouseState.y;
+void tico_input_get_mouse_pos_internal(tc_Input *input, int *x, int *y) {
+  if (x) *x = input->mouseState.x;
+  if (y) *y = input->mouseState.y;
 }
 
-void tic_input_fix_mouse() {
-  Core.input.mouseState.fixX = Core.input.mouseState.x;
-  Core.input.mouseState.fixY = Core.input.mouseState.y;
-  Core.input.mouseState.fixed = tc_true;
+void tico_input_fix_mouse_internal(tc_Input *input) {
+  input->mouseState.fixX = input->mouseState.x;
+  input->mouseState.fixY = input->mouseState.y;
+  input->mouseState.fixed = tc_true;
 }
 
-void tic_input_release_mouse() {
-  Core.input.mouseState.fixed = tc_false;
+void tico_input_release_mouse_internal(tc_Input *input) {
+  input->mouseState.fixed = tc_false;
 }
 
-void tic_input_get_mouse_delta(int *x, int *y) {
-  if (x) *x = Core.input.mouseState.fixX - Core.input.mouseState.x;
-  if (y) *y = Core.input.mouseState.fixY - Core.input.mouseState.y;
+void tico_input_get_mouse_delta_internal(tc_Input *input, int *x, int *y) {
+  // if (x) *x = Core.input.mouseState.fixX - Core.input.mouseState.x;
+  // if (y) *y = Core.input.mouseState.fixY - Core.input.mouseState.y;
+  if (x) *x = input->mouseState.pos_delta.x - input->mouseState.x;
+  if (y) *y = input->mouseState.pos_delta.y - input->mouseState.y;
+
 }
 
-void tic_input_get_mouse_scroll(float *x, float *y) {
-  if (x) *x = Core.input.mouseState.scroll.x;
-  if (y) *y = Core.input.mouseState.scroll.y;
+void tico_input_get_mouse_scroll_internal(tc_Input *input, float *x, float *y) {
+  if (x) *x = input->mouseState.scroll.x;
+  if (y) *y = input->mouseState.scroll.y;
 }
 
-void tic_input_get_mouse_scroll_delta(float *x, float *y) {
-  if (x) *x = Core.input.mouseState.scroll_delta.x;
-  if (y) *y = Core.input.mouseState.scroll_delta.y;
+void tico_input_get_mouse_scroll_delta_internal(tc_Input *input, float *x, float *y) {
+  if (x) *x = input->mouseState.scroll_delta.x;
+  if (y) *y = input->mouseState.scroll_delta.y;
 }
 
-tc_bool tic_input_mouse_down(TIC_MOUSEBUTTON button) {
-  button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  return Core.input.mouseState.down[button];
+tc_bool tico_input_mouse_down_internal(tc_Input *input, TIC_MOUSEBUTTON_ button) {
+  button = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  return input->mouseState.down[button];
 }
 
-tc_bool tic_input_mouse_pressed(TIC_MOUSEBUTTON button) {
-  button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  return !Core.input.mouseState.pressed[button] && Core.input.mouseState.down[button];
+tc_bool tico_input_mouse_pressed_internal(tc_Input *input, TIC_MOUSEBUTTON_ button) {
+  button = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  return !input->mouseState.pressed[button] && input->mouseState.down[button];
 }
 
-tc_bool tic_input_mouse_up(TIC_MOUSEBUTTON button) {
-  button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  return !tic_input_mouse_down(button);
+tc_bool tico_input_mouse_up_internal(tc_Input *input, TIC_MOUSEBUTTON_ button) {
+  button = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  return !tico_input_mouse_down_internal(input, button);
 }
 
-tc_bool tic_input_mouse_released(TIC_MOUSEBUTTON button) {
-  button = tic_clamp(button, 0, MOUSE_BUTTON_LAST);
-  return Core.input.mouseState.pressed[button] && !Core.input.mouseState.down[button];
-}
-
-void tic_input_mouse_set_cursor(int cursor) {
-  if (cursor < 0 || cursor >= 6) return;
-  glfwSetCursor(Core.window.handle, Core.input.mouseState.cursors[cursor]);
+tc_bool tico_input_mouse_released_internal(tc_Input *input, TIC_MOUSEBUTTON_ button) {
+  button = tico_clamp(button, 0, MOUSE_BUTTON_LAST);
+  return input->mouseState.pressed[button] && !input->mouseState.down[button];
 }
 
 /***********************
  * Joystick functions
  ***********************/
 
-tc_bool tic_input_is_joy_active(TIC_JOYSTICKS jid) {
-  return Core.input.joystickState[jid].active;
+tc_bool tico_input_is_joy_active_internal(tc_Input *input, TIC_JOYSTICKS_ jid) {
+  return input->joystickState[jid].active;
 }
 
-tc_bool tic_input_joy_down(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tico_input_joy_down_internal(tc_Input *input, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  return tic_input_is_joy_active(jid) && Core.input.joystickState[jid].down[button];
-  // if (Core.input.joystickState[jid].active) {
-  //   return Core.input.joystickState[jid].down[button];
-  // }
+  return tico_input_is_joy_active_internal(input, jid) && input->joystickState[jid].down[button];
 }
 
-tc_bool tic_input_joy_up(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tico_input_joy_up_internal(tc_Input *input, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  return tic_input_is_joy_active(jid) && !Core.input.joystickState[jid].down[button];
-
-  // if (Core.input.joystickState[jid].active) {
-  //   return !Core.input.joystickState[jid].down[button];
-  // }
+  return tico_input_is_joy_active_internal(input, jid) && !input->joystickState[jid].down[button];
 }
 
-tc_bool tic_input_joy_pressed(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tico_input_joy_pressed_internal(tc_Input *input, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  tc_bool pressed = !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
-  return tic_input_is_joy_active(jid) && pressed;
-  // if (Core.input.joystickState[jid].active) {
-  //   return !Core.input.joystickState[jid].pressed[button] && Core.input.joystickState[jid].down[button];
-  // }
+  tc_bool pressed = !input->joystickState[jid].pressed[button] && input->joystickState[jid].down[button];
+  return tico_input_is_joy_active_internal(input, jid) && pressed;
 }
 
-tc_bool tic_input_joy_released(TIC_JOYSTICKS jid, TIC_JOYSTICK_BUTTON button) {
+tc_bool tico_input_joy_released_internal(tc_Input *input, TIC_JOYSTICKS_ jid, TIC_JOYSTICK_BUTTON_ button) {
   if (jid > TIC_JOY_COUNT) return tc_false;
 
-  tc_bool released = Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
-  return tic_input_is_joy_active(jid) && released;
-  // if (Core.input.joystickState[jid].active) {
-  //   return Core.input.joystickState[jid].pressed[button] && !Core.input.joystickState[jid].down[button];
-  // }
+  tc_bool released = input->joystickState[jid].pressed[button] && !input->joystickState[jid].down[button];
+  return tico_input_is_joy_active_internal(input, jid) && released;
 }

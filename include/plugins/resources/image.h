@@ -1,0 +1,6 @@
+#ifndef TICO_RESOURCE_IMAGE_H
+#define TICO_RESOURCE_IMAGE_H
+
+
+
+#endif
