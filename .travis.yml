@@ -6,7 +6,10 @@ compiler:
   - x86_64-w64-mingw32-gcc
 
 git:
-  - submodule: true
+  - submodules: false
+
+before_install:
+  - git submodules update --init
 
 addons:
   apt:
