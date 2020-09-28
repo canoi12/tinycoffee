@@ -5,6 +5,9 @@ compiler:
   - c99-gcc
   - x86_64-w64-mingw32-gcc
 
+git:
+  - submodule: true
+
 addons:
   apt:
     packages:
