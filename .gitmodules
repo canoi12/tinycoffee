@@ -1,3 +1,0 @@
-[submodule "cimgui"]
-	path = external/cimgui
-	url = https://github.com/cimgui/cimgui.git
