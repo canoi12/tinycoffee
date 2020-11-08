@@ -39,6 +39,8 @@ int tico_plugin_editor_image_init(tc_ImageEditor *editor, tc_EditorWindow *win) 
 }
 
 int tico_plugin_editor_image_draw(tc_ImageEditor *editor) {
+	int ssz = 1;
+
 	int w = editor->image->width * editor->scale;
 	int h = editor->image->height * editor->scale;
 	// tc_Resource *res = editor->tool->res;

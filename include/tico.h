@@ -98,9 +98,11 @@ typedef struct tc_Font {
 } tc_Font;
 
 #include "tico_math.h"
-#include "engine.h"
+
 #include "filesystem.h"
 #include "json.h"
+#include "serialization.h"
+#include "engine.h"
 #include "timer.h"
 
 #if !defined(TICO_NO_PLUGINS)
@@ -151,6 +153,7 @@ typedef struct tc_Core {
   tc_Input input;
 #endif
   tc_Filesystem fs;
+  // tc_Serialization serialization;
 #if !defined(TICO_NO_PLUGINS)
   tc_PluginModule plugins;
 #endif

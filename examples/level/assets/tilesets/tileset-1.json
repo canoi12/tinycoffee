@@ -1,4 +1,8 @@
 {
+	"__header__": {
+		"type": "tileset",
+		"name": "tileset"
+	},
 	"image":	"tileset",
 	"tilewidth":	16,
 	"tileheight":	16,

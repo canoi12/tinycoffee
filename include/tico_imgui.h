@@ -12,7 +12,12 @@ TIC_API int tico_imgui_render();
 
 TIC_API void tico_imgui_terminate();
 
+TIC_API int tico_imgui_Begin(const char *name, int *open, ImGuiWindowFlags_ flags);
+TIC_API void tico_imgui_End(void);
+
 #endif
+
+// #define TICO_IMGUI_IMPLEMENTATION
 
 #if defined(TICO_IMGUI_IMPLEMENTATION)
 
@@ -32,6 +37,10 @@ int tico_imgui_init(tc_Window *window) {
 	io->ConfigDockingWithShift = 1;
 	io->ConfigWindowsMoveFromTitleBarOnly = 1;
 
+	// ImFontAtlas_AddFontFromMemoryTTF(ImFontAtlas *self, void *font_data, int font_size, float size_pixels, const ImFontConfig *font_cfg, const ImWchar *glyph_ranges)
+  // io->Fonts->
+
+	igStyleColorsClassic(NULL);
 	LOG("ImGui Module initiated");
 
 	return 1;
@@ -57,6 +66,14 @@ void tico_imgui_terminate() {
   ImGuiContext *ctx = igGetCurrentContext();
   igDestroyContext(ctx);
   LOG("ImGui Module terminated");
+}
+
+int tico_imgui_Begin(const char *name, int *open, ImGuiWindowFlags_ flags) {
+	return igBegin(name, open, flags);
+}
+
+void tico_imgui_End(void) {
+	igEnd();
 }
 
 #endif

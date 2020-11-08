@@ -6,11 +6,268 @@
 
 TIC_API int luaopen_json(lua_State *L);
 
+TIC_API int tico_lua_field_new_array(lua_State *L, tc_Field *field);
+TIC_API int tico_lua_field_new_object(lua_State *L, tc_Field *field);
+TIC_API tc_Field* tico_lua_new_field_array(lua_State *L, int index);
+TIC_API tc_Field* tico_lua_new_field_object(lua_State *L, int index);
+
+TIC_API int tico_lua_json_new_object(lua_State *L, cJSON *json);
+
 #endif
 
 #if defined(TICO_LUA_IMPLEMENTATION)
 
-static int tico_lua_json_new_object(lua_State *L, cJSON *json);
+int tico_lua_vecn(lua_State *L, int n, float *data) {
+  lua_newtable(L);
+  for (int i = 0; i < n; i++) {
+    lua_pushnumber(L, data[i]);
+    lua_rawseti(L, -2, i);
+  }
+
+  return 1;
+}
+
+// int tico_lua_field_new_array(lua_State *L, tc_Field *field) {
+//   lua_newtable(L);
+//   tc_Field *item = NULL;
+//   int i = 1;
+//   tico_field_foreach(item, field) {
+//     switch (item->type) {
+//       case TIC_FIELD_RESOURCE:
+//       case TIC_FIELD_STRING:
+//       {
+//         lua_pushstring(L, item->string);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_NUMBER:
+//       {
+//         lua_pushnumber(L, item->number);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_BOOLEAN:
+//       {
+//         lua_pushboolean(L, item->boolean);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_VEC2:
+//       {
+//         tico_lua_vecn(L, 2, item->vec2.data);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_VEC3:
+//       {
+//         tico_lua_vecn(L, 2, item->vec3.data);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_RECT:
+//       case TIC_FIELD_VEC4:
+//       {
+//         tico_lua_vecn(L, 2, item->vec4.data);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_ARRAY:
+//       {
+//         tico_lua_field_new_array(L, item);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//       case TIC_FIELD_OBJECT:
+//       {
+//         tico_lua_field_new_object(L, item);
+//         lua_rawseti(L, -2, i++);
+//         break;
+//       }
+//     }
+//   }
+// }
+
+// int tico_lua_field_new_object(lua_State *L, tc_Field *field) {
+//   lua_newtable(L);
+//   tc_Field *item = NULL;
+//   tico_field_foreach(item, field) {
+//     switch (item->type) {
+//       case TIC_FIELD_RESOURCE:
+//       case TIC_FIELD_STRING:
+//       {
+//         lua_pushstring(L, item->string);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_NUMBER:
+//       {
+//         lua_pushnumber(L, item->number);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_BOOLEAN:
+//       {
+//         lua_pushboolean(L, item->boolean);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_VEC2:
+//       {
+//         tico_lua_vecn(L, 2, item->vec2.data);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_VEC3:
+//       {
+//         tico_lua_vecn(L, 2, item->vec3.data);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_RECT:
+//       case TIC_FIELD_VEC4:
+//       {
+//         tico_lua_vecn(L, 2, item->vec4.data);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_ARRAY:
+//       {
+//         tico_lua_field_new_array(L, item);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//       case TIC_FIELD_OBJECT:
+//       {
+//         tico_lua_field_new_object(L, item);
+//         lua_setfield(L, -2, item->name);
+//         break;
+//       }
+//     }
+//   }
+// }
+
+// tc_Field *tico_lua_new_field_vecn(lua_State *L, int n, int index) {
+//   if (n < 2 || n > 4) return NULL;
+
+//   tc_Field *field = tico_field_create(n == 2 ? TIC_FIELD_VEC2 : n == 3 ? TIC_FIELD_VEC3 : TIC_FIELD_VEC4, "");
+
+//   lua_pushnil(L);
+//   int i = 0;
+//   while (lua_next(L, index)) {
+//     float num = lua_tonumber(L, -1);
+//     if (n == 2) field->vec2.data[i] = num;
+//     else if (n == 3) field->vec3.data[i] = num;
+//     else field->vec4.data[i] = num;
+//     lua_pop(L, 1);
+//   }
+
+//   return field;
+// }
+
+// tc_Field* tico_lua_new_field_array(lua_State *L, int index) {
+//   // cJSON *json = tico_json_create_array(NULL);
+//   float len = lua_rawlen(L, index);
+//   tc_Field *field = tico_lua_new_field_vecn(L, len, index);
+//   if (field) return field;
+//   // tc_Field *field = 
+//   field = tico_field_create(TIC_FIELD_ARRAY, "");
+//   lua_pushnil(L);
+//   while(lua_next(L, index)) {
+//     tc_Field *item = NULL;
+//     switch(lua_type(L, -1)) {
+//       case LUA_TNUMBER:
+//         {
+//           float n = lua_tonumber(L, -1);
+//           // item = cJSON_CreateNumber(n);
+//           item = tico_field_create_number("", n);
+//           break;
+//         }
+//       case LUA_TBOOLEAN:
+//         {
+//           int val = lua_toboolean(L, -1);
+//           // item = cJSON_CreateBool(val);
+//           item = tico_field_create_boolean("", val);
+//           break;
+//         }
+//       case LUA_TSTRING:
+//         {
+//           const char *str = lua_tostring(L, -1);
+//           // item = cJSON_CreateString(str);
+//           item = tico_field_create_string("", str);
+//           break;
+//         }
+//       case LUA_TTABLE:
+//         {
+//           if (lua_isarray(L, -1)) {
+//             int top = lua_gettop(L);
+//             item = tico_lua_new_field_array(L, top);
+//           } else {
+//             int top = lua_gettop(L);
+//             item = tico_lua_new_field_object(L, top);
+//           }
+//           break;
+//         }
+//     }
+//     if (item) tico_field_add(field, item);
+//     lua_pop(L, 1);
+//   }
+//   // lua_pop(L, 1);
+
+//   return json;
+// }
+
+// tc_Field* tico_lua_new_field_object(lua_State *L, int index) {
+//   float len = lua_rawlen(L, index);
+//   tc_Field *field = tico_lua_new_field_vecn(L, len, index);
+//   if (field) return field;
+//   // tc_Field *field = 
+//   field = tico_field_create(TIC_FIELD_ARRAY, "");
+//   lua_pushnil(L);
+//   while(lua_next(L, index)) {
+//     tc_Field *item = NULL;
+//     switch(lua_type(L, -1)) {
+//       case LUA_TNUMBER:
+//         {
+//           float n = lua_tonumber(L, -1);
+//           // item = cJSON_CreateNumber(n);
+//           item = tico_field_create_number("", n);
+//           break;
+//         }
+//       case LUA_TBOOLEAN:
+//         {
+//           int val = lua_toboolean(L, -1);
+//           // item = cJSON_CreateBool(val);
+//           item = tico_field_create_boolean("", val);
+//           break;
+//         }
+//       case LUA_TSTRING:
+//         {
+//           const char *str = lua_tostring(L, -1);
+//           // item = cJSON_CreateString(str);
+//           item = tico_field_create_string("", str);
+//           break;
+//         }
+//       case LUA_TTABLE:
+//         {
+//           if (lua_isarray(L, -1)) {
+//             int top = lua_gettop(L);
+//             item = tico_lua_new_field_array(L, top);
+//           } else {
+//             int top = lua_gettop(L);
+//             item = tico_lua_new_field_object(L, top);
+//           }
+//           break;
+//         }
+//     }
+//     if (item) tico_field_add(field, item);
+//     lua_pop(L, 1);
+//   }
+//   // lua_pop(L, 1);
+
+//   return json;
+// }
+
+// static int tico_lua_json_new_object(lua_State *L, cJSON *json);
 
 int tico_lua_json_new_array(lua_State *L, cJSON *json) {
   lua_newtable(L);
@@ -135,7 +392,7 @@ static int tico_lua_json_decode(lua_State *L) {
 static cJSON *tico_lua_json_new_cjson_object(lua_State *L, int index);
 
 cJSON *tico_lua_json_new_cjson_array(lua_State *L, int index) {
-  cJSON *json = tico_json_create_array();
+  cJSON *json = tico_json_create_array(NULL);
   lua_pushnil(L);
   while(lua_next(L, index)) {
     cJSON *item = NULL;
@@ -174,11 +431,11 @@ cJSON *tico_lua_json_new_cjson_array(lua_State *L, int index) {
             if (luaL_testudata(L, -1, RECTANGLE_CLASS)) {
               tc_Rectf *rect = lua_touserdata(L, -1);
               cJSON *robj = tico_json_create();
-              tico_json_set_string(robj, "type", RECTANGLE_CLASS);
-              tico_json_set_number(robj, "x", rect->x);
-              tico_json_set_number(robj, "y", rect->y);
-              tico_json_set_number(robj, "w", rect->w);
-              tico_json_set_number(robj, "h", rect->h);
+              tico_json_add_string(robj, "type", RECTANGLE_CLASS);
+              tico_json_add_number(robj, "x", rect->x);
+              tico_json_add_number(robj, "y", rect->y);
+              tico_json_add_number(robj, "w", rect->w);
+              tico_json_add_number(robj, "h", rect->h);
               cJSON_AddItemToArray(json, robj);
             }
           }
@@ -204,19 +461,19 @@ cJSON *tico_lua_json_new_cjson_object(lua_State *L, int index) {
       case LUA_TNUMBER:
         {
           float n = lua_tonumber(L, -1);
-          tico_json_set_number(json, key, n);
+          tico_json_add_number(json, key, n);
           break;
         }
         case LUA_TBOOLEAN:
         {
           int val = lua_toboolean(L, -1);
-          tico_json_set_boolean(json, key, val);
+          tico_json_add_boolean(json, key, val);
           break;
         }
         case LUA_TSTRING:
         {
           char *str = (char*)lua_tostring(L, -1);
-          tico_json_set_string(json, key, str);
+          tico_json_add_string(json, key, str);
           break;
         }
         case LUA_TTABLE:
@@ -226,11 +483,11 @@ cJSON *tico_lua_json_new_cjson_object(lua_State *L, int index) {
           if (lua_isarray(L, -1)) {
             int top = lua_gettop(L);
             item = tico_lua_json_new_cjson_array(L, top);
-            tico_json_set_array(json, key, item);
+            tico_json_add_array(json, key, item);
           } else {
             int top = lua_gettop(L);
             item = tico_lua_json_new_cjson_object(L, top);
-            tico_json_set_object(json, key, item);
+            tico_json_add_object(json, key, item);
           }
           break;
         }
@@ -239,12 +496,12 @@ cJSON *tico_lua_json_new_cjson_object(lua_State *L, int index) {
           if (luaL_testudata(L, -1, RECTANGLE_CLASS)) {
             tc_Rectf *rect = lua_touserdata(L, -1);
             cJSON *robj = tico_json_create();
-            tico_json_set_string(robj, "type", RECTANGLE_CLASS);
-            tico_json_set_number(robj, "x", rect->x);
-            tico_json_set_number(robj, "y", rect->y);
-            tico_json_set_number(robj, "w", rect->w);
-            tico_json_set_number(robj, "h", rect->h);
-            tico_json_set_object(json, key, robj);
+            tico_json_add_string(robj, "type", RECTANGLE_CLASS);
+            tico_json_add_number(robj, "x", rect->x);
+            tico_json_add_number(robj, "y", rect->y);
+            tico_json_add_number(robj, "w", rect->w);
+            tico_json_add_number(robj, "h", rect->h);
+            tico_json_add_object(json, key, robj);
           }
         }
     }

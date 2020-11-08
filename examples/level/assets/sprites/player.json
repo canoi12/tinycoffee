@@ -1,6 +1,11 @@
 {
+	"__header__": {
+		"type": "sprite",
+		"name": "player"
+	},
 	"width":	16,
 	"height":	16,
+	"image": "image//player",
 	"animations":	[{
 			"name":	"idle",
 			"from":	0,
@@ -9,8 +14,16 @@
 			"name":	"walk",
 			"from":	4,
 			"to":	11
-		}],
-	"dependencies":	{
-		"image":	"image//player"
-	}
+		},
+		{
+			"name": "jump",
+			"from": 12,
+			"to": 12
+		},
+		{
+			"name": "fall",
+			"from": 13,
+			"to": 13
+		}
+	]
 }

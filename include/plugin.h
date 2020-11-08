@@ -34,7 +34,7 @@ typedef map_t(tc_Plugin) map_plugin_t;
 
 typedef struct tc_PluginModule {
 	map_plugin_t plugins;
-	list_str_t active_plugins;
+	vec_str_t active_plugins;
 } tc_PluginModule;
 
 TIC_API tc_Plugin tico_plugin_create();

@@ -1,0 +1,22 @@
+{
+	"__header__": {
+		"type": "object",
+		"name": "lizard"
+	},
+	"__meta__": {
+		"position": {
+			"__type__": "vec2"
+	},
+		"sprite": {
+			"__type__": "resource",
+			"origin": [0, 0]
+		},
+		"hitbox": {
+			"__type__": "vec4"
+		}
+	},
+	"position":	[0, 0],
+	"sprite":	"sprite//lizard",
+	"angle":	0,
+	"hitbox": [-6, -8, 12, 14]
+}

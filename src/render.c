@@ -769,7 +769,8 @@ void tico_batch_draw(tc_Batch *batch) {
     // tic_shader_send(Core.render.state.currentShader, "modelview", curr.modelview.data, TIC_UNIFORM_MATRIX);
     tico_graphics_send("modelview", curr.modelview.data, TIC_UNIFORM_MATRIX);
 
-    glScissor(curr.clip.x, view[3] - (curr.clip.y + curr.clip.h), curr.clip.w, curr.clip.h);
+    // glScissor(curr.clip.x, view[3] - (curr.clip.y + curr.clip.h), curr.clip.w, curr.clip.h);
+    // glScissor(curr.clip.x, curr.clip.y, curr.clip.w, curr.clip.h);
 
     glBindTexture(GL_TEXTURE_2D, curr.textureId);
     glBindVertexArray(batch->vao);

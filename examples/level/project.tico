@@ -8,27 +8,29 @@
 		"resources",
 		"editor"
 	],
-	"resources": {
-		"image": {
-			"tileset": {
-				"path": "assets/images/tileset.png"
-			},
-			"player": {
-				"path": "assets/images/player.png"
-			}
+	"resources": [
+		{
+			"type": "image",
+			"name": "tileset",
+			"path": "assets/images/tileset.png"
 		},
-		"tileset": {
-			"tileset": {
-				"path": "assets/tileset.json"
-			},
-			"forest": {
-				"path": "assets/tilesets/tileset.json"
-			}
+		{
+			"type": "image",
+			"name": "player",
+			"path": "assets/images/player.png"
 		},
-		"tilemap": {
-			"forest": {
-				"path": "assets/tilemaps/tilemap.json"
-			}
-		}
-	}
+		{
+			"type": "image",
+			"name": "lizard",
+			"path": "assets/images/lizard.png"
+		},
+		"assets/sprites/player.json",
+		"assets/sprites/lizard.json",
+		"assets/tilesets/tileset.json",
+		"assets/tilemaps/tilemap.json",
+		"assets/objects/player.json",
+		"assets/objects/lizard.json",
+		"assets/objects/floor.json",
+		"assets/objects/teste.json"
+	]
 }

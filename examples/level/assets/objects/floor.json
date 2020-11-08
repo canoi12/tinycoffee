@@ -1,0 +1,18 @@
+{
+	"__header__":	{
+		"type": "object",
+		"name": "floor"
+	},
+	"__meta__": {
+		"position": {
+			"type": "vec2"
+		},
+		"hitbox": {
+			"type": "rect",
+			"__color__": [1, 0, 0, 1],
+			"__show__": false
+		}
+	},
+	"position":	[0, 0],
+	"hitbox":	[0, 0, 16, 16]
+}

@@ -1,5 +1,42 @@
 #include "../../tico.h"
 
+static int tico_lua_resource_new(lua_State *L) {
+	tc_Resource *resource = lua_newuserdata(L, sizeof(*resource));
+	luaL_setmetatable(L, RESOURCE_CLASS);
+
+	tico_resource_init(resource);
+
+	const char *type = luaL_optstring(L, 1, "");
+	const char *name = luaL_optstring(L, 2, "");
+	const char *path = luaL_optstring(L, 3, "");
+	strcpy(resource->type, type);
+	strcpy(resource->name, name);
+	strcpy(resource->path, path);
+
+	return 1;
+}
+
+static int luaopen_resource(lua_State *L) {
+	luaL_Reg reg[] = {
+		// {"__call", tico_lua_tileset_new},
+		// {"draw", tico_lua_tileset_draw},
+		// {"get_rect", tico_lua_tileset_get_rect},
+		// {"from_bitmask", tico_lua_tileset_from_bitmask},
+		// // {"get_rect_from_bitmask", },
+		// {"__gc", tico_lua_tileset__gc},
+		{NULL, NULL}
+	};
+
+	// luaL_newlib(L, reg);
+
+	luaL_newmetatable(L, RESOURCE_CLASS);
+  luaL_setfuncs(L, reg, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+
+	return 1;
+}
+
 static int tico_lua_resources_init(lua_State *L) {
 	int top = lua_gettop(L);
 	// TRACELOG("%d", top);
@@ -59,8 +96,7 @@ static int tico_lua_resources_add(lua_State *L) {
 	// 	strcpy(res.type, "tilemap");
 	// }
 	tc_Resource res = {0};
-	res.lua = 1;
-	res.L = L;
+	
 	int resp = 0;
 	strcpy(res.name, name);
 	strcpy(res.type, type);
@@ -90,6 +126,16 @@ static int tico_lua_resources_get(lua_State *L) {
 	return 1;
 }
 
+static int tico_lua_resources_get_by_key(lua_State *L) {
+
+	const char *key = luaL_checkstring(L, 1);
+
+	// lua_pop(L, 1);
+	tico_plugin_resources_get_by_key(key);
+
+	return 1;
+}
+
 static int tico_lua_resources_store(lua_State *L) {
 	// tico_resources_store(&Core.resources);
 
@@ -104,6 +150,7 @@ int luaopen_resources(lua_State *L) {
 		{"load", tico_lua_resources_load},
 		{"store", tico_lua_resources_store},
 		{"get", tico_lua_resources_get},
+		{"getByKey", tico_lua_resources_get_by_key},
 		{NULL, NULL}
 	};
 

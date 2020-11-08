@@ -15,11 +15,15 @@ typedef stack_arr_t(tc_Canvas, CANVAS_STACK_SIZE) stack_canvas_t;
 typedef stack_arr_t(tc_Shader, SHADER_STACK_SIZE) stack_shader_t;
 typedef stack_arr_t(tc_Matrix, MATRIX_STACK_SIZE) stack_matrix_t;
 
+typedef vec_t(tc_Canvas) vec_canvas_t;
+
 typedef struct tc_Graphics {
   tc_Font default_font;
   stack_canvas_t canvas_stack;
   stack_shader_t shader_stack;
   stack_matrix_t matrix_stack;
+
+  vec_canvas_t canvas_vec;
 
   tc_Render render;
   tc_Texture default_texture;

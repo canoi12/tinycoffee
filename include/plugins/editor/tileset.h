@@ -18,6 +18,7 @@ typedef struct tc_TilesetEditor {
   void *cnt;
 
 	// tc_GridTool grid;
+	tc_PanelWidget panel_widget;
 	tc_GridWidget grid;
 } tc_TilesetEditor;
 
@@ -57,8 +58,10 @@ int tico_plugin_editor_tileset_init(tc_TilesetEditor *editor, tc_EditorWindow *w
 	editor->tileset = tileset;
 	editor->canvas = tico_canvas_create(tileset->image->width, tileset->image->height);
 	// editor->grid = tico_tool_grid_create(tileset->tilesize.x, tileset->tilesize.y, tileset->image->width, tileset->image->height);
-	editor->grid = tico_widget_grid_create(tileset->tilesize, (tc_Vec2){tileset->image->width, tileset->image->height});
-
+	
+	editor->panel_widget = tico_widget_panel_create(64);
+	editor->grid = tico_widget_grid_create(tileset->tilesize, (tc_Vec2){tileset->image->width, tileset->image->height}, 0);
+	tico_widget_grid_set_texture(&editor->grid, &editor->canvas.tex, tico_rectf(0, 1, 1, 0));
 	// if (tool->res) tico_editor_tileset_change(editor, tool->res->data);
 	// editor->grid = tico_tool_grid_create()
 	return 1;
@@ -89,8 +92,6 @@ int tico_plugin_editor_tileset_draw(tc_TilesetEditor *editor) {
 		}
 	}
 	tico_canvas_detach();
-
-	igSliderInt("scale", &editor->grid.scale, 1, 10, "%d", 0);
 	// tico_canvas_attach(editor->canvas);
 	// tico_graphics_clear(BLACK);
 	// // tico_tileset_draw(*tileset);
@@ -99,17 +100,22 @@ int tico_plugin_editor_tileset_draw(tc_TilesetEditor *editor) {
 
 	// tico_canvas_detach();
 	ImVec2 size;
-	igGetContentRegionAvail(&size);
+	// igGetContentRegionAvail(&size);
 	int cw = editor->canvas.width;
 	int ch = editor->canvas.height;
 	int cell = -1;
 	// if (igBeginChildStr("testew", size, 1, 0)) {
 		// igImage(editor->canvas.texture.id, (ImVec2){cw*editor->scale, ch*editor->scale}, (ImVec2){0, 1}, (ImVec2){1, 0}, (ImVec4){1, 1, 1, 1}, (ImVec4){0, 0, 0, 0});
 		// int res = tico_tool_grid_draw(&editor->grid, &cell, &editor->canvas, NULL);
-		int res = tico_widget_grid_draw(&editor->grid, &cell, &editor->canvas.tex, (tc_Rectf){0, 1, 1, 0}, WHITE, 0);
-		if (res && tico_input_mouse_pressed(MOUSE_LEFT)) {
+		// int res = 0;
+		tico_widget_panel_begin(&editor->panel_widget);
+
+		tico_widget_grid_update(&editor->grid, &editor->panel_widget);
+		tico_widget_grid_draw(&editor->grid, &editor->panel_widget);
+		tico_widget_panel_end(&editor->panel_widget);
+		if ((editor->grid.state & TICO_WIDGET_DOWN) && tico_input_mouse_pressed(MOUSE_LEFT)) {
 			// TRACELOG("%d", cell);
-			editor->cell = cell;
+			// editor->cell = cell;s
 			tico_tileset_calc_mask_array(*tileset, tileset->bitmasks[editor->cell], editor->mask);
 			igOpenPopup("context", 0);
 		}
@@ -162,6 +168,7 @@ int tico_plugin_editor_tileset_draw(tc_TilesetEditor *editor) {
 }
 
 int tico_plugin_editor_tileset_draw_panel(tc_TilesetEditor *editor) {
+	igSliderInt("scale", &editor->grid.scale, 1, 10, "%d", 0);
 	// tico_ui_layout_row(1, ((int[]){-1}), 0);
 
 	// if (tico_ui_button("save##tileset")) {
@@ -174,7 +181,8 @@ int tico_plugin_editor_tileset_draw_panel(tc_TilesetEditor *editor) {
 
 int tico_plugin_editor_tileset_destroy(tc_TilesetEditor *editor) {
 	tico_canvas_destroy(&editor->canvas);
-	tico_tool_grid_destroy(&editor->grid);
+	// tico_tool_grid_destroy(&editor->grid);
+	tico_widget_grid_destroy(&editor->grid);
 }
 
 #endif

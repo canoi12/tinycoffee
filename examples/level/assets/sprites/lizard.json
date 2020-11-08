@@ -1,6 +1,11 @@
 {
+	"__header__": {
+		"type": "sprite",
+		"name": "lizard"
+	},
 	"width":	16,
 	"height":	16,
+	"image": "image//lizard",
 	"animations":	[{
 			"name":	"idle",
 			"from":	1,
@@ -9,8 +14,5 @@
 			"name":	"walk",
 			"from":	5,
 			"to":	11
-		}],
-	"dependencies":	{
-		"image":	"image//lizard"
-	}
+		}]
 }

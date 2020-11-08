@@ -17,6 +17,8 @@
 #define CAMERA_CLASS LUA_CLASS(tc_Camera)
 #define SPRITE_CLASS LUA_CLASS(tc_Sprite)
 
+#define RESOURCE_CLASS LUA_CLASS(tc_Resource)
+
 typedef int(*LuaFunction)(lua_State*);
 
 typedef struct tc_Lua {
@@ -27,10 +29,13 @@ TIC_API int tico_plugin_lua_load(tc_Lua *lua);
 TIC_API int tico_plugin_lua_update(tc_Lua *lua);
 TIC_API int tico_plugin_lua_draw(tc_Lua *lua);
 
+TIC_API lua_State* PUBLIC_API(tico_plugin_lua_get_state);
+// TIC_API lua_State* PUBLIC_API(tico_plugin_lua_get_state, tc_Lua *lua);
+
 TIC_API void PUBLIC_API(tico_plugin_lua_add_lib, const char *name, LuaFunction function);
 TIC_API void INTERNAL_API(tico_plugin_lua_add_lib, tc_Lua *lua, const char *name, LuaFunction function);
-TIC_API void PUBLIC_API(tico_plugin_lua_pcall, const char *name);
-TIC_API void INTERNAL_API(tico_plugin_lua_pcall, tc_Lua *lua, const char *name);
+TIC_API void PUBLIC_API(tico_plugin_lua_pcall, const char *name, int n);
+TIC_API void INTERNAL_API(tico_plugin_lua_pcall, tc_Lua *lua, const char *name, int n);
 
 TIC_API int luaopen_tico(lua_State *L);
 
@@ -90,6 +95,7 @@ static tc_Color lua_optcolor(lua_State *l, int index, tc_Color opt) {
 #include "lua/window.h"
 #include "lua/json.h"
 #include "lua/engine.h"
+#include "lua/imgui.h"
 
 int tico_plugin_lua_enable(tc_Lua *lua) {
 	lua->L = luaL_newstate();
@@ -160,6 +166,14 @@ int tico_plugin_lua_draw(tc_Lua *lua) {
   return 1;
 }
 
+lua_State* PUBLIC_API(tico_plugin_lua_get_state) {
+  tc_Plugin *plugin = tico_plugin_get("lua");
+  if (!plugin) return NULL;
+  tc_Lua *lua = plugin->data;
+
+  return lua->L;
+}
+
 void PUBLIC_API(tico_plugin_lua_add_lib, const char *name, LuaFunction function) {
 	tc_Plugin *plugin = tico_plugin_get("lua");
 	if (!plugin) return;
@@ -179,22 +193,26 @@ void INTERNAL_API(tico_plugin_lua_add_lib, tc_Lua *lua, const char *name, LuaFun
 	lua_setfield(L, -2, name);
 }
 
-void PUBLIC_API(tico_plugin_lua_pcall, const char *name) {
+void PUBLIC_API(tico_plugin_lua_pcall, const char *name, int n) {
   tc_Plugin *plugin = tico_plugin_get("lua");
   if (!plugin) return;
-  INTERNAL_API(tico_plugin_lua_pcall, plugin->data, name);
+  INTERNAL_API(tico_plugin_lua_pcall, plugin->data, name, n);
 }
 
-void INTERNAL_API(tico_plugin_lua_pcall, tc_Lua *lua, const char *name) {
+void INTERNAL_API(tico_plugin_lua_pcall, tc_Lua *lua, const char *name, int n) {
   if (!lua) return;
   lua_State *L = lua->L;
   if (!L) return;
+  int top = lua_gettop(L);
   lua_getglobal(L, "tico");
   if (!lua_isnil(L, -1)) {
     lua_getfield(L, -1, name);
     if (!lua_isnil(L, -1)) {
-      lua_pushnumber(L, tico_timer_get_delta());
-      int err = lua_pcall(L, 1, 0, 0);
+      // lua_pushnumber(L, tico_timer_get_delta());
+      for (int i = n-1; i >= 0; i--) {
+        lua_pushvalue(L, top-i);
+      }
+      int err = lua_pcall(L, n, 0, 0);
       if (err) {
 //         tc_lua_traceback(L);
         const char *str = lua_tostring(L, -1);
@@ -234,6 +252,7 @@ int luaopen_tico(lua_State *L) {
     {"filesystem", luaopen_filesystem},
     {"graphics", luaopen_graphics},
     {"input", luaopen_input},
+    {"imgui", luaopen_imgui},
     {"audio", luaopen_audio},
     {"timer", luaopen_timer},
     {"math", luaopen_tcmath},

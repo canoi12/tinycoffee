@@ -12,6 +12,8 @@ static void tico_window_move_callback(GLFWwindow *window, int x, int y) {
   tc_Core *core = glfwGetWindowUserPointer(window);
   // core->window.x = x;
   // core->window.y = y;
+  // igDragFloat2()
+  // ImDrawList_AddRectFilled()
   tico_window_set_pos(x, y);
 }
 
@@ -100,21 +102,21 @@ tc_Config tico_config_load(const char *filename, int argc, char ** argv) {
 
   // TRACELOG("%s", filename);
 
-  const char *name = tico_json_get_opt_string(jsonConfig, "name", (char*)config.title);
+  const char *name = tico_json_get_opt_string(jsonConfig, "name", 0, (char*)config.title);
   if (name) strcpy(config.title, name);
 
-  window = tico_json_get_object(jsonConfig, "window");
+  window = tico_json_get_object(jsonConfig, "window", 0);
   if (window) {
-    config.width = tico_json_get_opt_number(window, "width", config.width);
-    config.height = tico_json_get_opt_number(window, "height", config.height);
-    if (!tico_json_get_opt_boolean(window, "resizable", tc_true)) config.window_flags ^= TIC_WindowFlags_Resizable;
-    if (tico_json_get_opt_boolean(window, "fullscreen", tc_false)) config.window_flags |= TIC_WindowFlags_FullScreen;
-    if (!tico_json_get_opt_boolean(window, "vsync", tc_true)) config.window_flags ^= TIC_WindowFlags_VSync;
+    config.width = tico_json_get_opt_number(window, "width", 0, config.width);
+    config.height = tico_json_get_opt_number(window, "height", 0, config.height);
+    if (!tico_json_get_opt_boolean(window, "resizable", 0, tc_true)) config.window_flags ^= TIC_WindowFlags_Resizable;
+    if (tico_json_get_opt_boolean(window, "fullscreen",0, tc_false)) config.window_flags |= TIC_WindowFlags_FullScreen;
+    if (!tico_json_get_opt_boolean(window, "vsync", 0, tc_true)) config.window_flags ^= TIC_WindowFlags_VSync;
     // TRACELOG("%d", config.window_flags & TIC_WindowFlags_Resizable);
   }
 
   cJSON *plugins = NULL;
-  plugins = tico_json_get_array(jsonConfig, "plugins");
+  plugins = tico_json_get_array(jsonConfig, "plugins", 0);
   if (plugins) {
     cJSON *plugin = NULL;
     cJSON_ArrayForEach(plugin, plugins) {
@@ -193,6 +195,8 @@ int tico_init(tc_Config *config) {
   }
   #endif
 
+  tico_serialization_init();
+
   // tico_timer_init(&Core.timer);
 
   #if !defined(TICO_NO_GRAPHICS_MODULE)
@@ -256,16 +260,24 @@ int tico_end_draw() {
   return 1;
 }
 
+#include "font_data.h"
+
 int tico_main_loop() {
   int clicked = 0;
+  ImGuiIO *io = igGetIO();
   tico_plugin_module_load_internal(&Core.plugins);
+  // ImFont *font = ImFontAtlas_AddFontFromMemoryTTF(io->Fonts, font_data[0].data, font_data[0].size, 16, NULL, NULL);
+  // ImFont *font = ImFontAtlas_AddFontFromFileTTF(io->Fonts, "extrude.ttf", 16, NULL, NULL);
+  // TRACELOG("testando");
   while(!tico_window_should_close()) {
     tico_update();
 
     tico_begin_draw();
+    // igPushFont(font);
 
     tico_plugin_module_draw_internal(&Core.plugins);
 
+    // igPopFont();
     tico_end_draw();
   }
 

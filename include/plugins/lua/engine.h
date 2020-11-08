@@ -8,12 +8,49 @@
  ******************/
 
 static int tico_lua_tileset_new(lua_State *L) {
-	tc_Tileset *tileset = lua_newuserdata(L, sizeof(*tileset));
-	luaL_setmetatable(L, TILESET_CLASS);
+	// tc_Tileset *tileset = lua_newuserdata(L, sizeof(*tileset));
+	// luaL_setmetatable(L, TILESET_CLASS);
+
+	// tc_Image *image = luaL_checkudata(L, 1, IMAGE_CLASS);
+	// int width = luaL_optinteger(L, 2, 16);
+	// int height = luaL_optinteger(L, 3, 16);
+
+	// *tileset = tico_tileset_create(image, width, height);
+
+	if (lua_type(L, 1) == LUA_TTABLE) {
+		cJSON *json = tico_lua_json_new_cjson_object(L, 1);
+		tc_Tileset *tileset = NULL;
+		if (json) {
+			// TRACELOG("teste");
+			tileset = lua_newuserdata(L, sizeof(*tileset));
+			luaL_setmetatable(L, TILESET_CLASS);
+
+			int top = lua_gettop(L);
+			tico_tileset_from_json(tileset, json);
+			lua_settop(L, top);
+			tico_json_delete(json);
+		} else {
+			lua_pushnil(L);
+		}
+
+		return 1;
+	}
+
+	// tc_Tileset *tileset = luaL_checkudata(L, 1, TILESET_CLASS);
+	// int w = luaL_optinteger(L, 2, 16);
+	// int h = luaL_optinteger(L, 3, 16);
+
+	// tc_Tilemap *map = lua_newuserdata(L, sizeof(*map));
+	// luaL_setmetatable(L, TILEMAP_CLASS);
+
+	// *map = tico_tilemap_create(tileset, w, h);
 
 	tc_Image *image = luaL_checkudata(L, 1, IMAGE_CLASS);
 	int width = luaL_optinteger(L, 2, 16);
 	int height = luaL_optinteger(L, 3, 16);
+
+	tc_Tileset *tileset = lua_newuserdata(L, sizeof(*tileset));
+	luaL_setmetatable(L, TILESET_CLASS);
 
 	*tileset = tico_tileset_create(image, width, height);
 
@@ -106,12 +143,35 @@ int luaopen_tileset(lua_State *L) {
  **************************/
 
 static int tico_lua_tilemap_new(lua_State *L) {
-	tc_Tilemap *map = lua_newuserdata(L, sizeof(*map));
-	luaL_setmetatable(L, TILEMAP_CLASS);
+	// tc_Tilemap *map = lua_newuserdata(L, sizeof(*map));
+	// luaL_setmetatable(L, TILEMAP_CLASS);
+
+	if (lua_type(L, 1) == LUA_TTABLE) {
+		cJSON *json = tico_lua_json_new_cjson_object(L, 1);
+		tc_Tilemap *map = NULL;
+		if (json) {
+			// TRACELOG("teste");
+			map = lua_newuserdata(L, sizeof(*map));
+			luaL_setmetatable(L, TILEMAP_CLASS);
+
+			int top = lua_gettop(L);
+			tico_tilemap_from_json(map, json);
+			lua_settop(L, top);
+			tico_json_delete(json);
+			// TRACELOG("testandow");
+		} else {
+			lua_pushnil(L);
+		}
+
+		return 1;
+	}
 
 	tc_Tileset *tileset = luaL_checkudata(L, 1, TILESET_CLASS);
 	int w = luaL_optinteger(L, 2, 16);
 	int h = luaL_optinteger(L, 3, 16);
+
+	tc_Tilemap *map = lua_newuserdata(L, sizeof(*map));
+	luaL_setmetatable(L, TILEMAP_CLASS);
 
 	*map = tico_tilemap_create(tileset, w, h);
 

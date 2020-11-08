@@ -1,0 +1,8 @@
+{
+	"__header__": {
+		"type": "object",
+		"name": "teste"
+	},
+	"position": [0, 0],
+	"size": [16, 16]
+}

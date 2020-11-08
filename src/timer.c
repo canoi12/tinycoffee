@@ -1,4 +1,6 @@
 #include "tico.h"
+#include <stdio.h>
+#include <time.h>
 
 int tico_timer_init(tc_Timer *timer) {
 	return 1;

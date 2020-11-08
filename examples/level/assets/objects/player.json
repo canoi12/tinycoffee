@@ -1,0 +1,33 @@
+{
+	"__header__": {
+		"type": "object",
+		"name": "player"
+	},
+	"__meta__": {
+		"position": {
+			"type": "vec2",
+			"__color__": [0, 0, 0, 1]
+		},
+		"sprite": {
+			"__type__": "resource",
+			"__color__": [1, 0, 0, 1],
+			"origin": [0, 0]
+		},
+		"hitbox": {
+			"__type__": "vec4",
+			"__color__": [1, 0, 0, 1]
+		},
+		"circle": {
+			"__type__": "circle",
+			"__color__": [1, 1, 0, 1]
+		}
+	},
+	"position":	[0, 0],
+	"angle":	10,
+	"sprite": "sprite//player",
+	"hitbox":	[-6, -8, 12, 14],
+	"circle": {
+		"position": [0, 0],
+		"radius": 8 
+	}
+}

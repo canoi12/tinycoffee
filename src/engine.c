@@ -1,5 +1,10 @@
 #include "tico.h"
 
+/***********************
+ * Tileset
+ ***********************/
+
+
 tc_Tileset tico_tileset_create(tc_Image *image, int w, int h) {
   tc_Tileset tileset = {0};
   tileset.tilesize = tico_vec2(w, h);
@@ -15,13 +20,65 @@ tc_Tileset tico_tileset_create(tc_Image *image, int w, int h) {
   return tileset;
 }
 
+int tico_tileset_from_json(tc_Tileset *tileset, cJSON *json) {
+  ASSERT(tileset != NULL);
+  if (!json) return 0;
+  memset(tileset, 0, sizeof(*tileset));
+
+  // cJSON *deps = tico_json_get_object(json, "dependencies");
+  // const char *tileset_name = tico_json_get_string(deps, "tileset");
+  // const char *tileset_name = tico_json_get_string(json, "tileset", 0);
+  const char *image_name = tico_json_get_string(json, "image", 0);
+  if (!image_name) return 0;
+
+  tc_Plugin *plugin = tico_plugin_get("lua");
+  tc_Lua *lua = NULL;
+  if (plugin) lua = plugin->data;
+
+  int top = 0;
+  if (lua) top = lua_gettop(lua->L);
+  tc_Resource *res = tico_plugin_resources_get_by_key(image_name);
+  if (lua) lua_settop(lua->L, top);
+  if (!res) return 0;
+
+
+
+  tileset->image = res->data;
+  int width = tico_json_get_number(json, "tilewidth", 0);
+  int height = tico_json_get_number(json, "tileheight", 0);
+  int columns = tico_json_get_number(json, "columns", 0);
+  int count = tico_json_get_number(json, "tilecount",0);
+  tileset->tilesize.x = tico_max(1, width);
+  tileset->tilesize.y = tico_max(1, height);
+  tileset->columns = columns;
+  tileset->tilecount = count;
+
+  // TRACELOG("%f", tilemap->grid.x);
+
+  int data_size = sizeof(int) * count;
+  // if (!tileset->data) tilemap->data = malloc(data_size);
+  if (!tileset->bitmasks) tileset->bitmasks = malloc(data_size);
+  else tileset->bitmasks = realloc(tileset->bitmasks, data_size);
+  memset(tileset->bitmasks, -1, data_size);
+
+  cJSON *data = tico_json_get_array(json, "data", 0);
+  cJSON *el = NULL;
+  int i = 0;
+  cJSON_ArrayForEach(el, data) {
+    tileset->bitmasks[i] = el->valueint;
+    i++;
+  }
+
+  return 1;
+}
+
 tc_Tileset tico_tileset_load(const char *path, tc_Image *image) {
   tc_Tileset tileset = {0};
 
   cJSON *root = tico_json_open(path);
   // const char *filename = tico_json_get_string(root, "image");
-  int tilew = tico_json_get_number(root, "tilewidth");
-  int tileh = tico_json_get_number(root, "tileheight");
+  int tilew = tico_json_get_number(root, "tilewidth", 0);
+  int tileh = tico_json_get_number(root, "tileheight", 0);
   // const char *image_name = tico_json_get_string(root, "image");
   tc_Resource *resource = NULL;
   // TRACELOG("%s", image_name);
@@ -29,7 +86,7 @@ tc_Tileset tico_tileset_load(const char *path, tc_Image *image) {
   // TRACELOG("%p", resource);
   // if (!resource) tileset = tico_tileset_create(image, tilew, tileh);
   tileset = tico_tileset_create(image, tilew, tileh);
-  cJSON *bitmask = tico_json_get_array(root, "bitmasks");
+  cJSON *bitmask = tico_json_get_array(root, "bitmasks", 0);
   cJSON *el;
   int i = 0;
   cJSON_ArrayForEach(el, bitmask) {
@@ -48,12 +105,13 @@ void tico_tileset_destroy(tc_Tileset *tileset) {
 }
 
 void tico_tileset_draw(tc_Tileset tileset, int index, int x, int y, tc_Color color) {
+  ASSERT(tileset.image != NULL);
   int xx = fmod(index, tileset.columns) * tileset.tilesize.x;
   int yy = floor(index / tileset.columns) * tileset.tilesize.y;
 
   tc_Rectf rect = tico_rectf(xx, yy, tileset.tilesize.x, tileset.tilesize.y);
-
   tico_image_draw_part(*tileset.image, rect, x, y, color);
+  // TRACELOG("qqq");
 }
 
 void tico_tileset_calc_mask_array(tc_Tileset tileset, int bitmask, int *bitmask_array) {
@@ -141,11 +199,11 @@ tc_Tilemap tico_tilemap_load(const char *path, tc_Tileset *tileset) {
 
   cJSON *root = tico_json_open(path);
   // const char *filename = tico_json_get_string(root, "image");
-  int width = tico_json_get_number(root, "width");
-  int height = tico_json_get_number(root, "height");
+  int width = tico_json_get_number(root, "width", 0);
+  int height = tico_json_get_number(root, "height",0);
   map = tico_tilemap_create(tileset, width, height);
 
-  cJSON *data = tico_json_get_array(root, "data");
+  cJSON *data = tico_json_get_array(root, "data", 0);
   cJSON *el;
   int i = 0;
   cJSON_ArrayForEach(el, data) {
@@ -157,6 +215,55 @@ tc_Tilemap tico_tilemap_load(const char *path, tc_Tileset *tileset) {
   tico_json_delete(root);
 
   return map;
+}
+
+int tico_tilemap_from_json(tc_Tilemap *tilemap, cJSON *json) {
+  ASSERT(tilemap != NULL);
+  if (!json) return 0;
+  memset(tilemap, 0, sizeof(tc_Tilemap));
+
+  // cJSON *deps = tico_json_get_object(json, "dependencies");
+  // const char *tileset_name = tico_json_get_string(deps, "tileset");
+  const char *tileset_name = tico_json_get_string(json, "tileset", 0);
+  if (!tileset_name) return 0;
+  tc_Plugin *plugin = tico_plugin_get("lua");
+  tc_Lua *lua = NULL;
+  if (plugin) lua = plugin->data;
+
+  int top = 0;
+  if (lua) top = lua_gettop(lua->L);
+  tc_Resource *res = tico_plugin_resources_get_by_key(tileset_name);
+  if (lua) lua_settop(lua->L, top);
+  if (!res) return 0;
+
+
+
+  tilemap->tileset = res->data;
+  int width = tico_json_get_number(json, "width", 0);
+  int height = tico_json_get_number(json, "height", 0);
+  int count = tico_json_get_number(json, "count",0);
+  tilemap->width = tico_max(1, width);
+  tilemap->height = tico_max(1, height);
+  tilemap->count = count;
+  tilemap->grid.x = tico_json_get_number(json, "tilewidth", 0);
+  tilemap->grid.y = tico_json_get_number(json, "tileheight", 0);
+
+  // TRACELOG("%f", tilemap->grid.x);
+
+  int data_size = sizeof(int) * count;
+  if (!tilemap->data) tilemap->data = malloc(data_size);
+  else tilemap->data = realloc(tilemap->data, data_size);
+  memset(tilemap->data, -1, data_size);
+
+  cJSON *data = tico_json_get_array(json, "data", 0);
+  cJSON *el = NULL;
+  int i = 0;
+  cJSON_ArrayForEach(el, data) {
+    tilemap->data[i] = el->valueint;
+    i++;
+  }
+
+  return 1;
 }
 
 void tico_tilemap_resize(tc_Tilemap *tilemap, int w, int h) {
@@ -193,7 +300,9 @@ void tico_tilemap_destroy(tc_Tilemap *tilemap) {
 }
 
 void tico_tilemap_draw(tc_Tilemap tilemap) {
+  ASSERT(tilemap.tileset != NULL);
   for (int i = 0; i < tilemap.count; i++) {
+    // TRACELOG("%d", i);
     int x = fmod(i, tilemap.width) * tilemap.tileset->tilesize.x;
     int y = floor(i / tilemap.width) * tilemap.tileset->tilesize.y;
     tico_tileset_draw(*tilemap.tileset, tilemap.data[i], x, y, WHITE);
@@ -402,8 +511,8 @@ tc_Sprite tico_sprite_create(tc_Image *image, int w, int h) {
 }
 
 int tico_sprite_from_json(tc_Sprite *sprite, cJSON *json) {
-  int width = tico_json_get_number(json, "width");
-  int height = tico_json_get_number(json, "height");
+  int width = tico_json_get_number(json, "width", 0);
+  int height = tico_json_get_number(json, "height", 0);
   map_init(&sprite->animations);
   sprite->frame = 0;
   sprite->animation[0] = '\0';
@@ -414,12 +523,12 @@ int tico_sprite_from_json(tc_Sprite *sprite, cJSON *json) {
 
   // TRACELOG("%d %d", width, height);
 
-  cJSON *anims = tico_json_get_array(json, "animations");
+  cJSON *anims = tico_json_get_array(json, "animations", 0);
   cJSON *el = NULL;
   cJSON_ArrayForEach(el, anims) {
-    char *name = tico_json_get_string(el, "name");
-    int from = tico_json_get_number(el, "from");
-    int to = tico_json_get_number(el, "to");
+    char *name = tico_json_get_string(el, "name", 0);
+    int from = tico_json_get_number(el, "from", 0);
+    int to = tico_json_get_number(el, "to", 0);
     // TRACELOG("%s %d %d", name, from, to);
     tc_Animation *anim = map_get(&sprite->animations, name);
     if (!anim) {
@@ -430,21 +539,34 @@ int tico_sprite_from_json(tc_Sprite *sprite, cJSON *json) {
       anim->to = to;
     }
   }
+  const char *key = tico_json_get_string(json, "image", 0);
+  // TRACELOG("%s", key);
+  if (!key) return 0;
+  tc_Plugin *plugin = tico_plugin_get("lua");
+  tc_Lua *lua = NULL;
+  if (plugin) lua = plugin->data;
 
-  cJSON *deps = tico_json_get_object(json, "dependencies");
-  const char *key = NULL;
-  tc_Resource *res = NULL;
-  if (deps) key = tico_json_get_string(deps, "image");
-  // if (key) res = map_get(&Core.resources.resources, key);
-  if (key) {
-    // char **uuid = map_get(&Core.resources.keys, key);
-    // res = map_get(&Core.resources.resources, *uuid);
-    res = tico_plugin_resources_get_by_key(key);
-  }
+  int top = 0;
+  if (lua) top = lua_gettop(lua->L);
+  tc_Resource *res = tico_plugin_resources_get_by_key(key);
+  if (lua) lua_settop(lua->L, top);
+
+  // cJSON *deps = tico_json_get_object(json, "dependencies");
+  // const char *key = NULL;
+  // tc_Resource *res = NULL;
+  // if (deps) key = tico_json_get_string(deps, "image");
+  // // if (key) res = map_get(&Core.resources.resources, key);
+  // if (key) {
+  //   // char **uuid = map_get(&Core.resources.keys, key);
+  //   // res = map_get(&Core.resources.resources, *uuid);
+  //   res = tico_plugin_resources_get_by_key(key);
+  // }
 
   if (res) sprite->image = res->data;
 
   // TRACELOG("%d", sprite->image->width);
+
+  return 1;
 }
 
 void tico_sprite_destroy(tc_Sprite *sprite) {

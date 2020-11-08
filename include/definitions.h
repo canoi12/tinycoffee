@@ -101,8 +101,22 @@ typedef unsigned char byte;
     }; \
   }
 
+#define circle_t(T) \
+  struct { \
+    union { \
+      T data[3]; \
+      struct { \
+        T x; \
+        T y; \
+        T radius; \
+      }; \
+    }; \
+  }
+
 typedef rect_t(int) tc_Rect;
 typedef rect_t(float) tc_Rectf;
+typedef circle_t(int) tc_Circle;
+typedef circle_t(float) tc_Circlef;
 
 typedef struct tc_Color {
   union

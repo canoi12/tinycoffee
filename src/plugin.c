@@ -91,7 +91,8 @@ void INTERNAL_API(tico_plugin_enable_plugin, tc_PluginModule *module, const char
 	ASSERT(module != NULL);
 	ASSERT(name != NULL);
 	if (tico_plugin_is_active(name)) return;
-	list_push(&module->active_plugins, (char*)name);
+	// list_push(&module->active_plugins, (char*)name);
+	vec_push(&module->active_plugins, (char*)name);
 	tc_Plugin *plugin = map_get(&module->plugins, name);
 	// if (plugin && plugin->load) plugin->load(plugin->data);
 	if (plugin && plugin->enable) plugin->enable(plugin->data);
@@ -103,9 +104,9 @@ void INTERNAL_API(tico_plugin_disable_plugin, tc_PluginModule *module, const cha
 	ASSERT(name != NULL);
 	int i = 0;
 	int found = 0;
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		if (!strcmp(name, (char*)iter.data)) {
+	char *key;
+  vec_foreach(&module->active_plugins, key, i) {
+		if (!strcmp(name, key)) {
 			found = 1;
 			break;
 		}
@@ -120,11 +121,12 @@ tc_bool INTERNAL_API(tico_plugin_is_active, tc_PluginModule *module, const char 
 	ASSERT(module != NULL);
 	ASSERT(name != NULL);
 
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **n = iter.data;
-		if (!strcmp(name, *n)) return 1;
-	}
+	// list_iter_t iter = list_iter(&module->active_plugins);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+    if (!strcmp(name, key)) return 1;
+  }
 
 	return 0;
 }
@@ -142,7 +144,8 @@ int INTERNAL_API(tico_plugin_module_init, tc_PluginModule *module) {
 	memset(module, 0, sizeof(*module));
 
 	map_init(&module->plugins);
-	list_init(&module->active_plugins);
+	// list_init(&module->active_plugins);
+	vec_init(&module->active_plugins);
 
 	tc_Plugin editor = tico_plugin_editor();
 	tc_Plugin lua = tico_plugin_lua();
@@ -164,19 +167,21 @@ void INTERNAL_API(tico_plugin_module_terminate, tc_PluginModule *module) {
 }
 
 void INTERNAL_API(tico_plugin_module_enable, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_enable(plugin);
 	}
 }
 void INTERNAL_API(tico_plugin_module_disable, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_disable(plugin);
 	}
@@ -184,47 +189,53 @@ void INTERNAL_API(tico_plugin_module_disable, tc_PluginModule *module) {
 
 
 void INTERNAL_API(tico_plugin_module_load, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	ASSERT(module != NULL);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_load(plugin);
 	}
 }
 
 void INTERNAL_API(tico_plugin_module_update, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_update(plugin);
 	}
 }
 void INTERNAL_API(tico_plugin_module_begin_draw, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_begin_draw(plugin);
 	}
 }
 void INTERNAL_API(tico_plugin_module_draw, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_draw(plugin);
 	}
 }
 void INTERNAL_API(tico_plugin_module_end_draw, tc_PluginModule *module) {
-	list_iter_t iter = list_iter(&module->active_plugins);
-	while (list_next(&iter)) {
-		char **key = iter.data;
-		tc_Plugin *plugin = map_get(&module->plugins, *key);
+	char *key;
+  int i;
+  vec_foreach(&module->active_plugins, key, i) {
+		// char **key = iter.data;
+		tc_Plugin *plugin = map_get(&module->plugins, key);
 		if (!plugin) continue;
 		tico_plugin_end_draw(plugin);
 	}

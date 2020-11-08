@@ -11,6 +11,8 @@ int tico_graphics_init(tc_Graphics* graphics) {
 	stack_arr_init(&graphics->shader_stack, SHADER_STACK_SIZE);
 	stack_arr_init(&graphics->matrix_stack, MATRIX_STACK_SIZE);
 
+  vec_init(&graphics->canvas_vec);
+
 	if (!tico_render_init(&graphics->render)) return 0;
 
 	graphics->default_font = tico_font_load_default();
@@ -178,9 +180,11 @@ void tico_graphics_pop_shader_internal(tc_Graphics *graphics) {
 }
 void tico_graphics_push_canvas_internal(tc_Graphics *graphics, tc_Canvas canvas) {
 	stack_arr_push(&graphics->canvas_stack, canvas);
+  // vec_push(&graphics->canvas_vec, canvas);
 
   if (!tico_render_is_empty(&graphics->render)) tico_render_draw_reset(&graphics->render);
   tico_render_set_clip(&graphics->render, tico_rect(0, 0, canvas.width, canvas.height));
+  // TRACELOG("in: %d %d %d", canvas.id, canvas.width, canvas.height);
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
   glViewport(0, 0, canvas.width, canvas.height);
   // tic_shader_send_world(Core.render.state.currentShader);
@@ -191,11 +195,14 @@ void tico_graphics_push_canvas_internal(tc_Graphics *graphics, tc_Canvas canvas)
 }
 void tico_graphics_pop_canvas_internal(tc_Graphics *graphics) {
 	stack_arr_pop(&graphics->canvas_stack);
+  // vec_pop(&graphics->canvas_vec);
   tc_Canvas canvas = stack_arr_top(&graphics->canvas_stack);
+  // tc_Canvas canvas = vec_last(&graphics->canvas_vec);
   // TRACEERR("%d", graphics->canvas_stack.top);
 
   if (!tico_render_is_empty(&graphics->render)) tico_render_draw_reset(&graphics->render);
   tico_render_set_clip(&graphics->render, tico_rect(0, 0, canvas.width, canvas.height));
+  // TRACELOG("out: %d %d %d", canvas.id, canvas.width, canvas.height);
   glBindFramebuffer(GL_FRAMEBUFFER, canvas.id);
   glViewport(0, 0, canvas.width, canvas.height);
   tc_Shader shader = stack_arr_top(&graphics->shader_stack);
@@ -222,10 +229,16 @@ void tico_graphics_pop_matrix_internal(tc_Graphics *graphics) {}
  **********************/
 
 void tico_graphics_draw_rectangle_internal(tc_Graphics *graphics, float x, float y, int width, int height, tc_Color color) {
-  tico_render_set_texture(&graphics->render, graphics->default_texture);
-  tico_render_set_draw_mode(&graphics->render, TIC_LINES);
-  tico_render_reset_if_full(&graphics->render, 8);
-  tico_render_add_rect(&graphics->render, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
+  // tico_render_set_texture(&graphics->render, graphics->default_texture);
+  // tico_render_set_draw_mode(&graphics->render, TIC_LINES);
+  // tico_render_reset_if_full(&graphics->render, 8);
+  // tico_render_add_rect(&graphics->render, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
+
+  tico_graphics_draw_line_internal(graphics, x, y, x+width, y, color);
+  tico_graphics_draw_line_internal(graphics, x+width, y, x+width, y+height, color);
+  tico_graphics_draw_line_internal(graphics, x+width, y+height, x, y+height, color);
+  tico_graphics_draw_line_internal(graphics, x, y+height, x, y, color);
+
   // tico_batch_add_line_rect(&Core.render.batch, tico_rectf(x, y, width, height), tico_rectf(0, 0, 1, 1), color);
 }
 

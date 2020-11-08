@@ -1,0 +1,1479 @@
+#include "tico.h"
+
+#define FIELD_HEADER_NAME "__header__"
+#define FIELD_TYPE_NAME "__type__"
+#define FIELD_DATA_NAME "__data__"
+
+#define CHECK_FIELD(name, type_e) \
+  ASSERT(name != NULL); \
+  ASSERT((name)->type == type_e)
+  // ASSERT((name)->data != NULL)
+
+#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
+#include "cimgui.h"
+
+static int child_frame_index = 0;
+/***********************
+ * Serialize
+ ***********************/
+
+tc_Template tico_template_create() {
+  tc_Template template = {0};
+
+  // template.data = tico_json_create_object(NULL);
+  // memset(&template.fields, 0, sizeof(tc_Field));
+  // list_init(&template.fields);
+  // template.root = NULL;
+  template.root = tico_field_create_object("", NULL);
+  // char uuid[8];
+  // tico_utils_generate_uuid(uuid, 8);
+  // template.uuid = atoi(uuid);
+  tico_utils_generate_uuid(template.uuid, 8);
+
+  return template;
+}
+
+int tico_field_get_type_from_typename(const char *typename) {
+  ASSERT(typename != NULL);
+
+  if (!strcmp(typename, "number")) {
+    return TIC_FIELD_NUMBER;
+  } else if (!strcmp(typename, "string")) {
+    return TIC_FIELD_STRING;
+  } else if (!strcmp(typename, "boolean")) {
+    return TIC_FIELD_BOOLEAN;
+  } else if (!strcmp(typename, "vec2")) {
+    return TIC_FIELD_VEC2;
+  } else if (!strcmp(typename, "vec3")) {
+    return TIC_FIELD_VEC3;
+  } else if (!strcmp(typename, "vec4")) {
+    return TIC_FIELD_VEC4;
+  } else if (!strcmp(typename, "rect")) {
+    // return TIC_FIELD_RECT;
+  } else if (!strcmp(typename, "array")) {
+    return TIC_FIELD_ARRAY;
+  } else if (!strcmp(typename, "object")) {
+    return TIC_FIELD_OBJECT;
+  } else if (!strcmp(typename, "circle")) {
+    return TIC_FIELD_CIRCLE;
+  // } else if (!strcmp(typename, "color")) {
+  //   return TIC_FIELD_COLOR;
+  // } else if (!strcmp(typename, "resource")) {
+  //   return TIC_FIELD_RESOURCE;
+  }
+
+  return TIC_FIELD_UNKNOWN;
+}
+
+int tico_field_type_from_cjson_type(int cjson_type) {
+	int type = TIC_FIELD_UNKNOWN;
+	switch (cjson_type) {
+		case cJSON_Number:
+			type = TIC_FIELD_NUMBER;
+			break;
+		case cJSON_True:
+			type = TIC_FIELD_BOOLEAN;
+			break;
+		case cJSON_False:
+			type = TIC_FIELD_BOOLEAN;
+			break;
+		case cJSON_String:
+			type = TIC_FIELD_STRING;
+			break;
+		case cJSON_Object:
+			type = TIC_FIELD_OBJECT;
+			break;
+		case cJSON_Array:
+			type = TIC_FIELD_ARRAY;
+			break;
+		default:
+			TRACELOG("Unkown JSON type: %d", cjson_type);
+	}
+
+	return type;
+}
+
+int tico_field_get_type_from_cjson(cJSON *data) {
+	int type = tico_field_type_from_cjson_type(data->type);
+	// if (cJSON_IsObject(data)) {
+	// 	const char *str_type = tico_json_get_string(data, FIELD_TYPE_NAME, 0);
+	// 	if (str_type) return tico_field_get_type_from_typename(str_type);
+	// }
+	if (type == TIC_FIELD_OBJECT) {
+		const char *str_type = tico_json_get_string(data, FIELD_TYPE_NAME, 0);
+		if (str_type) type = tico_field_get_type_from_typename(str_type);
+	} else if (type == TIC_FIELD_ARRAY) {
+		if (tico_json_is_vec2(data)) type = TIC_FIELD_VEC2;
+		else if (tico_json_is_vec3(data)) type = TIC_FIELD_VEC3;
+		else if (tico_json_is_vec4(data)) type = TIC_FIELD_VEC4;
+	}
+
+	return type;
+}
+
+tc_Meta* tico_meta_from_json(cJSON *json) {
+  // ASSERT(json != NULL);
+  if (!json) return NULL;
+  tc_Meta *meta = calloc(1, sizeof(*meta));
+  map_init(&meta->fields);
+
+  cJSON *item = NULL;
+
+  cJSON_ArrayForEach(item, json) {
+    tc_Field *field = tico_field_from_json(item);
+    map_set(&meta->fields, json->string, field);
+  }
+
+  return meta;
+}
+
+void tico_meta_destroy(tc_Meta *meta) {
+  if (!meta) return;
+  map_iter_t iter = map_iter(&meta->field);
+  const char *key;
+  while ((key = map_next(&meta->fields, &iter))) {
+    tc_Field **field = map_get(&meta->fields, key);
+    if (*field) tico_field_destroy(*field);
+  }
+  map_deinit(&meta->fields);
+}
+
+// tc_Field* tico_field_create_from_typename(const char *type_name, const char *name) {
+//   tc_Field *field = NULL;
+//   if (!strcmp(type, "number")) {
+//       // float number = tico_json_get_number(obj, FIELD_DATA_NAME, 0);
+//       // tico_field_set_number(&field, obj->string, number);
+//       // field = tico_field_create(TIC_FIELD_NUMBER, obj->string);
+//       // field.data = obj;
+//       float number = tico_json_get_number(obj, FIELD_DATA_NAME, 0);
+//       // tico_template_insert_number(temp, obj->string, number);
+//       tico_field_push_number(temp->root, obj->string, number);
+
+//       // tico_field_set_number(&field, NULL, number);
+//     } else if (!strcmp(type, "string")) {
+//       const char *string = tico_json_get_string(obj, FIELD_DATA_NAME, 0);
+//       // tico_template_insert_string(temp, obj->string, string);
+//       tico_field_push_string(temp->root, obj->string, string);
+//     } else if (!strcmp(type, "boolean")) { 
+//       int boolean = tico_json_get_boolean(obj, obj->string, 0);
+//       tico_field_push_boolean(temp->root, obj->string, boolean);
+//     } else if (!strcmp(type, "vec2")) {
+//       // field = tico_field_create(TIC_FIELD_VEC2, obj->string);
+//       tc_Vec2 vec2 = tico_json_get_vec2(obj, FIELD_DATA_NAME, 0);
+//       // field.data = obj;
+//       // tico_field_set_vec2(&field, NULL, vec2);
+//       // tico_template_insert_vec2(temp, obj->string, vec2);
+//       tico_field_push_vec2(temp->root, obj->string, vec2);
+//       // TRACELOG("testeeeew");
+//     } else if (!strcmp(type, "vec3")) {
+//       // tc_Vec3 vec = tico_json_get_vec3(obj, FIELD_DATA_NAME, 0);
+//       // tico_field_push_vec3(temp->root, obj->string, vec);
+//     } else if (!strcmp(type, "vec4") || !strcmp(type, "rect")) {
+//       // tc_Vec4 vec = tico_json_get_vec4(obj, FIELD_DATA_NAME, 0);
+//       // tico_field_push_vec4(temp->root, obj->string, vec);
+//     } else {
+//       TRACELOG("Unkown field type %s", type_name);
+//       return NULL;
+//     }
+//     return field;
+// }
+
+tc_Field* tico_field_from_json(cJSON *data) {
+	ASSERT(data != NULL);
+	int type = tico_field_get_type_from_cjson(data);
+	// TRACELOG("%d", type);
+	tc_Field *field = NULL;
+	cJSON *item = NULL;
+  cJSON *meta = cJSON_GetObjectItem(data, "__meta__");
+
+
+	item = data;
+	// if (data->type == cJSON_Object) {
+	// 	cJSON *aux = tico_json_get_item(data, FIELD_DATA_NAME, 0);
+	// 	if (aux) item = aux;
+	// }
+
+	switch (type) {
+		case TIC_FIELD_NUMBER:
+			field = tico_field_number_from_json(item);
+			break;
+		case TIC_FIELD_STRING:
+			field = tico_field_string_from_json(item);
+			break;
+		case TIC_FIELD_BOOLEAN:
+			field = tico_field_boolean_from_json(item);
+			break;
+		case TIC_FIELD_VEC2:
+			field = tico_field_vec2_from_json(item);
+			break;
+		// case TIC_FIELD_VEC3:
+		// 	field = tico_field_vec3_from_json(item);
+		// 	break;
+		case TIC_FIELD_VEC4:
+			field = tico_field_vec4_from_json(item);
+			break;
+		// case TIC_FIELD_RECT:
+		// 	field = tico_field_rect_from_json(item);
+		// 	break;
+		// case TIC_FIELD_RESOURCE:
+		// 	field = tico_field_resource_from_json(item);
+		// 	break;
+		case TIC_FIELD_OBJECT:
+			field = tico_field_object_from_json(item);
+			break;
+	}
+
+	if (field) {
+    if (data->string) strcpy(field->name, data->string);
+    field->meta = tico_meta_from_json(meta);
+  }
+
+
+	return field;
+
+	// if (type == TIC_FIELD_OBJECT) {
+	// 	const char *typename = tico_json_get_string(data, FIELD_TYPE_NAME, 0);
+	// 	if (typename) type = tico_field_get_type_from_typename(typename);
+	// } else if (type == TIC_FIELD_ARRAY) {
+	// 	if (tico_json_is_vec2(data)) type = TIC_FIELD_VEC2;
+	// 	else if (tico_json_is_vec3(data)) type = TIC_FIELD_VEC3;
+	// 	else if (tico_json_is_vec4(data)) type = TIC_FIELD_VEC4;
+	// }
+
+
+	// switch (type) {
+	// 	case TIC_FIELD_NUMBER:
+	// 		field = tico_field_create_number(data->string, data->valuedouble);
+	// 		break;
+	// 	case TIC_FIELD_STRING:
+	// 		field = tico_field_create_string(data->string, data->valuestring);
+	// 		break;
+	// 	case TIC_FIELD_BOOLEAN:
+	// 		field = tico_field_create_boolean(data->string, data->valueint);
+	// 		break;
+	// 	case TIC_FIELD_VEC2:
+	// 		{
+	// 			tc_Vec2 vec = tico_json_to_vec2(data);
+	// 			field = tico_field_create_vec2(data->string, vec);
+	// 			break;
+	// 		}
+	// 	case TIC_FIELD_VEC3:
+	// 		{
+	// 			tc_Vec3 vec = tico_json_to_vec3(data);
+	// 			field = tico_field_create_vec3(data->string, vec);
+	// 			break;
+	// 		}
+	// 	case TIC_FIELD_VEC4:
+	// 		{
+	// 			tc_Vec4 vec = tico_json_to_vec4(data);
+	// 			field = tico_field_create_vec4(data->string, vec);
+	// 			break;
+	// 		}
+	// 	case TIC_FIELD_ARRAY:
+	// 		break;
+	// 	case TIC_FIELD_OBJECT:
+	// 		{
+	// 			cJSON *item = NULL;
+	// 			field = tico_field_create_object(data->string, NULL);
+	// 			cJSON_ArrayForEach(item, data) {
+	// 				tc_Field *new_field = tico_field_from_json(item);
+	// 				if (new_field) tico_field_add(field, new_field);
+	// 			}
+	// 			break;
+	// 		}
+	// 	default:
+	// 		TRACELOG("Unknown Field %s type: %d", data->string, type);
+	// }
+
+	// return field;
+}
+
+void tico_template_init(tc_Template *temp, cJSON *json) {
+  ASSERT(temp != NULL);
+  ASSERT(json != NULL);
+  temp->root = tico_field_from_json(json);
+  // temp->root = NULL;
+  // temp->root = tico_field_create_object("", NULL);
+
+  // // temp->data = json;
+
+  // cJSON *obj = NULL;
+  // cJSON_ArrayForEach(obj, json) {
+  //   const char *typename = tico_json_get_string(obj, FIELD_TYPE_NAME, 0);
+  //   // TRACELOG("Testandaod %s", type);
+  //   // tc_Field field = {0};
+  //   // if (!temp->root) {
+
+  //   // } 
+  //   int type = tico_field_get_type_from_typename(typename);
+  //   tc_Field *field = NULL;
+  //   switch(type) {
+  //     case TIC_FIELD_NUMBER:
+  //     {
+  //       float value = tico_json_get_number(obj, FIELD_DATA_NAME, 0);
+  //       field = tico_field_create_number(obj->string, value);
+  //       break;
+  //     }
+  //     case TIC_FIELD_STRING:
+  //     {
+  //       const char *string = tico_json_get_string(obj, FIELD_DATA_NAME, 0);
+  //       field = tico_field_create_string(obj->string, string);
+  //       break;
+  //     }
+  //     case TIC_FIELD_BOOLEAN:
+  //     {
+  //       int boolean = tico_json_get_boolean(obj, FIELD_DATA_NAME, 0);
+  //       field = tico_field_create_boolean(obj->string, boolean);
+  //       break;
+  //     }
+  //     case TIC_FIELD_VEC2:
+  //     {
+  //       tc_Vec2 vec = tico_json_get_vec2(obj, FIELD_DATA_NAME, 0);
+  //       field = tico_field_create_vec2(obj->string, vec);
+  //       break;
+  //     }
+  //     // case TIC_FIELD_VEC3:
+  //     // {
+  //     //   tc_Vec3 vec = tico_json_get_vec3(obj, obj->string, 0);
+  //     //   field = tico_field_create_vec3(obj->string, vec);
+  //     //   break;
+  //     // }
+  //     // case TIC_FIELD_VEC4:
+  //     // {
+  //     //   tc_Vec4 vec = tico_json_get_vec4(obj, obj->string, 0);
+  //     //   field = tico_field_create_vec4(obj->string, vec);
+  //     //   break;
+  //     // }
+  //     case TIC_FIELD_RECT:
+  //     {
+  //       tc_Vec4 vec = tico_json_get_vec4(obj, FIELD_DATA_NAME, 0);
+  //       field = tico_field_create_vec4(obj->string, vec);
+  //       field->type = TIC_FIELD_RECT;
+  //       break;
+  //     }
+  //     case TIC_FIELD_RESOURCE:
+  //     {
+  //     	const char *res_name = tico_json_get_string(obj, FIELD_DATA_NAME, 0);
+  //     	field = tico_field_create_resource(obj->string, res_name);
+  //     	break;
+  //     }
+  //     default:
+  //      TRACELOG("Unkown Field type: %s", obj->string);
+  //   }
+
+  //   if (!field) continue;
+  //   if (!temp->root) temp->root = field;
+  //   else tico_field_push(temp->root, field);
+
+    // if (!strcmp(type, "number")) {
+    //   // float number = tico_json_get_number(obj, FIELD_DATA_NAME, 0);
+    //   // tico_field_set_number(&field, obj->string, number);
+    //   // field = tico_field_create(TIC_FIELD_NUMBER, obj->string);
+    //   // field.data = obj;
+    //   float number = tico_json_get_number(obj, FIELD_DATA_NAME, 0);
+    //   // tico_template_insert_number(temp, obj->string, number);
+    //   tico_field_push_number(temp->root, obj->string, number);
+
+    //   // tico_field_set_number(&field, NULL, number);
+    // } else if (!strcmp(type, "string")) {
+    //   const char *string = tico_json_get_string(obj, FIELD_DATA_NAME, 0);
+    //   // tico_template_insert_string(temp, obj->string, string);
+    //   tico_field_push_string(temp->root, obj->string, string);
+    // } else if (!strcmp(type, "boolean")) { 
+    //   int boolean = tico_json_get_boolean(obj, obj->string, 0);
+    //   tico_field_push_boolean(temp->root, obj->string, boolean);
+    // } else if (!strcmp(type, "vec2")) {
+    //   // field = tico_field_create(TIC_FIELD_VEC2, obj->string);
+    //   tc_Vec2 vec2 = tico_json_get_vec2(obj, FIELD_DATA_NAME, 0);
+    //   // field.data = obj;
+    //   // tico_field_set_vec2(&field, NULL, vec2);
+    //   // tico_template_insert_vec2(temp, obj->string, vec2);
+    //   tico_field_push_vec2(temp->root, obj->string, vec2);
+    //   // TRACELOG("testeeeew");
+    // } else if (!strcmp(type, "vec3")) {
+    //   // tc_Vec3 vec = tico_json_get_vec3(obj, FIELD_DATA_NAME, 0);
+    //   // tico_field_push_vec3(temp->root, obj->string, vec);
+    // } else if (!strcmp(type, "vec4") || !strcmp(type, "rect")) {
+    //   // tc_Vec4 vec = tico_json_get_vec4(obj, FIELD_DATA_NAME, 0);
+    //   // tico_field_push_vec4(temp->root, obj->string, vec);
+    // } else {
+    //   continue;
+    // }
+    // list_push(&temp->fields, field);
+  // }
+}
+
+// void tico_template_init_field(tc_Template *temp) {}
+
+void tico_template_destroy(tc_Template *temp) {
+  // list_clear(&temp->fields);
+  ASSERT(temp != NULL);
+  if (!temp->root) return;
+
+  tc_Field *root = temp->root;
+  while (root->next) {
+    tc_Field *rm = root;
+    root = root->next;
+    free(rm);
+  }
+  temp->root = NULL;
+}
+
+int tico_template_insert_json(tc_Template *temp, cJSON *item) {
+  const char *type = tico_json_get_string(item, FIELD_TYPE_NAME, 0);
+  if (!type) return 0;
+
+  // if (!strcmp(type, "number"))
+
+  return 1;
+}
+
+void tico_template_draw(tc_Template *temp, tc_Vec2 pos, float scale) {
+  // list_iter_t iter = list_iter(&temp->fields);
+  // while (list_next(&iter)) {
+  //   tc_Field *field = iter.data;
+  //   ASSERT(field != NULL);
+  //   switch(field->type) {
+  //     case TIC_FIELD_VEC2:
+  //       tico_field_draw_vec2(field, pos, scale);
+  //       break;
+  //     case TIC_FIELD_RECT:
+  //       tico_field_draw_rect(field, pos, scale);
+  //       break;
+  //     case TIC_FIELD_NUMBER:
+  //       tico_field_draw_number(field, pos, scale);
+  //       break;
+  //     default:
+  //       TRACELOG("Undefined field type: %d", field->type);
+  //   }
+  // }
+  ASSERT(temp != NULL);
+  tc_Field *field = temp->root;
+    // TRACELOG("%s", field->name);
+  // TRACELOG("%p", field);
+  if (!field) return;
+
+ 	tico_field_draw(field, pos, scale);
+}
+
+void tico_template_imgui(tc_Template *temp) {
+  ASSERT(temp != NULL);
+  tc_Field *field = temp->root;
+  if (!field) return;
+
+  tico_field_imgui(temp->uuid, field);
+  // list_iter_t iter = list_iter(&temp->fields);
+  // while (list_next(&iter)) {
+  //   tc_Field *field = iter.data;
+  //   ASSERT(field != NULL);
+  //   switch(field->type) {
+  //     case TIC_FIELD_VEC2:
+  //       tico_field_imgui_vec2(field);
+  //       break;
+  //     case TIC_FIELD_RECT:
+  //       tico_field_imgui_rect(field);
+  //       break;
+  //     case TIC_FIELD_NUMBER:
+  //       tico_field_imgui_number(field);
+  //       break;
+  //     default:
+  //       TRACELOG("type not found");
+  //   }
+  // }
+}
+
+cJSON* tico_template_to_json(tc_Template *temp, int data_only) {
+  ASSERT(temp != NULL);
+  cJSON *json = tico_field_to_json(temp->root, data_only);
+  return json;
+}
+
+cJSON* tico_field_to_json(tc_Field *root, int data_only) {
+  ASSERT(root != NULL);
+  tc_Field *field = root;
+
+  // cJSON *json = tico_json_create_object(NULL);
+  cJSON *json = NULL;
+
+  while (field) {
+    int type = field->type;
+    cJSON *item = NULL;
+    switch (type) {
+      case TIC_FIELD_NUMBER:
+        item = tico_field_number_to_json(field, data_only);
+        break;
+      case TIC_FIELD_STRING:
+        item = tico_field_string_to_json(field, data_only);
+        break;
+      case TIC_FIELD_BOOLEAN:
+        item = tico_field_boolean_to_json(field, data_only);
+        break;
+      case TIC_FIELD_VEC2:
+        item = tico_field_vec2_to_json(field, data_only);
+        break;
+      // case TIC_FIELD_VEC3:
+      //   item = tico_field_vec3_to_json(field, data_only);
+      //   break;
+      // case TIC_FIELD_VEC4:
+      // case TIC_FIELD_RECT:
+      // 	item = tico_field_rect_to_json(field, data_only);
+      // 	break;
+      // case TIC_FIELD_RESOURCE:
+      // 	item = tico_field_resource_to_json(field, data_only);
+      // 	break;
+      // case TIC_FIELD_ARRAY:
+        // item = tico_field_arra
+      case TIC_FIELD_OBJECT:
+      	item = tico_field_object_to_json(field, data_only);
+      	break;
+      default:
+        TRACELOG("Unkown Field %s type, %d", field->name, field->type);
+    }
+
+    if (!json) json = item;
+    else if (item) tico_json_add_item(json, field->name, item);
+
+    field = field->next;
+  }
+
+  // TRACELOG("%p", json);
+
+  return json;
+}
+
+tc_Field* tico_field_create(int type, const char *name) {
+  // tc_Field field = {0};
+  tc_Field *field = malloc(sizeof(*field));
+  memset(field, 0, sizeof(*field));
+
+  field->next = NULL;
+  field->prev = NULL;
+  field->parent = NULL;
+  field->child = NULL;
+
+  // field.type = type;
+  field->type = type;
+  if (name) strcpy(field->name, name);
+
+  return field;
+}
+
+void tico_field_destroy(tc_Field *field) {
+  if (!field) return;
+  if (field->next) tico_field_destroy(field->next);
+  if (field->child) tico_field_destroy(field->child);
+  free(field);
+}
+
+tc_Field* tico_field_get(tc_Field *field, const char *name, int index) {
+	CHECK_FIELD(field, TIC_FIELD_OBJECT);
+
+	tc_Field *iter = field->child;
+
+	while (iter) {
+		if (!strcmp(iter->name, name)) return iter;
+		iter = iter->next;
+	}
+
+	return NULL;
+}
+
+
+void tico_field_add(tc_Field *field_obj, const char *name, tc_Field *child) {
+	ASSERT(field_obj != NULL);
+	ASSERT(child != NULL);
+	if (field_obj->type != TIC_FIELD_OBJECT) return;
+	if (name) strcpy(child->name, name);
+
+
+	if (!field_obj->child) field_obj->child = child;
+	else tico_field_push(field_obj->child, child);
+}
+
+void tico_field_push(tc_Field *root, tc_Field *new_field) {
+  if (!root) {
+    root = new_field;
+    return;
+  }
+  // TRACELOG("teste");
+  tc_Field *field = root;
+
+  while (field->next) {
+    field = field->next;
+  }
+
+  field->next = new_field;
+  new_field->prev = field;
+}
+
+void tico_field_draw(tc_Field *field, tc_Vec2 pos, float scale) {
+	if (!field) return;
+
+	tc_Field *aux = field;
+
+	while (aux) {
+    switch(aux->type) {
+      case TIC_FIELD_NUMBER:
+        tico_field_draw_number(aux, pos, scale);
+        break;
+      case TIC_FIELD_STRING:
+        tico_field_draw_string(aux, pos, scale);
+        break;
+      case TIC_FIELD_BOOLEAN:
+        tico_field_draw_boolean(aux, pos, scale);
+        break;
+      case TIC_FIELD_VEC2:
+        tico_field_draw_vec2(aux, pos, scale);
+        break;
+      // case TIC_FIELD_RECT:
+      //   tico_field_draw_rect(aux, pos, scale);
+      //   break;
+      // case TIC_FIELD_RESOURCE:
+      // 	tico_field_draw_resource(aux, pos, scale);
+      // 	break;
+      case TIC_FIELD_OBJECT:
+      	tico_field_draw(aux->child, pos, scale);
+      	break;
+      default:
+        TRACELOG("Unkown type for %s field: %d", aux->name, aux->type);
+    }
+
+    aux = aux->next;
+  }
+}
+
+void tico_meta_number_imgui(tc_Field *meta_field, tc_Field *field) {
+  if (!meta_field && !field) return;
+
+  // float v_min = tico_field_get_n
+}
+
+typedef struct tc_MetaFn {
+  void (*draw)(tc_Field*, tc_Field*);
+  void (*imgui)(tc_Field*, tc_Field*);
+} tc_MetaFn;
+
+// typedef map_t(tc_MetaFn) map_metafn_t;
+
+
+void tico_meta_imgui(tc_Field *meta_field, tc_Field *field) {
+  if (!field || !meta_field) return;
+
+  // const char *key;
+  // map_iter_t iter = map_iter(&meta->fields);
+  // tc_Field *meta_field = NULL;
+
+  // while ((key = map_next(&meta->fields, &iter))) {
+  //   tc_Field *field
+  // }
+  tc_Field *string_field = tico_field_get(meta_field, "type", 0);
+  const char *type = tico_field_get_string(string_field);
+  if (!type) return;
+  if (!strcmp(type, "number")) tico_meta_number_imgui(meta_field, field);
+}
+
+void tico_field_meta_imgui(tc_Meta *meta, tc_Field *field) {
+  if (!meta || !field) return;
+
+  tc_Field **item = map_get(&meta->fields, field->name);
+  if (!item) return;
+
+  tc_Field *meta_field = *item;
+
+  const char *name = tico_field_get_string(tc_Field *field)
+}
+
+void tico_field_imgui(const char *uuid, tc_Field *field) {
+	ASSERT(uuid != NULL);
+	if (!field) return;
+	ImVec2 size;
+  igGetContentRegionAvail(&size);
+  size.y = 96;
+  int uuid_int = atoi(uuid);
+  uuid_int = tico_max(uuid_int, 1);
+  char str_uuid[10] = "##";
+  strcat(str_uuid, uuid);
+
+  tc_Field *aux = field;
+  // while (aux) {
+
+	if (aux->type != TIC_FIELD_OBJECT) {
+    igBeginChildFrame(child_frame_index+uuid_int, size, ImGuiWindowFlags_AlwaysAutoResize);
+    child_frame_index++;
+    // 
+    igInputText(str_uuid, aux->name, 256, 0, NULL, NULL);
+    const char *types[] = {"unkown", "number", "string", "boolean",
+			"vec2", "vec3", "vec4", "rect", "circle",
+			"color", "resource", "array", "object"
+		};
+		// igListBoxStr_arr("field types", (int*)&field->type, types, 13, 5);
+		igComboStr_arr("type", (int*)&aux->type, types, 13, 5);
+    // igComboFn
+	}
+  switch(aux->type) {
+    case TIC_FIELD_NUMBER:
+      tico_field_imgui_number(aux);
+      break;
+    case TIC_FIELD_STRING:
+      tico_field_imgui_string(aux);
+      break;
+    case TIC_FIELD_BOOLEAN:
+      tico_field_imgui_boolean(aux);
+      break;
+    case TIC_FIELD_VEC2:
+      tico_field_imgui_vec2(aux);
+      break;
+    // case TIC_FIELD_RECT:
+    //   tico_field_imgui_rect(aux);
+    //   break;
+    // case TIC_FIELD_RESOURCE:
+    // 	tico_field_imgui_resource(aux);
+    	// break;
+    case TIC_FIELD_OBJECT:
+    	// tico_field_imgui(uuid, aux->child);
+      tico_field_imgui_object(aux);
+    	break;
+    default:
+      TRACELOG("Unkown type for %s field: %d", aux->name, aux->type);
+  }
+  if (aux->type != TIC_FIELD_OBJECT) igEndChild();
+
+    // aux = aux->next;
+  // }
+}
+
+/**********
+ * Number
+ **********/
+
+tc_Field *tico_field_create_number(const char *name, float value) {
+  tc_Field *field = tico_field_create(TIC_FIELD_NUMBER, name);
+  if (name) strcpy(field->name, name);
+  field->number = value;
+
+  return field;
+}
+
+tc_Field *tico_field_number_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	float value = tico_json_to_number(json);
+	return tico_field_create_number(json->string, value);
+	// if (cJSON_IsNumber(json)) return tico_field_create_number(json->string, json->valuedouble);
+
+	// if (!cJSON_IsObject(json)) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_create_number(NULL, data->valuedouble);
+}
+
+void tico_template_insert_number(tc_Template *temp, const char *name, float value) {
+  ASSERT(temp != NULL);
+  tc_Field *field = tico_field_create_number(name, value);
+
+  // tico_field_push(temp->root, field);
+  // tico_field_push_number(temp->root, name, value);
+  tico_field_add(temp->root, name, field);
+}
+
+void tico_field_push_number(tc_Field *root, const char *name, float value) {
+  tc_Field *new_field = tico_field_create_number(name, value);
+
+  tico_field_push(root, new_field);
+}
+
+void tico_field_set_number(tc_Field *field, const char *name, float number) {
+  CHECK_FIELD(field, TIC_FIELD_NUMBER);
+  if (name) strcpy(field->name, name);
+  // tico_json_set_number(field->data, number);
+  field->number = number;
+}
+
+float tico_field_get_number(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_NUMBER);
+  // return field->data->valuedouble;
+  // return tico_json_to_number(field->data);
+  return field->number;
+}
+
+void tico_field_draw_number(tc_Field *field, tc_Vec2 pos, float scale) {
+  // CHECK_FIELD(field, TIC_FIELD_NUMBER);
+}
+
+void tico_field_imgui_number(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_NUMBER);
+
+  // const char *format = tico_json_get_opt_string(field->data, "format", 0, "%.2f");
+  // cJSON *item = tico_json_get_item(field->data, FIELD_DATA_NAME, 0);
+  // ASSERT(item != NULL);
+
+  // float number = item->valuedouble;
+  float *number = &field->number;
+  int sz = strlen(field->name) + 2;
+  char label[sz];
+  sprintf(label, "##%s", field->name);
+ 
+
+  igDragFloat(label, number, 1.f, -1000.f, 1000.f, "%.2f", 0);
+  // igText("%s: %f", field->name, number);
+  // tico_json_set_number(item, number);
+}
+
+cJSON* tico_field_number_to_json(tc_Field *field, int data_only) {
+  CHECK_FIELD(field, TIC_FIELD_NUMBER);
+  if (data_only) return tico_json_create_number(field->number);
+  
+  cJSON *json = tico_json_create_object(NULL);
+  tico_json_add_string(json, FIELD_TYPE_NAME, "number");
+  tico_json_add_number(json, FIELD_DATA_NAME, field->number);
+
+  return json; 
+}
+
+/**********
+ * String
+ **********/
+
+tc_Field* tico_field_create_string(const char *name, const char *string) {
+  tc_Field *field = tico_field_create(TIC_FIELD_STRING, name);
+  if (string) strcpy(field->string, string);
+
+
+  return field;
+}
+
+tc_Field* tico_field_string_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	const char *string = tico_json_to_string(json);
+	return tico_field_create_string(json->string, string);
+	// if (cJSON_IsString(json)) return tico_field_create_string(json->string, json->valuestring);
+
+	// if (!cJSON_IsObject(json)) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_create_string(data->string, data->valuestring);
+}
+
+void tico_field_push_string(tc_Field *root, const char *name, const char *string) {
+  tc_Field *new_field = tico_field_create_string(name, string);
+
+  tico_field_push(root, new_field);
+}
+
+void tico_field_set_string(tc_Field *field, const char *name, const char *string) {
+  ASSERT(field != NULL);
+  ASSERT(field->type == TIC_FIELD_STRING);
+  if (name) strcpy(field->name, name);
+  if (string) strcpy(field->string, string);
+  // cJSON_SetValuestring(field->data, string);
+  // tico_json_set_string(field->data, string);
+}
+
+const char* tico_field_get_string(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_STRING);
+  // return field->data->valuestring;
+  // return tico_json_to_string(field->data);
+  return field->string;
+}
+
+void tico_field_draw_string(tc_Field *field, tc_Vec2 pos, float scale) {
+}
+
+void tico_field_imgui_string(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_STRING);
+  // cJSON *value = field->data;
+
+  igInputText(field->name, field->string, strlen(field->string), 0, 0, NULL);
+}
+
+cJSON* tico_field_string_to_json(tc_Field *field, int data_only) {
+  CHECK_FIELD(field, TIC_FIELD_STRING);
+  if (data_only) return tico_json_create_string(field->string);
+  
+  cJSON *json = tico_json_create_object(NULL);
+  tico_json_add_string(json, FIELD_TYPE_NAME, "string");
+  tico_json_add_string(json, FIELD_DATA_NAME, field->string);
+
+  return json; 
+}
+
+int tico_field_is_equal(tc_Field *field0, tc_Field *field1) {
+	if (!field0 || !field1) return 0;
+
+	if (field0->type != field1->type) return 0;
+
+	return 1;
+}
+
+/**********
+ * Boolean
+ **********/
+
+tc_Field* tico_field_create_boolean(const char *name, int boolean) {
+  tc_Field *field = tico_field_create(TIC_FIELD_BOOLEAN, name);
+  field->boolean = boolean;
+
+  return field;
+}
+
+tc_Field* tico_field_boolean_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	int boolean = tico_json_to_boolean(json);
+	return tico_field_create_boolean(json->string, boolean);
+	// int type = tico_field_type_from_cjson_type(json->type);
+	// if (type == TIC_FIELD_BOOLEAN) return tico_field_create_boolean(json->string, json->valueint);
+
+	// if (type != TIC_FIELD_OBJECT) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_create_boolean(data->string, data->valueint);
+}
+
+void tico_field_push_boolean(tc_Field *root, const char *name, int value) {
+  tc_Field *new_field = tico_field_create_boolean(name, value);
+
+  tico_field_push(root, new_field);
+}
+
+void tico_field_set_boolean(tc_Field *field, const char *name, int boolean) {
+  CHECK_FIELD(field, TIC_FIELD_BOOLEAN);
+  if (name) strcpy(field->name, name);
+  // field->data->valueint = boolean;
+  // tico_json_set_boolean(field->data, boolean);
+  field->boolean = boolean;
+}
+
+int tico_field_get_boolean(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_BOOLEAN);
+  // return field->data->valueint;
+  // return tico_json_to_boolean(field->data);
+  return field->boolean;
+}
+
+void tico_field_draw_boolean(tc_Field *field, tc_Vec2 pos, float scale) {}
+
+void tico_field_imgui_boolean(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_BOOLEAN);
+
+  igCheckbox(field->name, (bool*)&field->boolean);
+}
+
+cJSON* tico_field_boolean_to_json(tc_Field *field, int data_only) {
+  CHECK_FIELD(field, TIC_FIELD_BOOLEAN);
+  if (data_only) return tico_json_create_boolean(field->boolean);
+  
+  cJSON *json = tico_json_create_object(NULL);
+  tico_json_add_string(json, FIELD_TYPE_NAME, "boolean");
+  tico_json_add_boolean(json, FIELD_DATA_NAME, field->boolean);
+
+  return json; 
+}
+
+/**********
+ * Vec2
+ **********/
+
+tc_Field* tico_field_create_vec2(const char *name, tc_Vec2 value) {
+  tc_Field *field = tico_field_create(TIC_FIELD_VEC2, name);
+
+  memcpy(&field->vec2, &value, sizeof(tc_Vec2));
+  // TRACELOG("%f %f", value.x, field->vec2.x);
+
+  return field;
+}
+
+tc_Field* tico_field_vec2_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	// int type = cJSON_Number;
+	tc_Vec2 vec = tico_json_to_vec2(json);
+	// TRACELOG("%s %d", json->string, json->type);
+	// TRACELOG("%f %f", vec.x, vec.y);
+	return tico_field_create_vec2(json->string, vec);
+	// int type = tico_field_type_from_cjson_type(json->type);
+	// if (type == TIC_FIELD_VEC2) {
+	// 	tc_Vec2 vec = tico_json_to_vec2(json);
+	// 	return tico_field_create_vec2(json->string, vec);
+	// }
+
+	// if (type != TIC_FIELD_OBJECT) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_vec2_from_json(data);
+}
+
+void tico_field_push_vec2(tc_Field *root, const char *name, tc_Vec2 vec) {
+  tc_Field *new_field = tico_field_create_vec2(name, vec);
+
+  tico_field_push(root, new_field);
+}
+
+void tico_field_set_vec2(tc_Field *field, const char *name, tc_Vec2 vec2) {
+  CHECK_FIELD(field, TIC_FIELD_VEC2);
+  if (name) strcpy(field->name, name);
+  memcpy(&field->vec2, &vec2, sizeof(tc_Vec2));
+  // TRACELOG("opa");
+  // tico_json_vec2
+  // field->data->valuetc_Vec2 = vec2;
+  // tico_json_set_vec2(field->data, vec2);
+}
+
+tc_Vec2 tico_field_get_vec2(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_VEC2);
+  // tc_Vec2 vec = tico_json_to_vec2(field->data);
+  // return vec;
+  // return tico_json_to_vec2(field->data);
+  // return field->data->valueint;
+
+  return field->vec2;
+}
+
+void tico_field_draw_vec2(tc_Field *field, tc_Vec2 pos, float scale) {
+  CHECK_FIELD(field, TIC_FIELD_VEC2);
+  // tc_Vec2 vec = tico_json_get_vec2(field->data, FIELD_DATA_NAME, 0);
+  tc_Vec2 vec = field->vec2;
+
+
+  ImDrawList *list = igGetWindowDrawList();
+
+  ImVec2 pos0;
+  pos0.x = pos.x + (vec.x*scale);
+  pos0.y = pos.y + (vec.y*scale);
+  float radius = scale;
+
+  // ImDrawList_AddRectFilled(list, pos0, (ImVec2){pos0.x+scale, pos0.y+scale}, 0xffffffff, 0, 0);
+  ImDrawList_AddCircleFilled(list, pos0, radius, 0xffffffff, 64);
+}
+
+void tico_field_imgui_vec2(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_VEC2);
+  // cJSON *item = tico_json_get_item(field->data, FIELD_DATA_NAME, 0);
+  // ASSERT(item != NULL);
+
+  // TRACELOG("%d", tico_json_is_vec2(item));
+
+  // tc_Vec2 vec = tico_json_to_vec2(item);
+  tc_Vec2 *vec = &field->vec2;
+
+  // float *data = vec.data;
+  // memcpy(data, vec.data, sizeof(float)*2);
+  // float n_min = -10000.f;
+  // float n_max = 10000.f;
+  // float speed = tico_json_get_opt_number(field->data, "speed", 0, 1.f);
+  // float n_min = tico_json_get_opt_number(field->data, "min", 0, -100000);
+  // float n_max = tico_json_get_opt_number(field->data, "max", 0, 100000);
+  float speed = 1;
+  float n_min = -100000;
+  float n_max =  100000;
+
+  // cJSON *x = tico_json_get_item(item, NULL, 0);
+  // cJSON *y = tico_json_get_item(item, NULL, 1);
+
+  // const char *format = tico_json_get_opt_string(field->data, "format", 0, "%.2f");
+  const char *format = "%.2f";
+  // igInputFloat2(field->name, vec.data, format, 0);
+  // igDragFloat
+  // int sz = strlen(field->name) + 2 + strlen("asdasdas");
+  // char name[sz];
+  // sprintf(name, "%s##asdasdas", field->name);
+  igDragFloat2(field->name, field->vec2.data, speed, n_min, n_max, format, 0);
+  // sprintf(name, "%s##y", field->name);
+  // igDragFloat(name, &y->valuedouble, 1.f, n_min, n_max, format, 0);
+  // tico_json_set_vec2(item, vec);
+
+}
+
+cJSON* tico_field_vec2_to_json(tc_Field *field, int data_only) {
+  CHECK_FIELD(field, TIC_FIELD_VEC2);
+  if (data_only) return tico_json_create_vec2(field->vec2);
+  
+  cJSON *json = tico_json_create_object(NULL);
+  tico_json_add_string(json, FIELD_TYPE_NAME, "vec2");
+  tico_json_add_vec2(json, FIELD_DATA_NAME, field->vec2);
+
+  return json; 
+}
+
+
+/**********
+ * Vec4
+ **********/
+
+tc_Field* tico_field_create_vec4(const char *name, tc_Vec4 value) {
+  tc_Field *field = tico_field_create(TIC_FIELD_VEC4, name);
+
+  memcpy(&field->vec4, &value, sizeof(tc_Vec4));
+
+  return field;
+}
+
+tc_Field* tico_field_vec4_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	tc_Vec4 vec = tico_json_to_vec4(json);
+	return tico_field_create_vec4(json->string, vec);
+	// int type = tico_field_type_from_cjson_type(json->type);
+	// if (type == TIC_FIELD_VEC4) {
+	// 	tc_Vec4 vec = tico_json_to_vec4(json);
+	// 	return tico_field_create_vec4(json->string, vec);
+	// }
+
+	// if (type != TIC_FIELD_OBJECT) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_vec4_from_json(data);
+}
+
+void tico_field_push_vec4(tc_Field *root, const char *name, tc_Vec4 vec) {
+  tc_Field *new_field = tico_field_create_vec4(name, vec);
+
+  tico_field_push(root, new_field);
+}
+
+void tico_field_set_vec4(tc_Field *field, const char *name, tc_Vec4 vec4) {
+  CHECK_FIELD(field, TIC_FIELD_VEC4);
+  if (name) strcpy(field->name, name);
+  memcpy(&field->vec4, &vec4, sizeof(tc_Vec4));
+  // TRACELOG("opa");
+  // tico_json_vec2
+  // field->data->valuetc_Vec2 = vec2;
+  // tico_json_set_vec2(field->data, vec2);
+}
+
+tc_Vec4 tico_field_get_vec4(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_VEC4);
+  // tc_Vec2 vec = tico_json_to_vec2(field->data);
+  // return vec;
+  // return tico_json_to_vec2(field->data);
+  // return field->data->valueint;
+
+  return field->vec4;
+}
+
+void tico_field_draw_vec4(tc_Field *field, tc_Vec2 pos, float scale) {
+  // CHECK_FIELD(field, TIC_FIELD_VEC2);
+  // // tc_Vec2 vec = tico_json_get_vec2(field->data, FIELD_DATA_NAME, 0);
+  // tc_Vec4 vec = field->vec4;
+
+
+  // ImDrawList *list = igGetWindowDrawList();
+
+  // ImVec2 pos0;
+  // pos0.x = pos.x + (vec.x*scale);
+  // pos0.y = pos.y + (vec.y*scale);
+  // float radius = scale;
+
+  // // ImDrawList_AddRectFilled(list, pos0, (ImVec2){pos0.x+scale, pos0.y+scale}, 0xffffffff, 0, 0);
+  // // ImDrawList_AddCircleFilled(list, pos0, radius, 0xffffffff, 64);
+}
+
+void tico_field_imgui_vec4(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_VEC4);
+
+  tc_Vec4 *vec = &field->vec4;
+
+  float speed = 1;
+  float n_min = -100000;
+  float n_max =  100000;
+
+  
+  const char *format = "%.2f";
+  igDragFloat4(field->name, vec->data, speed, n_min, n_max, format, 0);
+}
+
+/********
+ * Rect
+ ********/
+
+// tc_Field* tico_field_create_rect(const char *name, tc_Rectf rect) {
+//   tc_Field *field = tico_field_create(TIC_FIELD_RECT, name);
+//   memcpy(&field->rect, &rect, sizeof(tc_Rectf));
+
+//   return field;
+// }
+
+// tc_Field* tico_field_rect_from_json(cJSON *json) {
+// 	ASSERT(json != NULL);
+// 	tc_Vec4 vec = tico_json_to_vec4(json);
+// 	tc_Rectf rect = tico_rectf(vec.x, vec.y, vec.z, vec.w);
+// 	return tico_field_create_rect(json->string, rect);
+// 	// int type = tico_field_type_from_cjson_type(json->type);
+// 	// if (type == TIC_FIELD_VEC4) {
+// 	// 	tc_Vec4 vec = tico_json_to_vec4(json);
+// 	// 	tc_Rectf rect = tico_rectf(vec.x, vec.y, vec.z, vec.w);
+// 	// 	return tico_field_create_rect(json->string, rect);
+// 	// }
+
+// 	// if (type != TIC_FIELD_OBJECT) return NULL;
+// 	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+// 	// if (!data) return NULL;
+
+// 	// return tico_field_rect_from_json(data);
+// }
+
+// void tico_field_push_rect(tc_Field *root, const char *name, tc_Rectf rect) {
+//   tc_Field *new_field = tico_field_create_rect(name, rect);
+
+//   tico_field_push(root, new_field);
+// }
+
+// void tico_field_set_rect(tc_Field *field, const char *name, tc_Rectf rect) {
+//   CHECK_FIELD(field, TIC_FIELD_RECT);
+//   if (name) strcpy(field->name, name);
+//   // tc_Vec4 vec = tico_vec4(rect.x, rect.y, rect.w, rect.h);
+//   memcpy(&field->rect, &rect, sizeof(tc_Rectf));
+// }
+
+// tc_Rectf tico_field_get_rect(tc_Field *field) {
+//   CHECK_FIELD(field, TIC_FIELD_RECT);
+//   // tc_Vec4 vec = tico_json_to_vec4(field->data);
+//   // tc_Rectf rect = tico_rectf(vec.x, vec.y, vec.z, vec.w);
+//   return field->rect;
+// }
+
+// void tico_field_draw_rect(tc_Field *field, tc_Vec2 pos, float scale) {
+//   CHECK_FIELD(field, TIC_FIELD_RECT);
+//   // tc_Vec4 vec = tico_json_get_vec4(field->data, FIELD_DATA_NAME, 0);
+//   tc_Rectf rect = field->rect;
+
+
+//   ImDrawList *list = igGetWindowDrawList();
+
+//   ImVec2 pos0;
+//   pos0.x = pos.x + (rect.x*scale);
+//   pos0.y = pos.y + (rect.y*scale);
+
+//   ImVec2 pos1;
+//   pos1.x = pos0.x + (rect.w*scale);
+//   pos1.y = pos0.y + (rect.h*scale);
+
+//   ImDrawList_AddRectFilled(list, pos0, pos1, 0x99ffffff, 0, 0);
+//   ImDrawList_AddRect(list, pos0, pos1, 0xffffffff, 0, 0, 2);
+// }
+
+// void tico_field_imgui_rect(tc_Field *field) {
+//   CHECK_FIELD(field, TIC_FIELD_RECT);
+//   // cJSON *item = tico_json_get_item(field->data, FIELD_DATA_NAME, 0);
+//   // ASSERT(item != NULL);
+
+//   // TRACELOG("%d", tico_json_is_vec2(item));
+
+//   // tc_Vec4 vec = tico_json_to_vec4(item);
+//   tc_Rectf *rect = &field->rect;
+//   // float speed = tico_json_get_opt_number(field->data, "speed", 0, 1.f);
+//   // float n_min = tico_json_get_opt_number(field->data, "min", 0, -100000);
+//   // float n_max = tico_json_get_opt_number(field->data, "max", 0, 100000);
+//   // const char *format = tico_json_get_opt_string(field->data, "format", 0, "%.2f");
+//   float speed = 1;
+//   float n_min = -100000;
+//   float n_max =  100000;
+//   const char *format = "%.2f";
+//   igDragFloat4(field->name, rect->data, speed, n_min, n_max, format, 0);
+//   // tico_json_set_vec2(item, vec);
+//   // tico_json_set_vec4(item, vec);
+
+
+// }
+
+// cJSON* tico_field_rect_to_json(tc_Field *field, int data_only) {
+//   CHECK_FIELD(field, TIC_FIELD_RECT);
+//   if (data_only) return tico_json_create_vec4(field->vec4);
+  
+//   cJSON *json = tico_json_create_object(NULL);
+//   tico_json_add_string(json, FIELD_TYPE_NAME, "rect");
+//   tico_json_add_vec4(json, FIELD_DATA_NAME, field->vec4);
+
+//   return json; 
+// }
+
+// /*********
+//  * Color
+//  *********/
+
+// tc_Field* tico_field_create_color(const char *name, tc_Color color) {
+//   tc_Field *field = tico_field_create(TIC_FIELD_COLOR, name);
+//   memcpy(&field->color, &color, sizeof(tc_Color));
+
+//   return field;
+// }
+
+// void tico_field_draw_color(tc_Field *field, tc_Vec2 pos, float scale) {
+//   // CHECK_FIELD(field, TIC_FIELD_COLOR);
+// }
+
+// void tico_field_imgui_color(tc_Field *field) {
+//   CHECK_FIELD(field, TIC_FIELD_COLOR);
+
+//   // tc_Color color = field->color;
+//   tc_Color *col = &field->color;
+
+//   tc_Vec4 color;
+//   for (int i = 0; i < 4; i++) {
+//     color.data[i] = (float)col->data[i] / 255.f;
+//   }
+//   // tc_Vec4 *color = &field->vec4;
+
+//   igColorEdit4(field->name, color.data, 0);
+
+//   for (int i = 0; i < 4; i++) {
+//     col->data[i] = color.data[i] * 255.f;
+//   }
+// }
+
+
+// /****************
+//  * Resource
+//  ****************/
+
+// tc_Field* tico_field_create_resource(const char *name, const char *res_name) {
+// 	ASSERT(res_name != NULL);
+// 	tc_Field *field = tico_field_create(TIC_FIELD_RESOURCE, name);
+// 	strcpy(field->string, res_name);
+
+// 	return field;
+// }
+
+// tc_Field* tico_field_resource_from_json(cJSON *json) {
+// 	ASSERT(json != NULL);
+// 	const char *string = tico_json_to_string(json);
+// 	return tico_field_create_resource(json->string, string);
+// 	// int type = tico_field_type_from_cjson_type(json->type);
+// 	// if (type == TIC_FIELD_STRING) {
+// 	// 	const char *string = tico_json_to_string(json);		
+// 	// 	return tico_field_create_resource(json->string, string);
+// 	// }
+
+// 	// if (type != TIC_FIELD_OBJECT) return NULL;
+// 	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+// 	// if (!data) return NULL;
+
+// 	// return tico_field_resource_from_json(data);
+// }
+
+// void tico_field_draw_resource(tc_Field *field, tc_Vec2 pos, float scale) {
+// 	CHECK_FIELD(field, TIC_FIELD_RESOURCE);
+
+// 	// tico_plugin_resources_
+// 	tc_Resource *res = tico_plugin_resources_get_by_field(field);
+// 	if (!res) return;
+
+// 	ImDrawList *list = igGetWindowDrawList();
+
+// 	if (!strcmp(res->type, "sprite")) {
+// 		tc_Image *image = NULL;
+// 		const char *img_name = tico_json_get_string(res->data, "image", 0);
+// 		tc_Resource *img_res = tico_plugin_resources_get_by_key(img_name);
+// 		if (!img_res) return;
+// 		image = img_res->data;
+
+// 		float tw = tico_json_get_number(res->data, "width", 0);
+// 		float th = tico_json_get_number(res->data, "height", 0);
+// 		float w = image->width;
+// 		float h = image->height;
+
+// 		ImVec2 pos0 = (ImVec2){pos.x, pos.y};
+// 		ImVec2 pos1 = (ImVec2){pos0.x + tw*scale, pos0.y + th*scale};
+
+// 		ImVec2 uv0 = (ImVec2){0, 0};
+// 		ImVec2 uv1 = (ImVec2){tw/w, th/h};
+
+// 		ImDrawList_AddImage(list, image->texture.id, pos0, pos1, uv0, uv1, 0xffffffff);
+// 	} else if (!strcmp(res->type, "image")) {
+// 		tc_Image *image = res->data;
+
+// 		float w = image->width;
+// 		float h = image->height;
+
+// 		ImVec2 pos0 = (ImVec2){pos.x, pos.y};
+// 		ImVec2 pos1 = (ImVec2){pos0.x + w*scale, pos0.y + h*scale};
+
+// 		ImVec2 uv0 = (ImVec2){0, 0};
+// 		ImVec2 uv1 = (ImVec2){1, 1};
+// 		ImDrawList_AddImage(list, image->texture.id, pos0, pos1, uv0, uv1, 0xffffffff);
+// 	}
+// }
+
+// void tico_field_imgui_resource(tc_Field *field) {
+// 	CHECK_FIELD(field, TIC_FIELD_RESOURCE);
+
+// 	igInputText(field->name, field->string, 256, 0, 0, NULL);
+// }
+
+// cJSON* tico_field_resource_to_json(tc_Field *field, int data_only) {
+//   CHECK_FIELD(field, TIC_FIELD_RESOURCE);
+//   if (data_only) return tico_json_create_string(field->string);
+  
+//   cJSON *json = tico_json_create_object(NULL);
+//   tico_json_add_string(json, FIELD_TYPE_NAME, "resource");
+//   tico_json_add_string(json, FIELD_DATA_NAME, field->string);
+
+//   return json; 
+// }
+
+/*****************
+ * Object
+ *****************/
+
+tc_Field* tico_field_create_object(const char *name, tc_Field* aux) {
+	tc_Field *field = tico_field_create(TIC_FIELD_OBJECT, name);
+
+	return field;
+}
+
+void tico_field_imgui_object(tc_Field *field) {
+  CHECK_FIELD(field, TIC_FIELD_OBJECT);
+  if (!strcmp(field->name, FIELD_HEADER_NAME)) return;
+
+  tc_Field *aux = field->child;
+  while (aux) {
+    if (field->meta) tico_field_meta_imgui(field->meta, aux);
+    else tico_field_imgui(field->name, aux);
+    aux = aux->next;
+  }
+}
+
+tc_Field* tico_field_object_from_json(cJSON *json) {
+	ASSERT(json != NULL);
+	tc_Field *field = NULL;
+
+	cJSON *item = NULL;
+
+	field = tico_field_create_object("", NULL);
+	cJSON_ArrayForEach(item, json) {
+		tc_Field *new_field = tico_field_from_json(item);
+		// TRACELOG("%s %d", new_field->name, new_field->type);
+    // if (new_field) TRACELOG("%s %d %p %p", new_field->name, new_field->type, new_field->child, new_field);
+		if (new_field) tico_field_add(field, item->string, new_field);
+	}
+	// int type = tico_field_get_type_from_cjson(json);
+
+	// if (type !=)
+	// int type = tico_field_type_from_cjson_type(json->type);
+	// if (type == TIC_FIELD_OBJECT) {
+	// 	tc_Vec2 vec = tico_json_to_object(json);
+	// 	return tico_field_create_object(json->string, vec);
+	// }
+
+	// if (type != TIC_FIELD_OBJECT) return NULL;
+	// cJSON *data = tico_json_get_item(json, FIELD_DATA_NAME, 0);
+	// if (!data) return NULL;
+
+	// return tico_field_object_from_json(data);
+	return field;
+}
+
+cJSON* tico_field_object_to_json(tc_Field *field, int data_only) {
+	CHECK_FIELD(field, TIC_FIELD_OBJECT);
+	cJSON *item = tico_field_to_json(field->child, data_only);
+	// if (data_only) return item;
+
+	return item;
+
+	// cJSON *json = tico_json_create_object(NULL);
+	// tico_json_add_string(json, FIELD_TYPE_NAME, "object");
+	// tico_json_add_item(json, FIELD_DATA_NAME, item);
+
+	// return json;
+}

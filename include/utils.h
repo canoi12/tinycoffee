@@ -125,6 +125,7 @@ typedef list_t(float) list_float_t;
 
 void tico_utils_generate_uuid(char *out, int size);
 float tico_utils_get_ratio(float w0, float h0, float w1, float h1);
+int tico_utils_hash(const char *key);
 
 char *tico_replace_char(char *str, unsigned char find, unsigned char replace);
 unsigned char* tico_utf8_codepoint(unsigned char *p, int* codepoint);
@@ -232,6 +233,25 @@ void* list_get_(list_base_t *base, int i) {
 	return NULL;
 }
 
+void list_clear_(list_base_t *base) {
+	list_node_t *node = base->root;
+	list_node_t *rm_node = NULL;
+	if (!node) return;
+	if (!node->next) {
+		free(node);
+		base->root = NULL;
+		base->size = 0;
+		return;
+	}
+	while (node->next) {
+		rm_node = node;
+		node = node->next;
+		free(rm_node);
+	}
+	base->root = NULL;
+	base->size = 0;
+}
+
 /*************
  * Utils
  *************/
@@ -248,6 +268,18 @@ void tico_utils_generate_uuid(char *out, int size) {
 		strcat(out, ch);
 		// TRACELOG("%s %s", out, ch);
 	}
+}
+
+int tico_utils_hash(const char *key) {
+	const char *p = key;
+	int hash = 0;
+	while (p) {
+		hash <<= 1;
+		hash += *p * 5913;
+		p++;
+	}
+
+	return hash;
 }
 
 float tico_utils_get_ratio(float w0, float h0, float w1, float h1) {
