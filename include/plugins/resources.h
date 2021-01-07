@@ -424,7 +424,7 @@ tc_bool tico_plugin_resources_add(tc_ResourceManager *manager, const char *type,
 
 	int type_len = strlen(resource->type);
 	int name_len = strlen(resource->name);
-  int size = name_len + type_len + 2;
+  int size = name_len + type_len + 3;
   char key[size];
   sprintf(key, "%s//%s", resource->type, resource->name);
   char **uuid = map_get(&manager->keys, key);
