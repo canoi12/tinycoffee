@@ -15,6 +15,7 @@ tc_Plugin tico_plugin_editor() {
 	// tico_plugin_init(plugin);
 	tc_Plugin plugin = tico_plugin_create();
 	plugin.data = TIC_MALLOC(sizeof(tc_Editor));
+	*(tc_Editor*)plugin.data = (tc_Editor){0};
 	plugin.enable = (PluginLoad)tico_plugin_editor_load;
 	plugin.update = (PluginUpdate)tico_plugin_editor_update;
 	plugin.draw = (PluginDraw)tico_plugin_editor_draw;
@@ -25,6 +26,7 @@ tc_Plugin tico_plugin_editor() {
 tc_Plugin tico_plugin_lua() {
 	tc_Plugin plugin = tico_plugin_create();
 	plugin.data = TIC_MALLOC(sizeof(tc_Lua));
+	*(tc_Lua*)plugin.data = (tc_Lua){0};
 	plugin.enable = (PluginEnable)tico_plugin_lua_enable;
 	plugin.load = (PluginLoad)tico_plugin_lua_load;
 	plugin.update = (PluginUpdate)tico_plugin_lua_update;
@@ -36,6 +38,7 @@ tc_Plugin tico_plugin_lua() {
 tc_Plugin tico_plugin_resource() {
 	tc_Plugin plugin = tico_plugin_create();
 	plugin.data = TIC_MALLOC(sizeof(tc_ResourceManager));
+	*(tc_ResourceManager*)plugin.data = (tc_ResourceManager){0};
 	plugin.enable = (PluginLoad)tico_plugin_resources_init;
 
 	return plugin;
