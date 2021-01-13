@@ -102,7 +102,7 @@ tc_Config tico_config_load(const char *filename, int argc, char ** argv) {
 
   // TRACELOG("%s", filename);
 
-  const char *name = tico_json_get_opt_string(jsonConfig, "name", 0, (char*)config.title);
+  const char *name = tico_json_get_string(jsonConfig, "name", 0);
   if (name) strcpy(config.title, name);
 
   window = tico_json_get_object(jsonConfig, "window", 0);
