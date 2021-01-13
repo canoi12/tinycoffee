@@ -120,7 +120,7 @@ tc_Config tico_config_load(const char *filename, int argc, char ** argv) {
   if (plugins) {
     cJSON *plugin = NULL;
     cJSON_ArrayForEach(plugin, plugins) {
-      char *pname = malloc(strlen(plugin->valuestring));
+      char *pname = malloc(strlen(plugin->valuestring) + 1);
       strcpy(pname, plugin->valuestring);
       vec_push(&config.plugins, pname);
     }
