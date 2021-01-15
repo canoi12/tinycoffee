@@ -28,7 +28,7 @@ void tico_graphics_terminate(tc_Graphics *graphics) {
 	// stack_arr_destroy(&graphics->shader_stack);
 	// stack_arr_destroy(&graphics->matrix_stack);
 	tico_render_terminate(&graphics->render);
-  tico_font_destroy(&graphics->default_font);
+	tico_font_destroy(&graphics->default_font);
 	LOG("Graphics Module terminated");
 }
 
