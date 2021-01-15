@@ -25,13 +25,15 @@ tc_Resource tico_plugin_resource_object_loader(tc_ResourceManager *manager, tc_R
 
 	// cJSON *root = json;
 	// tc_Plugin *plugin = tico_plugin_get("lua");
+	cJSON* json_clone = tico_json_clone(json);
+
 	if (manager->lua) {
 		tc_Lua *lua = manager->lua;
-		tico_lua_json_new_object(lua->L, json);
+		tico_lua_json_new_object(lua->L, json_clone);
 	}
 
 	res->status |= TIC_RESOURCE_LOADED;
-	res->data = json;
+	res->data = json_clone;
 
 	return *res;
 }

@@ -24,13 +24,15 @@ tc_Resource tico_plugin_resource_tilemap_loader(tc_ResourceManager *manager, tc_
 	// TRACELOG("%s", path);
 
 	// cJSON *root = tico_json_open(path);
-	cJSON *root = json;
+	cJSON* json_clone = tico_json_clone(json);
+
+	cJSON *root = json_clone;
 	if (manager->lua) {
 		tc_Lua *lua = manager->lua;
-		tico_lua_json_new_object(lua->L, json);
+		tico_lua_json_new_object(lua->L, json_clone);
 	}
 	res->status |= TIC_RESOURCE_LOADED;
-	res->data = json;
+	res->data = json_clone;
 	// int width = tico_json_get_number(root, "width");
 	// int height = tico_json_get_number(root, "height");
 	// const char *tileset_name = tico_json_get_string(root, "tileset");

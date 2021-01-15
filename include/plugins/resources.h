@@ -246,6 +246,7 @@ int tico_plugin_resources_init(tc_ResourceManager *manager) {
 			if (res_data) {
 				tc_Resource *res = tico_plugin_resources_from_json(manager, res_data);
 				if (res) strcpy(res->path, el->valuestring);
+				tico_json_delete(res_data);
 			}
 		}
 		// if (el->string) {
