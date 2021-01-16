@@ -38,7 +38,10 @@ cJSON* tico_json_clone(cJSON *src) {
   const char *json_str = tico_json_print(src);
   if (!json_str) return NULL;
 
-  return tico_json_parse(json_str);
+  cJSON* json_clone = tico_json_parse(json_str);
+  free(json_str);
+
+  return json_clone;
 }
 
 void tico_json_save(const char *filename, cJSON* const json) {

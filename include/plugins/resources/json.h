@@ -17,13 +17,16 @@ tc_ResourcePlugin tico_plugin_resource_json() {
 
 tc_Resource tico_plugin_resource_json_loader(tc_ResourceManager *manager, tc_Resource* res, cJSON* json) {
 	ASSERT(json != NULL);
-	if (manager->lua) {
 
-		tico_lua_json_new_object(manager->lua->L, json);
+	cJSON* json_clone = tico_json_clone(json);
+	ASSERT(json_clone != NULL);
+
+	if (manager->lua) {
+		tico_lua_json_new_object(manager->lua->L, json_clone);
 	}
 
 	res->status |= TIC_RESOURCE_LOADED;
-	res->data = json;
+	res->data = json_clone;
 
 	return *res;
 }

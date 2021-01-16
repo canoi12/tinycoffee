@@ -28,6 +28,7 @@ void tico_graphics_terminate(tc_Graphics *graphics) {
 	// stack_arr_destroy(&graphics->shader_stack);
 	// stack_arr_destroy(&graphics->matrix_stack);
 	tico_render_terminate(&graphics->render);
+	tico_font_destroy(&graphics->default_font);
 	LOG("Graphics Module terminated");
 }
 
@@ -1042,6 +1043,8 @@ void tico_font_init(tc_Font *font, const void *data, size_t bufSize, int fontSiz
       pixels[j + 2] = 255;
       pixels[j + 3] = bitmap[ii];
     }
+
+    stbtt_FreeBitmap(bitmap, font->info.userdata);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, x, 0, ww, hh, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     font->c[i].tx = (float)x / tw;
